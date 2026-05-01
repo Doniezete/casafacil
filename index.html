@@ -186,6 +186,7 @@
     <option value="vgs">Vargem Grande do Sul</option>
     <option value="itobi">Itobi</option>
     <option value="scp">Santa Cruz das Palmeiras</option>
+    <option value="srv">Santa Rosa de Viterbo</option>
   </select>
 
   <button class="btn bp" onclick="go(1)">Continuar →</button>
@@ -422,12 +423,18 @@ var PLANTAS = {
 var D={}, qSel=0, plantaIdx=0, plantasAtuais=[];
 var CPM_PLANO=2280, CPM_DESNIVEL=2350, CPM=2280;
 var CPM_FAIXA_MIN=2070, CPM_FAIXA_MAX=2950;
-var CONTRATO_ATUAL=68;
+var CONTRATO_ATUAL=(function(){
+  try {
+    var saved = localStorage.getItem('casafacil_contrato_num');
+    return saved ? parseInt(saved) : 68;
+  } catch(e) { return 68; }
+})();
 
 var ENDERECOS={
-  vgs:  {cidade:'Vargem Grande do Sul',end:'Rua Francisco Ribeiro Carril, 611 - Centro',uf:'SP',valor:3300},
-  itobi:{cidade:'Itobi',end:'Rua Antônio Luiz Pires, 120 - Centro',uf:'SP',valor:2500},
-  scp:  {cidade:'Santa Cruz das Palmeiras',end:'Rua Coronel Penteado, 1020 - Centro',uf:'SP',valor:2500},
+  vgs:  {cidade:'Vargem Grande do Sul',end:'Rua Francisco Ribeiro Carril, 611 - Centro',uf:'SP',valor:3300,cpm:2280,cpm_desn:2350},
+  itobi:{cidade:'Itobi',end:'Rua Antônio Luiz Pires, 120 - Centro',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
+  scp:  {cidade:'Santa Cruz das Palmeiras',end:'Rua Coronel Penteado, 1020 - Centro',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
+  srv:  {cidade:'Santa Rosa de Viterbo',end:'',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
 };
 var EMPRESA={nome:'CASA FÁCIL',cnpj:'23.736.443/0001-40',resp:'Donizete Cardoso Martins',cpf:'324.743.238-80'};
 
@@ -645,6 +652,12 @@ function go(n){
     var renda=parseM(document.getElementById('renda')),dep=document.getElementById('dep').value,fgts=document.getElementById('fgts').value;
     var nasc=document.getElementById('nascimento').value,dn=new Date(nasc),hoje=new Date();
     var idade=hoje.getFullYear()-dn.getFullYear();if(hoje.getMonth()-dn.getMonth()<0||(hoje.getMonth()-dn.getMonth()===0&&hoje.getDate()<dn.getDate()))idade--;
+    // Atualiza CPM conforme cidade selecionada
+    var cidSel=document.getElementById('cidade_atend').value;
+    var eoSel=ENDERECOS[cidSel]||ENDERECOS.vgs;
+    CPM_PLANO=eoSel.cpm||CPM_PLANO;
+    CPM_DESNIVEL=eoSel.cpm_desn||CPM_DESNIVEL;
+    CPM=document.getElementById('terreno').value==='desnivel'?CPM_DESNIVEL:CPM_PLANO;
     var est=getEstInterp(renda,dep,fgts);
     document.getElementById('ep_faixa').textContent=est.faixa;
     document.getElementById('ep_taxa').textContent=est.taxa.toFixed(2).replace('.',',')+' % a.a.';
@@ -1022,6 +1035,7 @@ function gerarPDF(){
     setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(blobUrl);},2000);
   }
   CONTRATO_ATUAL++;
+  try { localStorage.setItem('casafacil_contrato_num', CONTRATO_ATUAL); } catch(e){}
 }
 
 function valorPorExtenso(v){
@@ -1064,11 +1078,19 @@ function checkPwd(){
   if(p===ADMIN_PWD){
     document.getElementById('adminPwdScreen').style.display='none';
     document.getElementById('adminConfigScreen').style.display='block';
-    document.getElementById('cfg_cpm_plano').value=CPM_PLANO;
-    document.getElementById('cfg_cpm_desn').value=CPM_DESNIVEL;
+    // CPM global definido por cidade (campos abaixo)
     document.getElementById('cfg_val_vgs').value=ENDERECOS.vgs.valor;
     document.getElementById('cfg_val_itobi').value=ENDERECOS.itobi.valor;
     document.getElementById('cfg_val_scp').value=ENDERECOS.scp.valor;
+    document.getElementById('cfg_val_srv').value=ENDERECOS.srv.valor;
+    document.getElementById('cfg_cpm_vgs').value=ENDERECOS.vgs.cpm;
+    document.getElementById('cfg_cpm_desn_vgs').value=ENDERECOS.vgs.cpm_desn;
+    document.getElementById('cfg_cpm_itobi').value=ENDERECOS.itobi.cpm;
+    document.getElementById('cfg_cpm_desn_itobi').value=ENDERECOS.itobi.cpm_desn;
+    document.getElementById('cfg_cpm_scp').value=ENDERECOS.scp.cpm;
+    document.getElementById('cfg_cpm_desn_scp').value=ENDERECOS.scp.cpm_desn;
+    document.getElementById('cfg_cpm_srv').value=ENDERECOS.srv.cpm;
+    document.getElementById('cfg_cpm_desn_srv').value=ENDERECOS.srv.cpm_desn;
     document.getElementById('cfg_contrato_num').value=CONTRATO_ATUAL;
     document.getElementById('cfg_cpm_faixa_min').value=CPM_FAIXA_MIN;
     document.getElementById('cfg_cpm_faixa_max').value=CPM_FAIXA_MAX;
@@ -1086,13 +1108,26 @@ function saveAdmin(){
     if(novaSenha!==confSenha){alert('As senhas não coincidem.');return;}
     ADMIN_PWD=novaSenha;
   }
-  CPM_PLANO=parseInt(document.getElementById('cfg_cpm_plano').value)||2280;
-  CPM_DESNIVEL=parseInt(document.getElementById('cfg_cpm_desn').value)||2350;
-  CPM=document.getElementById('terreno').value==='plano'?CPM_PLANO:CPM_DESNIVEL;
+  // CPM global atualizado por cidade (abaixo)
   ENDERECOS.vgs.valor=parseInt(document.getElementById('cfg_val_vgs').value)||3300;
   ENDERECOS.itobi.valor=parseInt(document.getElementById('cfg_val_itobi').value)||2500;
   ENDERECOS.scp.valor=parseInt(document.getElementById('cfg_val_scp').value)||2500;
+  ENDERECOS.srv.valor=parseInt(document.getElementById('cfg_val_srv').value)||2500;
+  ENDERECOS.vgs.cpm=parseInt(document.getElementById('cfg_cpm_vgs').value)||2280;
+  ENDERECOS.vgs.cpm_desn=parseInt(document.getElementById('cfg_cpm_desn_vgs').value)||2350;
+  ENDERECOS.itobi.cpm=parseInt(document.getElementById('cfg_cpm_itobi').value)||2280;
+  ENDERECOS.itobi.cpm_desn=parseInt(document.getElementById('cfg_cpm_desn_itobi').value)||2350;
+  ENDERECOS.scp.cpm=parseInt(document.getElementById('cfg_cpm_scp').value)||2280;
+  ENDERECOS.scp.cpm_desn=parseInt(document.getElementById('cfg_cpm_desn_scp').value)||2350;
+  ENDERECOS.srv.cpm=parseInt(document.getElementById('cfg_cpm_srv').value)||2280;
+  ENDERECOS.srv.cpm_desn=parseInt(document.getElementById('cfg_cpm_desn_srv').value)||2350;
+  // Atualiza CPM global conforme cidade selecionada
+  var cidSel=document.getElementById('cidade_atend')?document.getElementById('cidade_atend').value:'vgs';
+  var eoCur=ENDERECOS[cidSel]||ENDERECOS.vgs;
+  CPM_PLANO=eoCur.cpm; CPM_DESNIVEL=eoCur.cpm_desn;
+  CPM=document.getElementById('terreno')&&document.getElementById('terreno').value==='desnivel'?CPM_DESNIVEL:CPM_PLANO;
   CONTRATO_ATUAL=parseInt(document.getElementById('cfg_contrato_num').value)||CONTRATO_ATUAL;
+  try { localStorage.setItem('casafacil_contrato_num', CONTRATO_ATUAL); } catch(e){}
   CPM_FAIXA_MIN=parseInt(document.getElementById('cfg_cpm_faixa_min').value)||2070;
   CPM_FAIXA_MAX=parseInt(document.getElementById('cfg_cpm_faixa_max').value)||2950;
   document.getElementById('cfg_faixa_label_min').textContent=CPM_FAIXA_MIN.toLocaleString('pt-BR');
@@ -1265,44 +1300,46 @@ window.addEventListener('DOMContentLoaded',function(){
       <h3>⚙️ Configurações</h3>
       <div class="msub">Alterações aplicadas imediatamente nesta sessão</div>
 
-      <div class="admin-section">💰 Custo de Construção (R$/m²)</div>
+      <div class="admin-section">💰 Custo de Construção por Cidade (R$/m²)</div>
+
+      <div style="font-size:11px;font-weight:600;color:#6b7280;margin:6px 0 4px">Vargem Grande do Sul</div>
       <div class="admin-row">
-        <div>
-          <label>Terreno Plano</label>
-          <input type="number" id="cfg_cpm_plano" step="10"/>
-        </div>
-        <div>
-          <label>Terreno c/ Desnível</label>
-          <input type="number" id="cfg_cpm_desn" step="10"/>
-        </div>
+        <div><label>Terreno Plano</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_vgs"/></div>
+        <div><label>Terreno c/ Desnível</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_desn_vgs"/></div>
       </div>
 
-      <div class="admin-section">📋 Valor do Projeto (Contrato)</div>
+      <div style="font-size:11px;font-weight:600;color:#6b7280;margin:10px 0 4px">Itobi</div>
       <div class="admin-row">
-        <div>
-          <label>Vargem Grande do Sul</label>
-          <div style="position:relative"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;font-weight:600">R$</span><input type="number" id="cfg_val_vgs" step="100" style="padding-left:30px"/></div>
-        </div>
-        <div>
-          <label>Itobi</label>
-          <div style="position:relative"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;font-weight:600">R$</span><input type="number" id="cfg_val_itobi" step="100" style="padding-left:30px"/></div>
-        </div>
-      </div>
-      <div style="margin-top:8px">
-        <label style="font-size:12px;font-weight:600;color:var(--nv);margin:0 0 4px;display:block">Santa Cruz das Palmeiras</label>
-        <div style="position:relative"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;font-weight:600">R$</span><input type="number" id="cfg_val_scp" step="100" style="padding-left:30px;width:100%;padding:13px 14px 13px 30px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--tx);background:#fafcff"/></div>
+        <div><label>Terreno Plano</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_itobi"/></div>
+        <div><label>Terreno c/ Desnível</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_desn_itobi"/></div>
       </div>
 
-      <div class="admin-section">🎯 Faixa de Custo por m² (Indicador)</div>
+      <div style="font-size:11px;font-weight:600;color:#6b7280;margin:10px 0 4px">Santa Cruz das Palmeiras</div>
       <div class="admin-row">
-        <div>
-          <label>Mínimo (R$/m²)</label>
-          <input type="number" id="cfg_cpm_faixa_min" step="10" min="500"/>
-        </div>
-        <div>
-          <label>Máximo (R$/m²)</label>
-          <input type="number" id="cfg_cpm_faixa_max" step="10" min="500"/>
-        </div>
+        <div><label>Terreno Plano</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_scp"/></div>
+        <div><label>Terreno c/ Desnível</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_desn_scp"/></div>
+      </div>
+
+      <div style="font-size:11px;font-weight:600;color:#6b7280;margin:10px 0 4px">Santa Rosa de Viterbo</div>
+      <div class="admin-row">
+        <div><label>Terreno Plano</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_srv"/></div>
+        <div><label>Terreno c/ Desnível</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_desn_srv"/></div>
+      </div>
+
+      <div class="admin-section" style="margin-top:14px">📋 Valor do Projeto (Contrato)</div>
+      <div class="admin-row">
+        <div><label>Vargem Grande do Sul</label><input type="number" step="100" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_val_vgs"/></div>
+        <div><label>Itobi</label><input type="number" step="100" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_val_itobi"/></div>
+      </div>
+      <div style="margin-top:8px" class="admin-row">
+        <div><label>Santa Cruz das Palmeiras</label><input type="number" step="100" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_val_scp"/></div>
+        <div><label>Santa Rosa de Viterbo</label><input type="number" step="100" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_val_srv"/></div>
+      </div>
+
+      <div class="admin-section" style="margin-top:14px">🎯 Faixa de Custo por m² (Indicador)</div>
+      <div class="admin-row">
+        <div><label>Mínimo (R$/m²)</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_faixa_min"/></div>
+        <div><label>Máximo (R$/m²)</label><input type="number" step="10" style="width:100%;padding:10px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx)" id="cfg_cpm_faixa_max"/></div>
       </div>
       <div style="font-size:10px;color:#9ca3af;margin-top:4px">Faixa atual: R$ <span id="cfg_faixa_label_min">2.070</span> – R$ <span id="cfg_faixa_label_max">2.950</span>/m²</div>
 
