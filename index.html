@@ -676,6 +676,12 @@ function go(n){
       if(fin<1000){alert('Informe o valor financiado.');return;}
       var verba=fin+sub+ent-ter;
       if(verba<5000){alert('A verba para construção está muito baixa. Verifique os valores.');return;}
+      // Santa Rosa de Viterbo: pular seleção de planta/fachada
+      if(document.getElementById('cidade_atend').value==='srv'){
+        qSel=1; // define 1 quarto como padrão
+        gerar(); // popula D e vai para o passo 4
+        return;
+      }
     }
     var verba=fin+sub+ent-ter;
     var area=Math.floor(verba/CPM),maxQ=area>=59?3:area>=47?2:1;
@@ -800,6 +806,12 @@ function gerar(){
   comodos.forEach(function(c){var d=document.createElement('div');d.className='ci';d.innerHTML='<span style="font-size:20px">'+c.ic+'</span><div><div class="cin">'+c.n+'</div><div class="cia">Incluso no projeto</div></div>';cll.appendChild(d);});
   // Fachada rotativa
   var fi = document.getElementById('fachada-img'); if(fi) fi.src = FACHADAS[FACH_IDX % FACHADAS.length];
+  // Santa Rosa de Viterbo: ocultar fachada e plantas ilustrativas
+  var isSRV = document.getElementById('cidade_atend').value === 'srv';
+  var fachadaWrap = document.querySelector('.fachada-wrap');
+  var plantasWrap = document.querySelector('.pw');
+  if(fachadaWrap) fachadaWrap.style.display = isSRV ? 'none' : '';
+  if(plantasWrap) plantasWrap.style.display = isSRV ? 'none' : '';
   go(3);
 }
 
@@ -837,23 +849,23 @@ function gerarPDF(){
   var valorContrato=fmt(eo.valor);
 
   // ═══ PÁGINA 1: SIMULAÇÃO ═══
-  doc.setFillColor(13,32,68);doc.rect(0,0,W,40,'F');
+  doc.setFillColor(13,32,68);doc.rect(0,0,W,30,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(22);doc.setFont('helvetica','bold');
   doc.text('CASA FÁCIL',W/2,14,{align:'center'});
   doc.setFontSize(9);doc.setFont('helvetica','normal');
   doc.text('Simulador MCMV — Aquisição de Terreno + Construção',W/2,22,{align:'center'});
   doc.text('Gerado em: '+new Date().toLocaleDateString('pt-BR')+'   |   Nº '+numC,W/2,30,{align:'center'});
   // ESTIMATIVA BANNER
-  doc.setFillColor(255,243,180);doc.rect(M,42,W-M*2,14,'F');
+  doc.setFillColor(255,243,180);doc.rect(M,y,W-M*2,10,'F');
   doc.setDrawColor(245,197,24);doc.setLineWidth(1);doc.rect(M,42,W-M*2,14);
   doc.setTextColor(122,94,0);doc.setFontSize(9);doc.setFont('helvetica','bold');
   doc.text('⚠  ATENÇÃO — VALORES ESTIMADOS',W/2,48,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);
-  doc.text('Estes valores são apenas orientação inicial. Para confirmação, realize simulação oficial na Caixa Econômica Federal.',W/2,55,{align:'center'});
-  y=62;
+  doc.text('Estes valores são apenas orientação inicial. Para confirmação, realize simulação oficial na Caixa Econômica Federal.',W/2,48,{align:'center'});
+  y=36;
 
   // Dados do cliente
-  doc.setFillColor(232,240,254);doc.rect(M,y-4,W-M*2,62,'F');
+  doc.setFillColor(232,240,254);doc.rect(M,y-3,W-M*2,50,'F');
   doc.setTextColor(13,32,68);doc.setFontSize(10);doc.setFont('helvetica','bold');
   doc.text('Dados do Proponente',M+2,y);y+=6;
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(30,30,30);
@@ -864,12 +876,12 @@ function gerarPDF(){
   doc.text('CEP: '+D.cep+' — '+D.cidade_cli+'/'+D.uf_cli,M+2,y);y+=5;
   doc.text('3 anos FGTS: '+(D.fgts==='sim'?'Sim':'Não'),M+2,y);doc.text('Terreno: '+(D.terreno==='plano'?'Plano':'Com desnível'),W/2+2,y);y+=5;
   if(D.tem_terreno==='sim'){
-    doc.text('Terreno próprio — Lote: '+D.t_lote+' Quadra: '+D.t_quadra+' — '+D.t_area+'m² — '+D.t_bairro+'/'+D.t_cidade,M+2,y);y+=5;
+    doc.text('Terreno próprio — Lote: '+D.t_lote+' Quadra: '+D.t_quadra+' — '+D.t_area+'m² — '+D.t_bairro+'/'+D.t_cidade,M+2,y);y+=4;
   }
-  y+=4;
+  y+=2;
 
   // Financeiro
-  doc.setFillColor(255,248,220);doc.rect(M,y-4,W-M*2,38,'F');
+  doc.setFillColor(255,248,220);doc.rect(M,y-3,W-M*2,30,'F');
   doc.setTextColor(122,94,0);doc.setFontSize(10);doc.setFont('helvetica','bold');
   doc.text('Resumo Financeiro (ESTIMATIVA)',M+2,y);y+=6;
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(70,50,0);
@@ -880,80 +892,85 @@ function gerarPDF(){
   doc.text('Verba para construção (est.): '+fmt(D.verba)+'   |   Modelo: '+D.mod,M+2,y);y+=10;
 
   // Parcelas
-  doc.setFillColor(13,32,68);doc.rect(M,y-3,W-M*2,11,'F');
+  doc.setFillColor(13,32,68);doc.rect(M,y-3,W-M*2,9,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
   doc.text('Parcelas Estimadas — Tabela PRICE/TR · 420 meses — sujeitas à variação da TR e aprovação da Caixa',M+2,y+4);y+=13;
   doc.setFillColor(232,240,254);doc.rect(M,y-3,W-M*2,14,'F');
   doc.setTextColor(13,32,68);doc.setFontSize(8.5);doc.setFont('helvetica','normal');
   doc.text('1ª Parcela (est., incl. seguro MIP+DFI): '+fmt(D.pmt_first),M+2,y+2);doc.text('Última Parcela (est.): '+fmt(D.pmt_last),W/2+2,y+2);y+=8;
-  doc.text('⚠ Valores estimados. Confirme na Caixa Econômica Federal antes de qualquer decisão.',M+2,y+2);y+=12;
+  doc.text('⚠ Valores estimados. Confirme na Caixa Econômica Federal antes de qualquer decisão.',M+2,y+2);y+=10;
 
   // Aviso doc
   doc.setFillColor(240,253,244);doc.rect(M,y-2,W-M*2,13,'F');
   doc.setDrawColor(104,211,145);doc.setLineWidth(0.4);doc.rect(M,y-2,W-M*2,13);
   doc.setTextColor(39,103,73);doc.setFontSize(7.5);doc.setFont('helvetica','italic');
-  doc.text(doc.splitTextToSize('IMPORTANTE: Esta análise contempla apenas os valores do financiamento. Custos com documentação, cartório e registros NÃO estão incluídos e devem ser considerados no planejamento financeiro.',W-M*2-4),M+2,y+2);y+=17;
+  doc.text(doc.splitTextToSize('IMPORTANTE: Esta análise contempla apenas os valores do financiamento. Custos com documentação, cartório e registros NÃO estão incluídos e devem ser considerados no planejamento financeiro.',W-M*2-4),M+2,y+2);y+=12;
 
-  // Planta
+  // Planta (ocultar para Santa Rosa de Viterbo)
+  if(D.cidade_atend !== 'srv'){
   doc.setTextColor(13,32,68);doc.setFontSize(9);doc.setFont('helvetica','bold');
   doc.text('Planta Baixa e Fachada Ilustrativas — '+D.mod,M,y);y+=5;
   // Plant: portrait 1240x1755, ratio h/w=1.415
-  var plantW=(W-M*2)*0.55;
-  var plantH=plantW*1.415;
+  var plantW=(W-M*2)*0.50;
+  var plantH=plantW*1.30;
   // Fachada: landscape ~4:3 ratio
-  var fachW=(W-M*2)*0.42;
-  var fachH=fachW*0.68;
+  var fachW=(W-M*2)*0.38;
+  var fachH=fachW*0.65;
   var gap=(W-M*2)*0.03;
   var fachSrc=FACHADAS[(FACH_IDX-1+FACHADAS.length)%FACHADAS.length];
-  // Check page space
-  if(y+plantH>280){doc.addPage();y=14;}
-  doc.addImage(PLANTAS[plantasAtuais[plantaIdx]],'PNG',M,y,plantW,plantH);
-  // Fachada: centered vertically relative to plant
-  var fachY=y+(plantH-fachH)/2;
-  doc.addImage(fachSrc,'JPEG',M+plantW+gap,fachY,fachW,fachH);
-  var imgH=plantH;
-  // Labels
-  doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(120,120,120);
-  doc.text('Planta Baixa — Modelo '+(plantaIdx+1)+' (ilustrativa)',M,y+imgH+3.5);
-  doc.text('Fachada ilustrativa',M+plantW+gap,y+imgH+3.5);
-  y+=imgH+8;
+  // Planta e fachada: ocultar para Santa Rosa de Viterbo
+  if(D.cidade_atend !== 'srv'){
+    // Check page space
+    if(y+plantH>280){doc.addPage();y=14;}
+    doc.addImage(PLANTAS[plantasAtuais[plantaIdx]],'PNG',M,y,plantW,plantH);
+    // Fachada: centered vertically relative to plant
+    var fachY=y+(plantH-fachH)/2;
+    doc.addImage(fachSrc,'JPEG',M+plantW+gap,fachY,fachW,fachH);
+    var imgH=plantH;
+    // Labels
+    doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(120,120,120);
+    doc.text('Planta Baixa — Modelo '+(plantaIdx+1)+' (ilustrativa)',M,y+imgH+3.5);
+    doc.text('Fachada ilustrativa',M+plantW+gap,y+imgH+3.5);
+    y+=imgH+4;
+  }
 
   doc.setFillColor(255,248,220);doc.rect(M,y,W-M*2,10,'F');
   doc.setTextColor(122,94,0);doc.setFontSize(7);doc.setFont('helvetica','italic');
   doc.text('Planta ilustrativa. Projeto definitivo elaborado por profissional habilitado. Modalidade: Aquisição de Terreno + Construção — MCMV Recursos FGTS.',M+2,y+4);
+  } // fim if SRV
 
   // ═══ PÁGINA 2: CONTRATO ═══
   doc.addPage();y=0;
 
   // Cabeçalho
-  doc.setFillColor(13,32,68);doc.rect(0,0,W,26,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');
+  doc.setFillColor(13,32,68);doc.rect(0,0,W,22,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
   doc.text('CONTRATO DE PRESTAÇÃO DE SERVIÇOS',W/2,11,{align:'center'});
   doc.setFontSize(9);doc.setFont('helvetica','normal');
   doc.text('Nº '+numC+' · Casa Fácil — MCMV · '+new Date().toLocaleDateString('pt-BR'),W/2,20,{align:'center'});
-  y=32;
+  y=26;
 
   // Partes
   doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
   doc.text('DAS PARTES',M,y);y+=5;
 
-  doc.setFillColor(232,240,254);doc.rect(M,y-2,W-M*2,28,'F');
-  doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
+  doc.setFillColor(232,240,254);doc.rect(M,y-2,W-M*2,23,'F');
+  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
   doc.text('CONTRATADA:',M+2,y+3);
   doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);
   doc.text(EMPRESA.nome+' — CNPJ: '+EMPRESA.cnpj,M+2,y+9);
   doc.text('Responsável: '+EMPRESA.resp+' — CPF: '+EMPRESA.cpf,M+2,y+15);
   doc.text('Endereço: '+eo.end+' — '+eo.cidade+'/'+eo.uf,M+2,y+21);
-  y+=30;
+  y+=25;
 
-  doc.setFillColor(245,245,255);doc.rect(M,y-2,W-M*2,28,'F');
-  doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
+  doc.setFillColor(245,245,255);doc.rect(M,y-2,W-M*2,23,'F');
+  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
   doc.text('CONTRATANTE:',M+2,y+3);
   doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);
   doc.text(D.nome+' — CPF: '+D.cpf,M+2,y+9);
   doc.text('Nascimento: '+fmtData(D.nasc)+'   Estado civil: '+D.civil+'   Profissão: '+D.profissao,M+2,y+15);
   doc.text('Endereço: '+D.rua+', '+D.bairro+', CEP '+D.cep+' — '+D.cidade_cli+'/'+D.uf_cli,M+2,y+21);
-  y+=32;
+  y+=27;
 
   // Cláusulas compactas
   doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
@@ -969,15 +986,15 @@ function gerarPDF(){
   ];
 
   clauses.forEach(function(cl){
-    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
+    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
     doc.text('CLÁUSULA '+cl[0],M,y);y+=4;
     doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);
     var lines=doc.splitTextToSize(cl[1],W-M*2);
-    doc.text(lines,M,y);y+=lines.length*4+3;
+    doc.text(lines,M,y);y+=lines.length*3.5+2;
   });
 
   // Cláusula de validade condicional
-  if(y>220){doc.addPage();y=18;}
+  if(y>235){doc.addPage();y=18;}
   y+=4;
   doc.setFillColor(232,240,254);doc.rect(M,y-2,W-M*2,6,'F');
   doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
