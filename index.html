@@ -443,10 +443,17 @@ var ENDERECOS={
 };
 var EMPRESA={nome:'CASA FÁCIL',cnpj:'23.736.443/0001-40',resp:'Donizete Cardoso Martins',cpf:'324.743.238-80'};
 
-// Carregar configurações salvas
+// Carregar configurações salvas (localStorage ou cookie)
 (function(){
   try {
-    var raw = localStorage.getItem('casafacil_config');
+    var raw = null;
+    // Tenta localStorage primeiro
+    try { raw = localStorage.getItem('casafacil_config'); } catch(e){}
+    // Se não achou, tenta cookie
+    if(!raw){
+      var match = document.cookie.match(/(?:^|;\s*)casafacil_config=([^;]*)/);
+      if(match) raw = decodeURIComponent(match[1]);
+    }
     if(!raw) return;
     var cfg = JSON.parse(raw);
     if(cfg.enderecos){
@@ -1180,7 +1187,7 @@ function saveAdmin(){
   document.getElementById('cfg_faixa_label_min').textContent=CPM_FAIXA_MIN.toLocaleString('pt-BR');
   document.getElementById('cfg_faixa_label_max').textContent=CPM_FAIXA_MAX.toLocaleString('pt-BR');
   atualizarIndicadorCPM();
-  // Salvar configurações no localStorage
+  // Salvar configurações (localStorage + cookie para persistência)
   try {
     var cfg = {
       enderecos: {
@@ -1192,7 +1199,11 @@ function saveAdmin(){
       cpm_faixa_min: CPM_FAIXA_MIN,
       cpm_faixa_max: CPM_FAIXA_MAX,
     };
-    localStorage.setItem('casafacil_config', JSON.stringify(cfg));
+    var cfgStr = JSON.stringify(cfg);
+    localStorage.setItem('casafacil_config', cfgStr);
+    // Cookie com validade de 10 anos (funciona em file://)
+    var exp = new Date(); exp.setFullYear(exp.getFullYear()+10);
+    document.cookie = 'casafacil_config=' + encodeURIComponent(cfgStr) + '; expires=' + exp.toUTCString() + '; path=/';
   } catch(e){}
   document.getElementById('savedMsg').style.display='block';
   setTimeout(function(){document.getElementById('savedMsg').style.display='none';},2500);
