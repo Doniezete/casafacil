@@ -433,6 +433,16 @@ var CONTRATO_ATUAL=(function(){
     return saved ? parseInt(saved) : 68;
   } catch(e) { return 68; }
 })();
+
+
+var ENDERECOS={
+  vgs:  {cidade:'Vargem Grande do Sul',end:'Rua Francisco Ribeiro Carril, 611 - Centro',uf:'SP',valor:3300,cpm:2280,cpm_desn:2350},
+  itobi:{cidade:'Itobi',end:'Rua Antônio Luiz Pires, 120 - Centro',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
+  scp:  {cidade:'Santa Cruz das Palmeiras',end:'Rua Coronel Penteado, 1020 - Centro',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
+  srv:  {cidade:'Santa Rosa de Viterbo',end:'',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
+};
+var EMPRESA={nome:'CASA FÁCIL',cnpj:'23.736.443/0001-40',resp:'Donizete Cardoso Martins',cpf:'324.743.238-80'};
+
 // Carregar configurações salvas
 (function(){
   try {
@@ -452,14 +462,6 @@ var CONTRATO_ATUAL=(function(){
     if(cfg.cpm_faixa_max) CPM_FAIXA_MAX = cfg.cpm_faixa_max;
   } catch(e){}
 })();
-
-var ENDERECOS={
-  vgs:  {cidade:'Vargem Grande do Sul',end:'Rua Francisco Ribeiro Carril, 611 - Centro',uf:'SP',valor:3300,cpm:2280,cpm_desn:2350},
-  itobi:{cidade:'Itobi',end:'Rua Antônio Luiz Pires, 120 - Centro',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
-  scp:  {cidade:'Santa Cruz das Palmeiras',end:'Rua Coronel Penteado, 1020 - Centro',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
-  srv:  {cidade:'Santa Rosa de Viterbo',end:'',uf:'SP',valor:2500,cpm:2280,cpm_desn:2350},
-};
-var EMPRESA={nome:'CASA FÁCIL',cnpj:'23.736.443/0001-40',resp:'Donizete Cardoso Martins',cpf:'324.743.238-80'};
 
 function fmtTel(el){
   var v=el.value.replace(/\D/g,'').substring(0,11);
