@@ -36,6 +36,10 @@
 
   <div class="grid2">
     <div>
+      <label>Telefone / WhatsApp *</label>
+      <input type="text" id="telefone" placeholder="(00) 00000-0000" oninput="fmtTel(this)" maxlength="15"/>
+    </div>
+    <div>
       <label>CPF *</label>
       <input type="text" id="cpf" placeholder="000.000.000-00" oninput="fmtCPF(this)" maxlength="14"/>
     </div>
@@ -429,6 +433,25 @@ var CONTRATO_ATUAL=(function(){
     return saved ? parseInt(saved) : 68;
   } catch(e) { return 68; }
 })();
+// Carregar configurações salvas
+(function(){
+  try {
+    var raw = localStorage.getItem('casafacil_config');
+    if(!raw) return;
+    var cfg = JSON.parse(raw);
+    if(cfg.enderecos){
+      ['vgs','itobi','scp','srv'].forEach(function(k){
+        if(cfg.enderecos[k] && ENDERECOS[k]){
+          if(cfg.enderecos[k].valor)    ENDERECOS[k].valor    = cfg.enderecos[k].valor;
+          if(cfg.enderecos[k].cpm)      ENDERECOS[k].cpm      = cfg.enderecos[k].cpm;
+          if(cfg.enderecos[k].cpm_desn) ENDERECOS[k].cpm_desn = cfg.enderecos[k].cpm_desn;
+        }
+      });
+    }
+    if(cfg.cpm_faixa_min) CPM_FAIXA_MIN = cfg.cpm_faixa_min;
+    if(cfg.cpm_faixa_max) CPM_FAIXA_MAX = cfg.cpm_faixa_max;
+  } catch(e){}
+})();
 
 var ENDERECOS={
   vgs:  {cidade:'Vargem Grande do Sul',end:'Rua Francisco Ribeiro Carril, 611 - Centro',uf:'SP',valor:3300,cpm:2280,cpm_desn:2350},
@@ -438,6 +461,11 @@ var ENDERECOS={
 };
 var EMPRESA={nome:'CASA FÁCIL',cnpj:'23.736.443/0001-40',resp:'Donizete Cardoso Martins',cpf:'324.743.238-80'};
 
+function fmtTel(el){
+  var v=el.value.replace(/\D/g,'').substring(0,11);
+  if(v.length<=10) el.value=v.replace(/(\d{2})(\d{4})(\d{0,4})/,'($1) $2-$3').replace(/-$/,'');
+  else el.value=v.replace(/(\d{2})(\d{5})(\d{0,4})/,'($1) $2-$3').replace(/-$/,'');
+}
 function fmtM(el){var v=el.value.replace(/\D/g,'');if(!v){el.value='';return;}el.value=(parseInt(v,10)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function parseM(el){var v=el.value.replace(/\./g,'').replace(',','.');return parseFloat(v)||0;}
 function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -786,7 +814,7 @@ function gerar(){
   var civMap={solteiro:'Solteiro(a)',casado:'Casado(a)',uniao:'União Estável',divorciado:'Divorciado(a)',viuvo:'Viúvo(a)'};
   var endereco_completo=g('rua')+', '+g('bairro')+', CEP '+g('cep')+' — '+g('cidade_cliente')+'/'+g('uf_cliente');
   D={
-    nome:g('nome'),cpf:g('cpf'),nasc:nasc,profissao:g('profissao'),civil:civMap[g('civil')]||g('civil'),
+    nome:g('nome'),cpf:g('cpf'),telefone:g('telefone'),nasc:nasc,profissao:g('profissao'),civil:civMap[g('civil')]||g('civil'),
     rua:g('rua'),bairro:g('bairro'),cep:g('cep'),cidade_cli:g('cidade_cliente'),uf_cli:g('uf_cliente'),
     endereco:endereco_completo,
     tem_terreno:g('tem_terreno'),t_lote:g('t_lote'),t_quadra:g('t_quadra'),
@@ -967,7 +995,7 @@ function gerarPDF(){
   doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
   doc.text('CONTRATANTE:',M+2,y+3);
   doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);
-  doc.text(D.nome+' — CPF: '+D.cpf,M+2,y+9);
+  doc.text(D.nome+' — CPF: '+D.cpf+'   Tel: '+(D.telefone||'—'),M+2,y+9);
   doc.text('Nascimento: '+fmtData(D.nasc)+'   Estado civil: '+D.civil+'   Profissão: '+D.profissao,M+2,y+15);
   doc.text('Endereço: '+D.rua+', '+D.bairro+', CEP '+D.cep+' — '+D.cidade_cli+'/'+D.uf_cli,M+2,y+21);
   y+=27;
@@ -1150,6 +1178,20 @@ function saveAdmin(){
   document.getElementById('cfg_faixa_label_min').textContent=CPM_FAIXA_MIN.toLocaleString('pt-BR');
   document.getElementById('cfg_faixa_label_max').textContent=CPM_FAIXA_MAX.toLocaleString('pt-BR');
   atualizarIndicadorCPM();
+  // Salvar configurações no localStorage
+  try {
+    var cfg = {
+      enderecos: {
+        vgs:  {valor:ENDERECOS.vgs.valor,  cpm:ENDERECOS.vgs.cpm,  cpm_desn:ENDERECOS.vgs.cpm_desn},
+        itobi:{valor:ENDERECOS.itobi.valor, cpm:ENDERECOS.itobi.cpm, cpm_desn:ENDERECOS.itobi.cpm_desn},
+        scp:  {valor:ENDERECOS.scp.valor,  cpm:ENDERECOS.scp.cpm,  cpm_desn:ENDERECOS.scp.cpm_desn},
+        srv:  {valor:ENDERECOS.srv.valor,  cpm:ENDERECOS.srv.cpm,  cpm_desn:ENDERECOS.srv.cpm_desn},
+      },
+      cpm_faixa_min: CPM_FAIXA_MIN,
+      cpm_faixa_max: CPM_FAIXA_MAX,
+    };
+    localStorage.setItem('casafacil_config', JSON.stringify(cfg));
+  } catch(e){}
   document.getElementById('savedMsg').style.display='block';
   setTimeout(function(){document.getElementById('savedMsg').style.display='none';},2500);
 }
