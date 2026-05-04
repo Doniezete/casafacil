@@ -892,6 +892,7 @@ function gerarPDF(){
   doc.setFontSize(9);doc.setFont('helvetica','normal');
   doc.text('Simulador MCMV — Aquisição de Terreno + Construção',W/2,23,{align:'center'});
   doc.text('Gerado em: '+new Date().toLocaleDateString('pt-BR')+'   |   Nº '+numC,W/2,31,{align:'center'});
+  y=40;
   // ESTIMATIVA BANNER
   doc.setFillColor(255,243,180);doc.rect(M,y,W-M*2,14,'F');
   doc.setDrawColor(245,197,24);doc.setLineWidth(1);doc.rect(M,y,W-M*2,14);
