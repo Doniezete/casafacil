@@ -869,7 +869,7 @@ function gerarPDF(){
     D={
       nome:g2('nome'),cpf:g2('cpf'),nasc:nasc2,profissao:g2('profissao'),civil:civMap2[g2('civil')]||g2('civil'),
       rua:g2('rua'),bairro:g2('bairro'),cep:g2('cep'),cidade_cli:g2('cidade_cliente'),uf_cli:g2('uf_cliente'),
-      endereco:g2('rua')+', '+g2('bairro')+', CEP '+g2('cep')+' — '+g2('cidade_cliente')+'/'+g2('uf_cliente'),
+      endereco:g2('rua')+', '+g2('bairro')+', CEP '+g2('cep')+' - '+g2('cidade_cliente')+'/'+g2('uf_cliente'),
       tem_terreno:g2('tem_terreno'),t_lote:g2('t_lote'),t_quadra:g2('t_quadra'),
       t_area:document.getElementById('t_area').value,t_bairro:g2('t_bairro'),t_cidade:g2('t_cidade'),
       renda:renda2,dep:dep2,fgts:fgts2,terreno:terreno2,cidade_atend:cidade_atend2,
@@ -890,14 +890,14 @@ function gerarPDF(){
   doc.setTextColor(255,255,255);doc.setFontSize(22);doc.setFont('helvetica','bold');
   doc.text('CASA FÁCIL',W/2,14,{align:'center'});
   doc.setFontSize(9);doc.setFont('helvetica','normal');
-  doc.text('Simulador MCMV — Aquisição de Terreno + Construção',W/2,23,{align:'center'});
+  doc.text('Simulador MCMV - Aquisição de Terreno + Construção',W/2,23,{align:'center'});
   doc.text('Gerado em: '+new Date().toLocaleDateString('pt-BR')+'   |   Nº '+numC,W/2,31,{align:'center'});
   y=40;
   // ESTIMATIVA BANNER
   doc.setFillColor(255,243,180);doc.rect(M,y,W-M*2,14,'F');
   doc.setDrawColor(245,197,24);doc.setLineWidth(1);doc.rect(M,y,W-M*2,14);
   doc.setTextColor(122,94,0);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  doc.text('⚠  ATENÇÃO — VALORES ESTIMADOS',W/2,y+6,{align:'center'});
+  doc.text('ATENÇÃO - VALORES ESTIMADOS',W/2,y+6,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);
   doc.text('Estes valores são apenas orientação inicial. Para confirmação, realize simulação oficial na Caixa Econômica Federal.',W/2,y+11,{align:'center'});
   y+=18;
@@ -911,10 +911,10 @@ function gerarPDF(){
   doc.text('Nascimento: '+fmtData(D.nasc)+' ('+D.idade+' anos)',M+2,y);doc.text('Profissão: '+D.profissao,W/2+2,y);y+=5;
   doc.text('Estado civil: '+D.civil,M+2,y);doc.text('Dep. na proposta: '+(D.dep==='sim'?'Sim':'Não'),W/2+2,y);y+=5;
   doc.text('Endereço: '+D.rua+', '+D.bairro,M+2,y);y+=5;
-  doc.text('CEP: '+D.cep+' — '+D.cidade_cli+'/'+D.uf_cli,M+2,y);y+=5;
+  doc.text('CEP: '+D.cep+' - '+D.cidade_cli+'/'+D.uf_cli,M+2,y);y+=5;
   doc.text('3 anos FGTS: '+(D.fgts==='sim'?'Sim':'Não'),M+2,y);doc.text('Terreno: '+(D.terreno==='plano'?'Plano':'Com desnível'),W/2+2,y);y+=5;
   if(D.tem_terreno==='sim'){
-    doc.text('Terreno próprio — Lote: '+D.t_lote+' Quadra: '+D.t_quadra+' — '+D.t_area+'m² — '+D.t_bairro+'/'+D.t_cidade,M+2,y);y+=4;
+    doc.text('Terreno próprio - Lote: '+D.t_lote+' Quadra: '+D.t_quadra+' - '+D.t_area+'m² - '+D.t_bairro+'/'+D.t_cidade,M+2,y);y+=4;
   }
   y+=2;
 
@@ -932,11 +932,11 @@ function gerarPDF(){
   // Parcelas
   doc.setFillColor(13,32,68);doc.rect(M,y-3,W-M*2,9,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  doc.text('Parcelas Estimadas — Tabela PRICE/TR · 420 meses — sujeitas à variação da TR e aprovação da Caixa',M+2,y+4);y+=13;
+  doc.text('Parcelas Estimadas - Tabela PRICE/TR - 420 meses - sujeitas à variação da TR e aprovação da Caixa',M+2,y+4);y+=13;
   doc.setFillColor(232,240,254);doc.rect(M,y-3,W-M*2,14,'F');
   doc.setTextColor(13,32,68);doc.setFontSize(8.5);doc.setFont('helvetica','normal');
   doc.text('1ª Parcela (est., incl. seguro MIP+DFI): '+fmt(D.pmt_first),M+2,y+2);doc.text('Última Parcela (est.): '+fmt(D.pmt_last),W/2+2,y+2);y+=8;
-  doc.text('⚠ Valores estimados. Confirme na Caixa Econômica Federal antes de qualquer decisão.',M+2,y+2);y+=10;
+  doc.text('* Valores estimados. Confirme na Caixa Econômica Federal antes de qualquer decisão.',M+2,y+2);y+=10;
 
   // Aviso doc
   doc.setFillColor(240,253,244);doc.rect(M,y-2,W-M*2,13,'F');
@@ -947,7 +947,7 @@ function gerarPDF(){
   // Planta (ocultar para Santa Rosa de Viterbo)
   if(D.cidade_atend !== 'srv'){
   doc.setTextColor(13,32,68);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  doc.text('Planta Baixa e Fachada Ilustrativas — '+D.mod,M,y);y+=5;
+  doc.text('Planta Baixa e Fachada Ilustrativas - '+D.mod,M,y);y+=5;
   // Plant: portrait 1240x1755, ratio h/w=1.415
   var plantW=(W-M*2)*0.50;
   var plantH=plantW*1.30;
@@ -967,14 +967,14 @@ function gerarPDF(){
     var imgH=plantH;
     // Labels
     doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(120,120,120);
-    doc.text('Planta Baixa — Modelo '+(plantaIdx+1)+' (ilustrativa)',M,y+imgH+3.5);
+    doc.text('Planta Baixa - Modelo '+(plantaIdx+1)+' (ilustrativa)',M,y+imgH+3.5);
     doc.text('Fachada ilustrativa',M+plantW+gap,y+imgH+3.5);
     y+=imgH+4;
   }
 
   doc.setFillColor(255,248,220);doc.rect(M,y,W-M*2,10,'F');
   doc.setTextColor(122,94,0);doc.setFontSize(7);doc.setFont('helvetica','italic');
-  doc.text('Planta ilustrativa. Projeto definitivo elaborado por profissional habilitado. Modalidade: Aquisição de Terreno + Construção — MCMV Recursos FGTS.',M+2,y+4);
+  doc.text('Planta ilustrativa. Projeto definitivo elaborado por profissional habilitado. Modalidade: Aquisição de Terreno + Construção - MCMV Recursos FGTS.',M+2,y+4);
   } // fim if SRV
 
   // ═══ PÁGINA 2: CONTRATO ═══
@@ -985,7 +985,7 @@ function gerarPDF(){
   doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
   doc.text('CONTRATO DE PRESTAÇÃO DE SERVIÇOS',W/2,11,{align:'center'});
   doc.setFontSize(9);doc.setFont('helvetica','normal');
-  doc.text('Nº '+numC+' · Casa Fácil — MCMV · '+new Date().toLocaleDateString('pt-BR'),W/2,20,{align:'center'});
+  doc.text('Nº '+numC+' - Casa Fácil - MCMV - '+new Date().toLocaleDateString('pt-BR'),W/2,20,{align:'center'});
   y=26;
 
   // Partes
@@ -996,18 +996,18 @@ function gerarPDF(){
   doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
   doc.text('CONTRATADA:',M+2,y+3);
   doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);
-  doc.text(EMPRESA.nome+' — CNPJ: '+EMPRESA.cnpj,M+2,y+9);
-  doc.text('Responsável: '+EMPRESA.resp+' — CPF: '+EMPRESA.cpf,M+2,y+15);
-  doc.text('Endereço: '+eo.end+' — '+eo.cidade+'/'+eo.uf,M+2,y+21);
+  doc.text(EMPRESA.nome+' - CNPJ: '+EMPRESA.cnpj,M+2,y+9);
+  doc.text('Responsável: '+EMPRESA.resp+' - CPF: '+EMPRESA.cpf,M+2,y+15);
+  doc.text('Endereço: '+eo.end+' - '+eo.cidade+'/'+eo.uf,M+2,y+21);
   y+=25;
 
   doc.setFillColor(245,245,255);doc.rect(M,y-2,W-M*2,23,'F');
   doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
   doc.text('CONTRATANTE:',M+2,y+3);
   doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);
-  doc.text(D.nome+' — CPF: '+D.cpf+'   Tel: '+(D.telefone||'—'),M+2,y+9);
+  doc.text(D.nome+' - CPF: '+D.cpf+'   Tel: '+(D.telefone||'-'),M+2,y+9);
   doc.text('Nascimento: '+fmtData(D.nasc)+'   Estado civil: '+D.civil+'   Profissão: '+D.profissao,M+2,y+15);
-  doc.text('Endereço: '+D.rua+', '+D.bairro+', CEP '+D.cep+' — '+D.cidade_cli+'/'+D.uf_cli,M+2,y+21);
+  doc.text('Endereço: '+D.rua+', '+D.bairro+', CEP '+D.cep+' - '+D.cidade_cli+'/'+D.uf_cli,M+2,y+21);
   y+=27;
 
   // Cláusulas compactas
@@ -1015,12 +1015,12 @@ function gerarPDF(){
   doc.text('DAS CLÁUSULAS',M,y);y+=5;
 
   var clauses=[
-    ['1ª — DO OBJETO','A CONTRATADA prestará ao CONTRATANTE serviços de assessoria e elaboração de projeto para financiamento imobiliário pelo Programa MCMV — modalidade Aquisição de Terreno e Construção, incluindo levantamento de documentos, simulação financeira, indicação de modelo arquitetônico e acompanhamento junto à Caixa Econômica Federal.'],
-    ['2ª — DA REMUNERAÇÃO','Pelos serviços prestados, o CONTRATANTE pagará à CONTRATADA o valor de '+valorContrato+' ('+valorPorExtenso(eo.valor)+'), conforme condições acordadas entre as partes.'],
-    ['3ª — OBRIGAÇÕES DA CONTRATADA','(a) Orientar o CONTRATANTE em todas as etapas do processo; (b) elaborar ou indicar o projeto arquitetônico adequado ao perfil e verba disponível; (c) acompanhar a documentação necessária para aprovação junto à Caixa Econômica Federal.'],
-    ['4ª — OBRIGAÇÕES DO CONTRATANTE','(a) Fornecer toda a documentação solicitada em tempo hábil; (b) informar com veracidade todos os dados pessoais e financeiros; (c) efetuar o pagamento conforme Cláusula 2ª.'],
-    ['5ª — DISPOSIÇÕES GERAIS','Este contrato não garante a aprovação do financiamento, que depende exclusivamente da análise da Caixa Econômica Federal. Os valores de simulação são estimativas e podem variar. Custos com documentação, cartório e registros são de responsabilidade do CONTRATANTE.'],
-    ['6ª — DO FORO','As partes elegem o foro da comarca de '+eo.cidade+'/SP para dirimir quaisquer litígios, com renúncia a qualquer outro foro.'],
+    ['1ª - DO OBJETO','A CONTRATADA prestará ao CONTRATANTE serviços de assessoria e elaboração de projeto para financiamento imobiliário pelo Programa MCMV - modalidade Aquisição de Terreno e Construção, incluindo levantamento de documentos, simulação financeira, indicação de modelo arquitetônico e acompanhamento junto à Caixa Econômica Federal.'],
+    ['2ª - DA REMUNERAÇÃO','Pelos serviços prestados, o CONTRATANTE pagará à CONTRATADA o valor de '+valorContrato+' ('+valorPorExtenso(eo.valor)+'), conforme condições acordadas entre as partes.'],
+    ['3ª - OBRIGAÇÕES DA CONTRATADA','(a) Orientar o CONTRATANTE em todas as etapas do processo; (b) elaborar ou indicar o projeto arquitetônico adequado ao perfil e verba disponível; (c) acompanhar a documentação necessária para aprovação junto à Caixa Econômica Federal.'],
+    ['4ª - OBRIGAÇÕES DO CONTRATANTE','(a) Fornecer toda a documentação solicitada em tempo hábil; (b) informar com veracidade todos os dados pessoais e financeiros; (c) efetuar o pagamento conforme Cláusula 2ª.'],
+    ['5ª - DISPOSIÇÕES GERAIS','Este contrato não garante a aprovação do financiamento, que depende exclusivamente da análise da Caixa Econômica Federal. Os valores de simulação são estimativas e podem variar. Custos com documentação, cartório e registros são de responsabilidade do CONTRATANTE.'],
+    ['6ª - DO FORO','As partes elegem o foro da comarca de '+eo.cidade+'/SP para dirimir quaisquer litígios, com renúncia a qualquer outro foro.'],
   ];
 
   clauses.forEach(function(cl){
@@ -1042,7 +1042,7 @@ function gerarPDF(){
   var condLines=doc.splitTextToSize(condText,W-M*2);
   doc.text(condLines,M,y);y+=condLines.length*3.6+8;
 
-  // Assinaturas — sempre na mesma página, compactas
+  // Assinaturas - sempre na mesma página, compactas
   if(y>240){doc.addPage();y=18;}
   y+=4;
   doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);
@@ -1063,7 +1063,7 @@ function gerarPDF(){
   // Rodapé
   doc.setFillColor(232,240,254);doc.rect(0,284,W,13,'F');
   doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(80,80,100);
-  doc.text('Casa Fácil · CNPJ '+EMPRESA.cnpj+' · '+eo.end+' — '+eo.cidade+'/SP · Contrato Nº '+numC,W/2,290,{align:'center'});
+  doc.text('Casa Fácil - CNPJ '+EMPRESA.cnpj+' - '+eo.end+' - '+eo.cidade+'/SP - Contrato Nº '+numC,W/2,290,{align:'center'});
 
   FACH_IDX = (FACH_IDX + 1) % FACHADAS.length;
   var fileName='casafacil-contrato-'+numC+'-'+D.nome.split(' ')[0].toLowerCase()+'.pdf';
