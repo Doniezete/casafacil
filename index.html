@@ -887,8 +887,16 @@ function gerarPDF(){
 
   // ═══ PÁGINA 1: SIMULAÇÃO ═══
   doc.setFillColor(13,32,68);doc.rect(0,0,W,36,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(22);doc.setFont('helvetica','bold');
-  doc.text('CASA FÁCIL',W/2,14,{align:'center'});
+  doc.setFontSize(22);doc.setFont('helvetica','bold');
+  // "CASA " em branco + "FACIL" em amarelo dourado
+  var casaW = doc.getTextWidth('CASA ');
+  var facilW = doc.getTextWidth('FACIL');
+  var totalW = casaW + facilW;
+  var startX = W/2 - totalW/2;
+  doc.setTextColor(255,255,255);
+  doc.text('CASA ', startX, 14);
+  doc.setTextColor(255,200,0);
+  doc.text('FACIL', startX + casaW, 14);
   doc.setFontSize(9);doc.setFont('helvetica','normal');
   doc.text('Simulador MCMV - Aquisição de Terreno + Construção',W/2,23,{align:'center'});
   doc.text('Gerado em: '+new Date().toLocaleDateString('pt-BR')+'   |   Nº '+numC,W/2,31,{align:'center'});
