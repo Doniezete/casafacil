@@ -241,6 +241,8 @@
   <div class="pfx"><span>R$</span><input type="text" id="vsub" placeholder="0,00" oninput="fmtM(this);calcVerba()"/></div>
   <label>Valor de entrada (FGTS mais recursos próprios)</label>
   <div class="pfx"><span>R$</span><input type="text" id="vent" placeholder="0,00" oninput="fmtM(this);calcVerba()"/></div>
+  <label style="margin-top:8px">Valor disponível para documentação</label>
+  <div class="pfx"><span>R$</span><input type="text" id="vdoc" placeholder="0,00" oninput="fmtM(this)"/></div>
   <div class="sep"></div>
   <label>Valor do terreno</label>
   <div class="pfx"><span>R$</span><input type="text" id="vter" placeholder="0,00" oninput="fmtM(this);calcVerba()"/></div>
@@ -360,7 +362,7 @@ function voltarEtapa(){
 
 function salvarAtendimento(){
   try {
-    var campos = ['nome','cpf','nascimento','profissao','rua','bairro','cep','cidade_cliente','renda','vfin','vsub','vent','vter'];
+    var campos = ['nome','cpf','nascimento','profissao','rua','bairro','cep','cidade_cliente','renda','vfin','vsub','vent','vdoc','vter'];
     var selects = ['civil','dep','uf_cliente','fgts','cidade_atend'];
     var backup = {};
     campos.forEach(function(id){
@@ -502,19 +504,26 @@ function updateTerrenoInfo(){
 
 var ANCHORS=[
   // [renda, sDep/cFGTS fin,sub,taxa | cDep/cFGTS fin,sub,taxa | sDep/sFGTS fin,sub,taxa | cDep/sFGTS fin,sub,taxa]
+  // FAIXA 1 (ate R$ 3.200) - juros 4,25% a 5,00%
   [1700,  105077,13499,4.25,  102658,44998,4.25,   98532,13711,4.75,   98019,45703,4.75],
   [2000,  123807, 9929,4.25,  123807,33099,4.25,  116095,10121,4.75,  115491,33737,4.75],
   [2500,  150451, 4862,4.50,  150451,16209,4.50,  141231, 4981,5.00,  140519,16606,5.00],
-  [2850,  160000, 2591,4.50,  160000, 8639,4.50,  160000, 2596,5.00,  160000, 8654,5.00],
-  [3100,  168000, 1515,5.00,  168000, 5050,5.00,  160791, 1515,5.50,  160028, 5050,5.50],
-  [3500,  168000,    0,5.50,  168000, 1882,5.50,  168000,    0,6.00,  168000, 1882,5.50],
-  [3700,  168000,    0,6.00,  168000,    0,6.00,  168000,    0,6.00,  168000,    0,6.00],
-  [4200,  168000,    0,6.50,  168000,    0,6.50,  145445,    0,7.00,  145445,    0,7.00],
-  [5000,  168000,    0,7.66,  168000,    0,7.66,  168000,    0,8.16,  168000,    0,8.16],
-  [6000,  168000,    0,7.66,  168000,    0,7.66,  168000,    0,8.16,  168000,    0,8.16],
-  [8580,  168000,    0,7.66,  168000,    0,7.66,  168000,    0,8.16,  168000,    0,8.16],
-  [8610,  168000,    0,10.00, 168000,    0,10.00, 168000,    0,10.00, 168000,    0,10.00],
-  [12000, 168000,    0,10.00, 168000,    0,10.00, 168000,    0,10.00, 168000,    0,10.00],
+  [3200,  165000, 2000,4.50,  165000, 7000,4.50,  160000, 2000,5.00,  160000, 7000,5.00],
+  // FAIXA 2 (R$ 3.200,01 ate R$ 5.000) - juros 5,50% a 6,50%
+  [3500,  200000,    0,5.50,  200000, 1882,5.50,  195000,    0,6.00,  195000, 1882,5.50],
+  [4000,  220000,    0,6.00,  220000,    0,6.00,  215000,    0,6.00,  215000,    0,6.00],
+  [5000,  275000,    0,6.50,  275000,    0,6.50,  265000,    0,7.00,  265000,    0,7.00],
+  // FAIXA 3 (R$ 5.000,01 ate R$ 9.600) - juros 7.66%(cFGTS) / 8.16%(sFGTS)
+  // Confirmado pela Caixa: SP usa 7.66% com FGTS e 8.16% sem FGTS
+  [6000,  190000,    0,7.66,  190000,    0,7.66,  175000,    0,8.16,  175000,    0,8.16],
+  [7000,  220000,    0,7.66,  220000,    0,7.66,  205000,    0,8.16,  205000,    0,8.16],
+  [8000,  250000,    0,7.66,  250000,    0,7.66,  235000,    0,8.16,  235000,    0,8.16],
+  [9600,  300000,    0,7.66,  300000,    0,7.66,  280000,    0,8.16,  280000,    0,8.16],
+  // FAIXA 4 (R$ 9.600,01 ate R$ 13.000) - juros 10,00%
+  // Ponto 9601 garante corte abrupto na transicao Faixa 3 -> Faixa 4
+  [9601,  300000,    0,10.00, 300000,    0,10.00, 280000,    0,10.00, 280000,    0,10.00],
+  [11000, 400000,    0,10.00, 400000,    0,10.00, 380000,    0,10.00, 380000,    0,10.00],
+  [13000, 600000,    0,10.00, 600000,    0,10.00, 580000,    0,10.00, 580000,    0,10.00],
 ];
 function getEstInterp(renda,dep,fgts){
   var r=Math.max(ANCHORS[0][0],Math.min(renda,ANCHORS[ANCHORS.length-1][0]));
@@ -524,9 +533,32 @@ function getEstInterp(renda,dep,fgts){
   var ci=(dep==='sim'&&fgts==='sim')?4:(dep==='sim'&&fgts==='nao')?10:(fgts==='nao')?7:1;
   return{fin:Math.round(lerp(lo[ci],hi[ci],t)),sub:Math.round(lerp(lo[ci+1],hi[ci+1],t)),taxa:parseFloat(lerp(lo[ci+2],hi[ci+2],t).toFixed(2)),faixa:getFaixa(renda)};
 }
-function getFaixa(r){if(r<=2850)return'Faixa 1 — até R$ 2.850';if(r<=4700)return'Faixa 2 — até R$ 4.700';if(r<=8600)return'Faixa 3 — até R$ 8.600';return'Faixa 4 — até R$ 12.000';}
+function getFaixa(r){if(r<=3200)return'Faixa 1 - ate R$ 3.200';if(r<=5000)return'Faixa 2 - ate R$ 5.000';if(r<=9600)return'Faixa 3 - ate R$ 9.600';if(r<=13000)return'Faixa 4 - ate R$ 13.000';return'Fora do programa';}
 function pricePMT(pv,ta,m){var i=ta/100/12;if(i===0)return pv/m;return pv*(i*Math.pow(1+i,m))/(Math.pow(1+i,m)-1);}
-function calcSeg(pv,idade){var mip;if(idade<25)mip=0.000180;else if(idade<30)mip=0.000212;else if(idade<35)mip=0.000263;else if(idade<40)mip=0.000350;else if(idade<45)mip=0.000480;else if(idade<50)mip=0.000700;else if(idade<55)mip=0.001020;else mip=0.001500;return pv*(mip+0.000250/12);}
+function calcSeg(pv,idade){
+  // Tabela MIP oficial CEF 2026 (confirmada simulacao Caixa)
+  var mip;
+  if(idade<=25)mip=0.000053;
+  else if(idade<=30)mip=0.000062;
+  else if(idade<=35)mip=0.000082;
+  else if(idade<=40)mip=0.000102;
+  else if(idade<=45)mip=0.000135;
+  else if(idade<=50)mip=0.000198;
+  else if(idade<=55)mip=0.000287;
+  else if(idade<=60)mip=0.000414;
+  else if(idade<=65)mip=0.000599;
+  else if(idade<=70)mip=0.000868;
+  else mip=0.001257;
+  // DFI confirmado pela Caixa (~R$200k = 0.000169)
+  var dfi;
+  if(pv<=100000)dfi=0.000085;
+  else if(pv<=200000)dfi=0.000169;
+  else if(pv<=300000)dfi=0.000220;
+  else if(pv<=400000)dfi=0.000260;
+  else dfi=0.000300;
+  // Taxa de administracao Caixa: R$25/mes fixo
+  return pv*(mip+dfi) + 25;
+}
 
 // Tabela de valor do imóvel extraída das simulações reais da CAIXA
 // Formato: [renda, val_com_fgts_com_dep, val_com_fgts_sem_dep, val_sem_fgts_com_dep, val_sem_fgts_sem_dep]
@@ -589,7 +621,7 @@ function atualizarFinanciamento(){
   atualizarValorImovel();
 }
 function calcVerba(){
-  var fin=parseM(document.getElementById('vfin')),sub=parseM(document.getElementById('vsub')),ent=parseM(document.getElementById('vent')),ter=parseM(document.getElementById('vter'));
+  var fin=parseM(document.getElementById('vfin')),sub=parseM(document.getElementById('vsub')),ent=parseM(document.getElementById('vent')),ter=parseM(document.getElementById('vter')),doc_val=document.getElementById('vdoc')?parseM(document.getElementById('vdoc')):0;
   var verba=Math.max(0,fin+sub+ent-ter),area=verba>0?Math.floor(verba/CPM):0;
   if(fin>0||sub>0){
     document.getElementById('resumo').style.display='block';
@@ -703,8 +735,20 @@ function go(n){
     var pl=pricePMT(est.fin,est.taxa,420);
     document.getElementById('pp_first').textContent=fmt(pl+calcSeg(est.fin,idade))+' (estimado)';
     document.getElementById('pp_last').textContent=fmt(pl)+' (estimado)';
-    document.getElementById('vfin').value=est.fin.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-    document.getElementById('vsub').value=est.sub.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    // Preenche estimativa apenas se o campo estiver vazio ou se a renda mudou
+    var vfinEl=document.getElementById('vfin');
+    var vsubEl=document.getElementById('vsub');
+    var rendaAtual=est.fin.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    // Salva a renda usada para detectar mudança
+    var rendaSalva=vfinEl.getAttribute('data-renda-ref');
+    var rendaStr=parseM(document.getElementById('renda')).toString();
+    if(!vfinEl.value || rendaSalva!==rendaStr){
+      vfinEl.value=rendaAtual;
+      vfinEl.setAttribute('data-renda-ref',rendaStr);
+    }
+    if(!vsubEl.value || rendaSalva!==rendaStr){
+      vsubEl.value=est.sub.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    }
     calcVerba();
   }
   if(n===2){
@@ -815,7 +859,7 @@ function gerar(){
   var renda=parseM(document.getElementById('renda')),dep=g('dep'),fgts=g('fgts'),terreno=g('terreno'),cidade_atend=g('cidade_atend');
   var nasc=g('nascimento'),dn=new Date(nasc),hoje=new Date();
   var idade=hoje.getFullYear()-dn.getFullYear();if(hoje.getMonth()-dn.getMonth()<0||(hoje.getMonth()-dn.getMonth()===0&&hoje.getDate()<dn.getDate()))idade--;
-  var fin=parseM(document.getElementById('vfin')),sub=parseM(document.getElementById('vsub')),ent=parseM(document.getElementById('vent')),ter=parseM(document.getElementById('vter'));
+  var fin=parseM(document.getElementById('vfin')),sub=parseM(document.getElementById('vsub')),ent=parseM(document.getElementById('vent')),ter=parseM(document.getElementById('vter')),doc_val=document.getElementById('vdoc')?parseM(document.getElementById('vdoc')):0;
   var verba=fin+sub+ent-ter,area=Math.floor(verba/CPM);
   var est=getEstInterp(renda,dep,fgts);
   var pl=pricePMT(fin>0?fin:est.fin,est.taxa,420);
@@ -828,8 +872,8 @@ function gerar(){
     endereco:endereco_completo,
     tem_terreno:g('tem_terreno'),t_lote:g('t_lote'),t_quadra:g('t_quadra'),
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
-    renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,
-    fin:fin,sub:sub,ent:ent,ter:ter,verba:verba,area:area,quartos:qSel,mod:modLabel,est:est,
+    renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,renda_fmt:fmt(renda),
+    fin:fin,sub:sub,ent:ent,doc_val:doc_val,ter:ter,verba:verba,area:area,quartos:qSel,mod:modLabel,est:est,
     pmt_first:pl+calcSeg(fin>0?fin:est.fin,idade),pmt_last:pl,idade:idade
   };
   plantasAtuais=getPlantKeys(qSel);plantaIdx=0;renderPwThumbs();showPlanta(0);
@@ -860,7 +904,7 @@ function gerarPDF(){
     var renda2=parseM(document.getElementById('renda')),dep2=g2('dep'),fgts2=g2('fgts'),terreno2=g2('terreno'),cidade_atend2=g2('cidade_atend');
     var nasc2=g2('nascimento'),dn2=new Date(nasc2),hoje2=new Date();
     var idade2=hoje2.getFullYear()-dn2.getFullYear();if(hoje2.getMonth()-dn2.getMonth()<0||(hoje2.getMonth()-dn2.getMonth()===0&&hoje2.getDate()<dn2.getDate()))idade2--;
-    var fin2=parseM(document.getElementById('vfin')),sub2=parseM(document.getElementById('vsub')),ent2=parseM(document.getElementById('vent')),ter2=parseM(document.getElementById('vter'));
+    var fin2=parseM(document.getElementById('vfin')),sub2=parseM(document.getElementById('vsub')),ent2=parseM(document.getElementById('vent')),ter2=parseM(document.getElementById('vter')),doc_val2=document.getElementById('vdoc')?parseM(document.getElementById('vdoc')):0;
     var verba2=fin2+sub2+ent2-ter2,area2=Math.floor(verba2/CPM);
     var est2=getEstInterp(renda2,dep2,fgts2);
     var pl2=pricePMT(fin2>0?fin2:est2.fin,est2.taxa,420);
@@ -873,7 +917,7 @@ function gerarPDF(){
       tem_terreno:g2('tem_terreno'),t_lote:g2('t_lote'),t_quadra:g2('t_quadra'),
       t_area:document.getElementById('t_area').value,t_bairro:g2('t_bairro'),t_cidade:g2('t_cidade'),
       renda:renda2,dep:dep2,fgts:fgts2,terreno:terreno2,cidade_atend:cidade_atend2,
-      fin:fin2,sub:sub2,ent:ent2,ter:ter2,verba:verba2,area:area2,quartos:qSel,mod:modLabel2,est:est2,
+      fin:fin2,sub:sub2,ent:ent2,doc_val:doc_val2,ter:ter2,verba:verba2,area:area2,quartos:qSel,mod:modLabel2,est:est2,
       pmt_first:pl2+calcSeg(fin2>0?fin2:est2.fin,idade2),pmt_last:pl2,idade:idade2
     };
   }
@@ -919,8 +963,9 @@ function gerarPDF(){
   doc.text('Nascimento: '+fmtData(D.nasc)+' ('+D.idade+' anos)',M+2,y);doc.text('Profissão: '+D.profissao,W/2+2,y);y+=5;
   doc.text('Estado civil: '+D.civil,M+2,y);doc.text('Dep. na proposta: '+(D.dep==='sim'?'Sim':'Não'),W/2+2,y);y+=5;
   doc.text('Endereço: '+D.rua+', '+D.bairro,M+2,y);y+=5;
-  doc.text('CEP: '+D.cep+' - '+D.cidade_cli+'/'+D.uf_cli,M+2,y);y+=5;
-  doc.text('3 anos FGTS: '+(D.fgts==='sim'?'Sim':'Não'),M+2,y);doc.text('Terreno: '+(D.terreno==='plano'?'Plano':'Com desnível'),W/2+2,y);y+=5;
+  doc.text('CEP: '+D.cep+' - '+D.cidade_cli+'/'+D.uf_cli,M+2,y);doc.text('Tel: '+(D.telefone||'nao informado'),W/2+2,y);y+=5;
+  doc.text('3 anos FGTS: '+(D.fgts==='sim'?'Sim':'Nao'),M+2,y);doc.text('Renda familiar: '+D.renda_fmt,W/2+2,y);y+=5;
+  doc.text('Terreno: '+(D.terreno==='plano'?'Plano':'Com desnível'),W/2+2,y);y+=5;
   if(D.tem_terreno==='sim'){
     doc.text('Terreno próprio - Lote: '+D.t_lote+' Quadra: '+D.t_quadra+' - '+D.t_area+'m² - '+D.t_bairro+'/'+D.t_cidade,M+2,y);y+=4;
   }
@@ -931,9 +976,12 @@ function gerarPDF(){
   doc.setTextColor(122,94,0);doc.setFontSize(10);doc.setFont('helvetica','bold');
   doc.text('Resumo Financeiro (ESTIMATIVA)',M+2,y);y+=6;
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(70,50,0);
-  doc.text('Faixa MCMV: '+D.est.faixa,M+2,y);doc.text('Taxa juros est.: '+D.est.taxa.toFixed(2).replace('.',',')+' % a.a.',W/2+2,y);y+=5;
+  doc.text('Faixa MCMV: '+D.est.faixa,M+2,y);y+=5;
+  doc.text('Renda familiar: '+D.renda_fmt,M+2,y);doc.text('Taxa juros est.: '+D.est.taxa.toFixed(2).replace('.',',')+' % a.a.',W/2+2,y);y+=5;
   doc.text('Financiado (est.): '+fmt(D.fin),M+2,y);doc.text('Subsídio (est.): '+fmt(D.sub),W/2+2,y);y+=5;
   doc.text('Entrada: '+fmt(D.ent),M+2,y);doc.text('Terreno: '+fmt(D.ter),W/2+2,y);y+=5;
+  if(D.doc_val && D.doc_val>0){doc.text('Documentacao: '+fmt(D.doc_val),M+2,y);y+=5;}
+
   doc.setFont('helvetica','bold');doc.setTextColor(13,32,68);
   doc.text('Verba para construção (est.): '+fmt(D.verba)+'   |   Modelo: '+D.mod,M+2,y);y+=10;
 
@@ -947,10 +995,13 @@ function gerarPDF(){
   doc.text('* Valores estimados. Confirme na Caixa Econômica Federal antes de qualquer decisão.',M+2,y+2);y+=10;
 
   // Aviso doc
-  doc.setFillColor(240,253,244);doc.rect(M,y-2,W-M*2,13,'F');
-  doc.setDrawColor(104,211,145);doc.setLineWidth(0.4);doc.rect(M,y-2,W-M*2,13);
-  doc.setTextColor(39,103,73);doc.setFontSize(7.5);doc.setFont('helvetica','italic');
-  doc.text(doc.splitTextToSize('IMPORTANTE: Esta análise contempla apenas os valores do financiamento. Custos com documentação, cartório e registros NÃO estão incluídos e devem ser considerados no planejamento financeiro.',W-M*2-4),M+2,y+2);y+=12;
+  doc.setFontSize(7.5);doc.setFont('helvetica','italic');
+  var avisoLines=doc.splitTextToSize('IMPORTANTE: Esta analise contempla apenas os valores do financiamento. Custos com documentacao, cartorio e registros NAO estao incluidos e devem ser considerados no planejamento financeiro.',W-M*2-4);
+  var avisoH=avisoLines.length*4.5+6;
+  doc.setFillColor(240,253,244);doc.rect(M,y-2,W-M*2,avisoH,'F');
+  doc.setDrawColor(104,211,145);doc.setLineWidth(0.4);doc.rect(M,y-2,W-M*2,avisoH);
+  doc.setTextColor(39,103,73);
+  doc.text(avisoLines,M+2,y+2);y+=avisoH+2;
 
   // Planta (ocultar para Santa Rosa de Viterbo)
   if(D.cidade_atend !== 'srv'){
