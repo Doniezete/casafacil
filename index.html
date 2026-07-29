@@ -535,21 +535,25 @@ function updateTerrenoInfo(){
 var ANCHORS=[
   // [renda, sDep/cFGTS fin,sub,taxa | cDep/cFGTS fin,sub,taxa | sDep/sFGTS fin,sub,taxa | cDep/sFGTS fin,sub,taxa]
   // Taxas confirmadas por simulacoes reais da Caixa (SP) + tabela oficial MCMV 2026
-  // FAIXA 1 (ate R$ 3.200) - taxas variam com a renda (SP)
+  // FAIXA 1 (ate R$ 3.200) - taxas em degraus confirmadas Caixa SP
   // cFGTS+sDep | cFGTS+cDep | sFGTS+sDep | sFGTS+cDep
-  // Confirmado Caixa: renda 2000+cFGTS+cDep=4.25%, renda 3000+cFGTS+cDep=4.75%
-  [1700,  105077,13499,4.75,  102658,44998,4.00,   98532,13711,5.25,   98019,45703,4.75],
-  [2000,  123807, 9929,5.00,  123807,33099,4.25,  116095,10121,5.25,  115491,33737,5.00],
-  [2500,  150451, 4862,5.00,  150451,16209,4.50,  141231, 4981,5.25,  140519,16606,5.00],
-  [3200,  165000, 2000,5.00,  165000, 7000,4.75,  160000, 2000,5.25,  160000, 7000,5.00],
-  // FAIXA 2 (R$ 3.200,01 ate R$ 5.000)
-  // cFGTS+sDep=6.50% | cFGTS+cDep=5.50% | sFGTS+sDep=7.00% | sFGTS+cDep=6.50%
-  // Confirmado Caixa: com FGTS sem dep = 6.50% (HABITACIONAL), sem FGTS = 7.00%
-  // Ponto 3201 garante corte abrupto Faixa 1 -> Faixa 2
-  [3201,  170000,    0,6.50,  170000,    0,5.50,  160000,    0,7.00,  160000,    0,6.50], // corte Faixa1->2
-  [3500,  180000,    0,6.50,  180000,    0,5.50,  170000,    0,7.00,  170000,    0,6.50],
-  [4000,  210000,    0,6.50,  210000,    0,5.50,  200000,    0,7.00,  200000,    0,6.50],
-  [5000,  275000,    0,6.50,  275000,    0,5.50,  265000,    0,7.00,  265000,    0,6.50],
+  // Confirmado: <=2000=4.25%, 2001-2800=4.50%, 2801-3200=4.75%
+  [1700,  105077,13499,4.25,  102658,44998,4.25,   98532,13711,4.50,   98019,45703,5.00],
+  [2000,  123807, 9929,4.25,  123807,33099,4.25,  116095,10121,4.50,  115491,33737,5.00],
+  [2001,  130000, 7000,4.50,  130000,22000,4.50,  120000, 7000,4.50,  120000,22000,5.00],
+  [2800,  155000, 5000,4.50,  155000,10000,4.50,  145000, 5000,4.50,  145000,10000,5.00],
+  [2801,  160000, 3000,4.75,  160000, 8000,4.75,  150000, 3000,5.00,  150000, 8000,5.25],
+  [3200,  165000, 2000,4.75,  165000, 7000,4.75,  160000, 2000,5.00,  160000, 7000,5.25],
+  // FAIXA 2 (R$ 3.200,01 ate R$ 5.000) - taxas em degraus confirmadas Caixa SP
+  // cFGTS+sDep | cFGTS+cDep | sFGTS+sDep | sFGTS+cDep
+  // Confirmado: renda 3500=5.00%, renda 4000=5.50%, renda 5000=6.50%
+  // Corte abrupto Faixa 1->2 em 3201
+  [3201,  170000,    0,5.00,  170000,    0,5.00,  165000,    0,5.00,  165000,    0,5.00],
+  [3500,  180000,    0,5.00,  180000,    0,5.00,  170000,    0,5.00,  170000,    0,5.00],
+  [3501,  185000,    0,5.50,  185000,    0,5.50,  175000,    0,5.50,  175000,    0,5.50],
+  [4000,  210000,    0,5.50,  210000,    0,5.50,  200000,    0,5.50,  200000,    0,5.50],
+  [4001,  235000,    0,6.50,  235000,    0,6.50,  225000,    0,6.50,  225000,    0,6.50],
+  [5000,  275000,    0,6.50,  275000,    0,6.50,  265000,    0,6.50,  265000,    0,6.50],
   // FAIXA 3 (R$ 5.000,01 ate R$ 9.600)
   // cFGTS=7.66% | sFGTS=8.16% (confirmado Caixa, qualquer dep)
   // Ponto 5001 garante corte abrupto Faixa 2 -> Faixa 3
@@ -676,20 +680,26 @@ function calcSeg(pv,idade,taxa){
   else if(idade<=65)mip=0.000599;
   else if(idade<=70)mip=0.000868;
   else mip=0.001257;
-  // Faixa 1 (taxa<=5.25%): sem taxa admin, DFI menor
-  // Confirmado Caixa: renda 2000 -> DFI 0.000132, sem admin
-  // Faixas 2,3,4: DFI normal + R$25 admin
-  var faixa1=(taxa&&taxa<=5.25);
+  // DFI e admin confirmados por simulacoes reais Caixa SP:
+  // Faixas 1 e 2 (MCMV): sem taxa admin, DFI especifico
+  // Faixas 3 e 4 (Habitacional Mais): com R$25 admin, DFI diferente
+  var mcmv=(taxa&&taxa<=7.00); // Faixas 1 e 2
   var dfi;
-  if(faixa1){
-    // DFI Faixa 1 confirmado Caixa: R$123k=0.000132, R$168k=0.000267
+  if(mcmv){
+    // DFI MCMV confirmado Caixa (varia com fin e subsidio implicito)
+    // R$123k=0.000132, R$137k=0.000148, R$155k=0.000118(*), R$168k+=0.000267
+    // (*) renda 2800 com subsidio R$9505 mostra DFI menor - aceito como excecao de bracket
     if(pv<=100000)dfi=0.000085;
+    else if(pv<=110000)dfi=0.000173;
     else if(pv<=130000)dfi=0.000132;
-    else if(pv<=160000)dfi=0.000200;
+    else if(pv<=145000)dfi=0.000148;
+    else if(pv<=158000)dfi=0.000118;
     else if(pv<=200000)dfi=0.000267;
-    else dfi=0.000290;
+    else if(pv<=300000)dfi=0.000290;
+    else dfi=0.000310;
     return pv*(mip+dfi); // sem taxa de administracao
   } else {
+    // Faixas 3 e 4 (Habitacional Mais)
     if(pv<=100000)dfi=0.000085;
     else if(pv<=200000)dfi=0.000169;
     else if(pv<=300000)dfi=0.000220;
