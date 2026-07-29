@@ -129,12 +129,25 @@
   <div id="painel-financiamento" style="display:none;background:#eaf3ff;border:1.5px solid #b3d1f7;border-radius:10px;padding:12px 16px;margin:10px 0 4px 0">
     <div style="font-size:12px;color:#1a3a6b;font-weight:600;margin-bottom:4px">📊 Estimativa de financiamento</div>
     <div style="display:flex;gap:18px;flex-wrap:wrap">
-      <div><span style="font-size:11px;color:#555">Financiamento estimado</span><br><span id="pf-fin" style="font-size:17px;font-weight:700;color:#1a3a6b">—</span></div>
-      <div><span style="font-size:11px;color:#555">Subsídio estimado</span><br><span id="pf-sub" style="font-size:17px;font-weight:700;color:#2e7d32">—</span></div>
-      <div><span style="font-size:11px;color:#555">Taxa de juros</span><br><span id="pf-taxa" style="font-size:17px;font-weight:700;color:#b45309">—</span></div>
       <div><span style="font-size:11px;color:#555">Faixa MCMV</span><br><span id="pf-faixa" style="font-size:13px;font-weight:600;color:#1a3a6b">—</span></div>
+      <div><span style="font-size:11px;color:#555">Taxa de juros</span><br><span id="pf-taxa" style="font-size:17px;font-weight:700;color:#b45309">—</span></div>
+      <div><span style="font-size:11px;color:#555">Subsídio estimado</span><br><span id="pf-sub" style="font-size:17px;font-weight:700;color:#2e7d32">—</span></div>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:#d1e8ff;border-radius:8px">
+      <div style="font-size:11px;color:#555;margin-bottom:2px">Valor máximo financiável (pela renda)</div>
+      <div style="font-size:18px;font-weight:700;color:#1a3a6b" id="pf-fin">—</div>
+      <div style="font-size:11px;color:#555;margin-top:6px">Prazo estimado</div>
+      <div style="font-size:13px;font-weight:600;color:#1a3a6b" id="pf-prazo">—</div>
+      <div style="font-size:11px;color:#555;margin-top:6px">1ª Parcela estimada (incl. MIP+DFI)</div>
+      <div style="font-size:18px;font-weight:700;color:#c0392b" id="pf-parcela">—</div>
     </div>
     <div style="font-size:10px;color:#888;margin-top:6px">* Estimativa baseada nas simulações da CAIXA. Valores finais dependem da análise de crédito.</div>
+    <div style="margin-top:8px;font-size:10px;color:#555">
+      💡 Preencha o valor do imóvel na próxima etapa para ver a entrada e o limite de 80%.
+    </div>
+    <div id="aviso-faixa-limite" style="display:none;margin-top:8px;padding:8px 12px;background:#fff3cd;border-radius:8px;border:1px solid #f5c518;font-size:11px;color:#7a5e00">
+      ⚠️ <strong>Atenção:</strong> sua renda está no início desta faixa. A taxa de juros mais alta reduz o valor máximo financiável em relação à faixa anterior. Considere verificar se há possibilidade de enquadramento diferente.
+    </div>
   </div>
 
   <div class="sep"></div>
@@ -216,7 +229,20 @@
   <div class="est-box">
     <div class="est-title">📊 Perfil MCMV estimado</div>
     <div class="est-row"><span>Faixa MCMV</span><span id="ep_faixa">—</span></div>
-    <div class="est-row"><span>Taxa de juros (PRICE/TR)</span><span id="ep_taxa">—</span></div>
+    <div class="est-row">
+      <span>Taxa de juros (PRICE/TR)</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <input type="number" id="ep_taxa_input" step="0.01" min="1" max="15"
+          style="width:70px;padding:4px 8px;border:1.5px solid #b3d1f7;border-radius:6px;font-size:13px;font-weight:600;color:#b45309;text-align:center;background:#fff"
+          oninput="recalcularComTaxaEditada()"
+          title="Edite para usar a taxa exata da simulação da Caixa"/>
+        <span style="font-size:12px;color:#b45309;font-weight:600">% a.a.</span>
+        <span id="ep_taxa" style="display:none">—</span>
+      </span>
+    </div>
+    <div style="font-size:10px;color:#888;margin:-4px 0 6px 0">
+      💡 Ajuste a taxa conforme a simulação real da Caixa — a parcela atualiza automaticamente
+    </div>
     <div class="est-row"><span>Subsídio estimado</span><span id="ep_sub">—</span></div>
     <div class="est-row"><span>Valor financiado estimado</span><span id="ep_fin">—</span></div>
   </div>
@@ -226,17 +252,21 @@
     <div class="parc-subtitle">⚠️ Estimativa — sujeita a variação da TR e aprovação da Caixa</div>
     <div class="parc-row"><span>1ª Parcela (inclui seguro MIP+DFI)</span><span id="pp_first">—</span></div>
     <div class="parc-row"><span>Última Parcela</span><span id="pp_last">—</span></div>
-    <div class="parc-row"><span>Prazo máximo</span><span>420 meses (35 anos)</span></div>
+    <div class="parc-row"><span>Prazo máximo</span><span id="prazo-display">420 meses (35 anos)</span></div>
   </div>
 
   <div style="background:#fff3cd;border:2px solid #f5c518;border-radius:12px;padding:13px 15px;margin:14px 0 4px 0">
     <div style="font-size:12px;font-weight:700;color:#7a5e00;margin-bottom:6px">📋 Referência — Simulação da CAIXA</div>
     <label style="font-size:12px;color:#7a5e00;margin:0 0 4px 0">Valor do imóvel (simulação CAIXA) <span style="font-weight:400;font-size:11px">— apenas para consulta, não entra no PDF</span></label>
-    <div class="pfx"><span style="color:#a07800">R$</span><input type="text" id="val_imovel_ref" placeholder="0,00" oninput="fmtM(this);atualizarIndicadorCPM()" style="background:#fffef0;border-color:#e5d070"/></div>
+    <div class="pfx"><span style="color:#a07800">R$</span><input type="text" id="val_imovel_ref" placeholder="0,00" oninput="fmtM(this);atualizarIndicadorCPM();calcEntradaRef();sincronizarImovelFin('imovel');atualizarFinanciamento()" style="background:#fffef0;border-color:#e5d070"/></div>
+    <div id="entrada-ref-box" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:8px;border:1px solid #a5d6a7;font-size:12px;color:#2e7d32">
+      📌 <strong>Entrada de referência (20%):</strong> <span id="entrada-ref-val">—</span>
+      <span style="color:#555;font-size:11px;margin-left:6px">— valor mínimo que a Caixa costuma exigir</span>
+    </div>
   </div>
 
   <label>Valor financiado <span style="font-weight:400;font-size:11px;color:var(--gz)">(estimado — edite se necessário)</span></label>
-  <div class="pfx"><span>R$</span><input type="text" id="vfin" placeholder="0,00" oninput="fmtM(this);calcVerba()"/></div>
+  <div class="pfx"><span>R$</span><input type="text" id="vfin" placeholder="0,00" oninput="fmtM(this);calcVerba();sincronizarImovelFin('fin')"/></div>
   <label>Subsídio do governo (MCMV) <span style="font-weight:400;font-size:11px;color:var(--gz)">(estimado)</span></label>
   <div class="pfx"><span>R$</span><input type="text" id="vsub" placeholder="0,00" oninput="fmtM(this);calcVerba()"/></div>
   <label>Valor de entrada (FGTS mais recursos próprios)</label>
@@ -504,38 +534,135 @@ function updateTerrenoInfo(){
 
 var ANCHORS=[
   // [renda, sDep/cFGTS fin,sub,taxa | cDep/cFGTS fin,sub,taxa | sDep/sFGTS fin,sub,taxa | cDep/sFGTS fin,sub,taxa]
-  // FAIXA 1 (ate R$ 3.200) - juros 4,25% a 5,00%
-  [1700,  105077,13499,4.25,  102658,44998,4.25,   98532,13711,4.75,   98019,45703,4.75],
-  [2000,  123807, 9929,4.25,  123807,33099,4.25,  116095,10121,4.75,  115491,33737,4.75],
-  [2500,  150451, 4862,4.50,  150451,16209,4.50,  141231, 4981,5.00,  140519,16606,5.00],
-  [3200,  165000, 2000,4.50,  165000, 7000,4.50,  160000, 2000,5.00,  160000, 7000,5.00],
-  // FAIXA 2 (R$ 3.200,01 ate R$ 5.000) - juros 5,50% a 6,50%
-  [3500,  200000,    0,5.50,  200000, 1882,5.50,  195000,    0,6.00,  195000, 1882,5.50],
-  [4000,  220000,    0,6.00,  220000,    0,6.00,  215000,    0,6.00,  215000,    0,6.00],
-  [5000,  275000,    0,6.50,  275000,    0,6.50,  265000,    0,7.00,  265000,    0,7.00],
-  // FAIXA 3 (R$ 5.000,01 ate R$ 9.600) - juros 7.66%(cFGTS) / 8.16%(sFGTS)
-  // Confirmado pela Caixa: SP usa 7.66% com FGTS e 8.16% sem FGTS
+  // Taxas confirmadas por simulacoes reais da Caixa (SP) + tabela oficial MCMV 2026
+  // FAIXA 1 (ate R$ 3.200) - taxas variam com a renda (SP)
+  // cFGTS+sDep | cFGTS+cDep | sFGTS+sDep | sFGTS+cDep
+  // Confirmado Caixa: renda 2000+cFGTS+cDep=4.25%, renda 3000+cFGTS+cDep=4.75%
+  [1700,  105077,13499,4.75,  102658,44998,4.00,   98532,13711,5.25,   98019,45703,4.75],
+  [2000,  123807, 9929,5.00,  123807,33099,4.25,  116095,10121,5.25,  115491,33737,5.00],
+  [2500,  150451, 4862,5.00,  150451,16209,4.50,  141231, 4981,5.25,  140519,16606,5.00],
+  [3200,  165000, 2000,5.00,  165000, 7000,4.75,  160000, 2000,5.25,  160000, 7000,5.00],
+  // FAIXA 2 (R$ 3.200,01 ate R$ 5.000)
+  // cFGTS+sDep=6.50% | cFGTS+cDep=5.50% | sFGTS+sDep=7.00% | sFGTS+cDep=6.50%
+  // Confirmado Caixa: com FGTS sem dep = 6.50% (HABITACIONAL), sem FGTS = 7.00%
+  // Ponto 3201 garante corte abrupto Faixa 1 -> Faixa 2
+  [3201,  170000,    0,6.50,  170000,    0,5.50,  160000,    0,7.00,  160000,    0,6.50], // corte Faixa1->2
+  [3500,  180000,    0,6.50,  180000,    0,5.50,  170000,    0,7.00,  170000,    0,6.50],
+  [4000,  210000,    0,6.50,  210000,    0,5.50,  200000,    0,7.00,  200000,    0,6.50],
+  [5000,  275000,    0,6.50,  275000,    0,5.50,  265000,    0,7.00,  265000,    0,6.50],
+  // FAIXA 3 (R$ 5.000,01 ate R$ 9.600)
+  // cFGTS=7.66% | sFGTS=8.16% (confirmado Caixa, qualquer dep)
+  // Ponto 5001 garante corte abrupto Faixa 2 -> Faixa 3
+  [5001,  190000,    0,7.66,  190000,    0,7.66,  175000,    0,8.16,  175000,    0,8.16],
   [6000,  190000,    0,7.66,  190000,    0,7.66,  175000,    0,8.16,  175000,    0,8.16],
   [7000,  220000,    0,7.66,  220000,    0,7.66,  205000,    0,8.16,  205000,    0,8.16],
   [8000,  250000,    0,7.66,  250000,    0,7.66,  235000,    0,8.16,  235000,    0,8.16],
   [9600,  300000,    0,7.66,  300000,    0,7.66,  280000,    0,8.16,  280000,    0,8.16],
-  // FAIXA 4 (R$ 9.600,01 ate R$ 13.000) - juros 10,00%
-  // Ponto 9601 garante corte abrupto na transicao Faixa 3 -> Faixa 4
+  // FAIXA 4 (R$ 9.600,01 ate R$ 13.000) - 10.00% confirmado Caixa
   [9601,  300000,    0,10.00, 300000,    0,10.00, 280000,    0,10.00, 280000,    0,10.00],
   [11000, 400000,    0,10.00, 400000,    0,10.00, 380000,    0,10.00, 380000,    0,10.00],
   [13000, 600000,    0,10.00, 600000,    0,10.00, 580000,    0,10.00, 580000,    0,10.00],
 ];
-function getEstInterp(renda,dep,fgts){
+function getEstInterp(renda,dep,fgts,idade,imovelRef){
   var r=Math.max(ANCHORS[0][0],Math.min(renda,ANCHORS[ANCHORS.length-1][0]));
   var lo=ANCHORS[0],hi=ANCHORS[ANCHORS.length-1];
   for(var i=0;i<ANCHORS.length-1;i++){if(r>=ANCHORS[i][0]&&r<=ANCHORS[i+1][0]){lo=ANCHORS[i];hi=ANCHORS[i+1];break;}}
   var t=lo[0]===hi[0]?0:(r-lo[0])/(hi[0]-lo[0]);
   var ci=(dep==='sim'&&fgts==='sim')?4:(dep==='sim'&&fgts==='nao')?10:(fgts==='nao')?7:1;
-  return{fin:Math.round(lerp(lo[ci],hi[ci],t)),sub:Math.round(lerp(lo[ci+1],hi[ci+1],t)),taxa:parseFloat(lerp(lo[ci+2],hi[ci+2],t).toFixed(2)),faixa:getFaixa(renda)};
+  var finBase=Math.round(lerp(lo[ci],hi[ci],t));
+  var taxa=parseFloat(lerp(lo[ci+2],hi[ci+2],t).toFixed(2));
+  // Limitar pela cota de 80% do valor do imovel (quando informado)
+  if(imovelRef&&imovelRef>0){
+    finBase=Math.min(finBase,Math.floor(imovelRef*0.80/1000)*1000);
+  }
+  finBase=Math.max(finBase,0);
+  return{fin:finBase,sub:Math.round(lerp(lo[ci+1],hi[ci+1],t)),taxa:taxa,faixa:getFaixa(renda)};
 }
 function getFaixa(r){if(r<=3200)return'Faixa 1 - ate R$ 3.200';if(r<=5000)return'Faixa 2 - ate R$ 5.000';if(r<=9600)return'Faixa 3 - ate R$ 9.600';if(r<=13000)return'Faixa 4 - ate R$ 13.000';return'Fora do programa';}
+function recalcularComTaxaEditada(){
+  var taxaInput=document.getElementById('ep_taxa_input');
+  if(!taxaInput)return;
+  taxaInput.setAttribute('data-auto','0'); // marca como editado manualmente
+  var taxa=parseFloat(taxaInput.value);
+  if(!taxa||taxa<=0)return;
+  // Pega valores atuais
+  var vfinEl=document.getElementById('vfin');
+  var nascEl=document.getElementById('nascimento');
+  var fin=vfinEl?parseM(vfinEl):0;
+  if(fin<=0)return;
+  var idadeR=null,idadeMsR=null;
+  if(nascEl&&nascEl.value){
+    var _dn=new Date(nascEl.value),_hj=new Date();
+    idadeR=_hj.getFullYear()-_dn.getFullYear();
+    if(_hj.getMonth()-_dn.getMonth()<0||(_hj.getMonth()===_dn.getMonth()&&_hj.getDate()<_dn.getDate()))idadeR--;
+    idadeMsR=(_hj.getFullYear()-_dn.getFullYear())*12+(_hj.getMonth()-_dn.getMonth());
+    if(_hj.getDate()<_dn.getDate())idadeMsR--;
+  }
+  var prazoR=idadeMsR!=null?calcPrazoMax(idadeR,idadeMsR):(idadeR?calcPrazoMax(idadeR):420);
+  var p1=pricePMT(fin,taxa,prazoR)+calcSeg(fin,idadeR||35,taxa);
+  var pl=pricePMT(fin,taxa,prazoR);
+  var pp1=document.getElementById('pp_first');
+  var pp2=document.getElementById('pp_last');
+  if(pp1)pp1.textContent=fmt(p1)+' (estimado)';
+  if(pp2)pp2.textContent=fmt(pl)+' (estimado)';
+  // Atualiza taxa no objeto para o PDF
+  if(window._taxaEditada!==undefined)window._taxaEditada=taxa;
+}
+function sincronizarImovelFin(origem){
+  var vfinEl=document.getElementById('vfin');
+  var imovelEl=document.getElementById('val_imovel_ref');
+  var entradaEl=document.getElementById('entrada-ref-val');
+  var entradaBox=document.getElementById('entrada-ref-box');
+  if(!vfinEl||!imovelEl)return;
+  if(origem==='fin'){
+    var fin=parseM(vfinEl);
+    if(fin>0){
+      var imovel=Math.round(fin/0.80);
+      imovelEl.value=imovel.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      if(entradaEl)entradaEl.textContent='R$ '+(imovel-fin).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      if(entradaBox)entradaBox.style.display='block';
+    }
+  } else if(origem==='imovel'){
+    var imovel=parseM(imovelEl);
+    if(imovel>0){
+      var fin=Math.round(imovel*0.80);
+      vfinEl.value=fin.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      if(entradaEl)entradaEl.textContent='R$ '+(imovel-fin).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      if(entradaBox)entradaBox.style.display='block';
+      calcVerba();
+    }
+  }
+}
+function calcEntradaRef(){
+  var imovel=parseM(document.getElementById('val_imovel_ref'));
+  var box=document.getElementById('entrada-ref-box');
+  var span=document.getElementById('entrada-ref-val');
+  if(imovel>0&&box&&span){
+    var entrada=imovel*0.20;
+    span.textContent='R$ '+entrada.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    box.style.display='block';
+  } else if(box){
+    box.style.display='none';
+  }
+}
+function getIdadeMeses(){
+  var nascEl=document.getElementById('nascimento');
+  if(!nascEl||!nascEl.value)return null;
+  var dn=new Date(nascEl.value),hj=new Date();
+  var ms=(hj.getFullYear()-dn.getFullYear())*12+(hj.getMonth()-dn.getMonth());
+  if(hj.getDate()<dn.getDate())ms--;
+  return ms;
+}
+function calcPrazoMax(idade,idadeMeses){
+  // Caixa: prazo maximo para quitar antes de 80 anos e 6 meses
+  var limMeses=966; // 80*12+6
+  var ms=idadeMeses!=null?idadeMeses:getIdadeMeses();
+  if(ms!=null)return Math.min(420,Math.max(60,limMeses-ms));
+  var prazoIdade=Math.floor((80.5-idade)*12);
+  return Math.min(420,Math.max(60,prazoIdade));
+}
 function pricePMT(pv,ta,m){var i=ta/100/12;if(i===0)return pv/m;return pv*(i*Math.pow(1+i,m))/(Math.pow(1+i,m)-1);}
-function calcSeg(pv,idade){
+function calcSeg(pv,idade,taxa){
   // Tabela MIP oficial CEF 2026 (confirmada simulacao Caixa)
   var mip;
   if(idade<=25)mip=0.000053;
@@ -549,15 +676,27 @@ function calcSeg(pv,idade){
   else if(idade<=65)mip=0.000599;
   else if(idade<=70)mip=0.000868;
   else mip=0.001257;
-  // DFI confirmado pela Caixa (~R$200k = 0.000169)
+  // Faixa 1 (taxa<=5.25%): sem taxa admin, DFI menor
+  // Confirmado Caixa: renda 2000 -> DFI 0.000132, sem admin
+  // Faixas 2,3,4: DFI normal + R$25 admin
+  var faixa1=(taxa&&taxa<=5.25);
   var dfi;
-  if(pv<=100000)dfi=0.000085;
-  else if(pv<=200000)dfi=0.000169;
-  else if(pv<=300000)dfi=0.000220;
-  else if(pv<=400000)dfi=0.000260;
-  else dfi=0.000300;
-  // Taxa de administracao Caixa: R$25/mes fixo
-  return pv*(mip+dfi) + 25;
+  if(faixa1){
+    // DFI Faixa 1 confirmado Caixa: R$123k=0.000132, R$168k=0.000267
+    if(pv<=100000)dfi=0.000085;
+    else if(pv<=130000)dfi=0.000132;
+    else if(pv<=160000)dfi=0.000200;
+    else if(pv<=200000)dfi=0.000267;
+    else dfi=0.000290;
+    return pv*(mip+dfi); // sem taxa de administracao
+  } else {
+    if(pv<=100000)dfi=0.000085;
+    else if(pv<=200000)dfi=0.000169;
+    else if(pv<=300000)dfi=0.000220;
+    else if(pv<=400000)dfi=0.000260;
+    else dfi=0.000300;
+    return pv*(mip+dfi) + 25; // com R$25 admin
+  }
 }
 
 // Tabela de valor do imóvel extraída das simulações reais da CAIXA
@@ -602,6 +741,7 @@ function atualizarValorImovel(){
   var fgts=document.getElementById('fgts').value;
   var campo=document.getElementById('val_imovel_ref');
   if(renda<500){ campo.value=''; return; }
+  // Preenche com referência ao entrar na etapa (usuário pode editar depois)
   var val=getValorImovelRef(renda,dep,fgts);
   campo.value=val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
@@ -612,13 +752,65 @@ function atualizarFinanciamento(){
   var fgts=document.getElementById('fgts').value;
   var painel=document.getElementById('painel-financiamento');
   if(renda<500){painel.style.display='none';return;}
-  var est=getEstInterp(renda,dep,fgts);
+  // Calcula idade e prazo — INDEPENDENTE do passo 2
+  var nascEl=document.getElementById('nascimento');
+  var idadeAF=null,_idadeMs=null;
+  if(nascEl&&nascEl.value){
+    var _dn=new Date(nascEl.value),_hj=new Date();
+    idadeAF=_hj.getFullYear()-_dn.getFullYear();
+    if(_hj.getMonth()-_dn.getMonth()<0||(_hj.getMonth()===_dn.getMonth()&&_hj.getDate()<_dn.getDate()))idadeAF--;
+    _idadeMs=(_hj.getFullYear()-_dn.getFullYear())*12+(_hj.getMonth()-_dn.getMonth());
+    if(_hj.getDate()<_dn.getDate())_idadeMs--;
+  }
+  // SEM imovelRef — painel passo 1 é independente do passo 2
+  var est=getEstInterp(renda,dep,fgts,null,0);
+  var prazoAF=(_idadeMs!=null)?calcPrazoMax(idadeAF,_idadeMs):(idadeAF?calcPrazoMax(idadeAF):420);
+  // Valor máximo real considerando prazo + renda (30%)
+  var taxa=est.taxa,im=taxa/100/12;
+  var factor=im===0?1/prazoAF:im*Math.pow(1+im,prazoAF)/(Math.pow(1+im,prazoAF)-1);
+  var idadeRef=idadeAF||35;
+  var mip=(idadeRef<=25?0.000053:idadeRef<=30?0.000062:idadeRef<=35?0.000082:idadeRef<=40?0.000102:idadeRef<=45?0.000135:idadeRef<=50?0.000198:idadeRef<=55?0.000287:idadeRef<=60?0.000414:idadeRef<=65?0.000599:idadeRef<=70?0.000868:0.001257);
+  var dfi=0.000169;
+  var finMaxPrazo=Math.floor((renda*0.30-25)/(factor+mip+dfi)/1000)*1000;
+  var finMax=Math.min(est.fin,Math.max(0,finMaxPrazo));
+  var parcAF=pricePMT(finMax,taxa,prazoAF)+calcSeg(finMax,idadeRef,est.taxa);
   painel.style.display='block';
-  document.getElementById('pf-fin').textContent='R$ '+est.fin.toLocaleString('pt-BR');
-  document.getElementById('pf-sub').textContent=est.sub>0?'R$ '+est.sub.toLocaleString('pt-BR'):'Sem subsídio';
+  document.getElementById('pf-fin').textContent='R$ '+finMax.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('pf-sub').textContent=est.sub>0?'R$ '+est.sub.toLocaleString('pt-BR'):'Sem subsidio';
   document.getElementById('pf-taxa').textContent=est.taxa.toFixed(2).replace('.',',')+' % a.a.';
   document.getElementById('pf-faixa').textContent=est.faixa;
-  atualizarValorImovel();
+  var anosAF=Math.floor(prazoAF/12),mesesRAF=prazoAF%12;
+  document.getElementById('pf-prazo').textContent=prazoAF+' meses ('+anosAF+' anos'+(mesesRAF>0?' e '+mesesRAF+' meses':'')+')';
+  document.getElementById('pf-parcela').textContent='R$ '+parcAF.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' (estimado)';
+
+  // Verifica se o valor máximo é menor que seria na faixa anterior
+  var avisoEl=document.getElementById('aviso-faixa-limite');
+  if(avisoEl){
+    var mostrarAviso=false;
+    // Calcula o finMax que o cliente teria se estivesse R$1 abaixo (faixa anterior)
+    if(renda>3201 && renda<=3500){
+      // Início da Faixa 2 - compara com final da Faixa 1
+      var estF1=getEstInterp(3200,dep,fgts,null,0);
+      var finMaxF1=Math.floor((renda*0.30-25)/((estF1.taxa/100/12*Math.pow(1+estF1.taxa/100/12,prazoAF))/(Math.pow(1+estF1.taxa/100/12,prazoAF)-1)+mip+dfi)/1000)*1000;
+      if(finMax<finMaxF1)mostrarAviso=true;
+    } else if(renda>5001 && renda<=6000){
+      // Início da Faixa 3 - compara com final da Faixa 2
+      var estF2=getEstInterp(5000,dep,fgts,null,0);
+      var taxaF2=estF2.taxa/100/12;
+      var factorF2=taxaF2*Math.pow(1+taxaF2,prazoAF)/(Math.pow(1+taxaF2,prazoAF)-1);
+      var finMaxF2=Math.floor((renda*0.30-25)/(factorF2+mip+dfi)/1000)*1000;
+      if(finMax<finMaxF2)mostrarAviso=true;
+    } else if(renda>9601 && renda<=11000){
+      // Início da Faixa 4 - compara com final da Faixa 3
+      var estF3=getEstInterp(9600,dep,fgts,null,0);
+      var taxaF3=estF3.taxa/100/12;
+      var factorF3=taxaF3*Math.pow(1+taxaF3,prazoAF)/(Math.pow(1+taxaF3,prazoAF)-1);
+      var finMaxF3=Math.floor((renda*0.30-25)/(factorF3+mip+dfi)/1000)*1000;
+      if(finMax<finMaxF3)mostrarAviso=true;
+    }
+    avisoEl.style.display=mostrarAviso?'block':'none';
+  }
+
 }
 function calcVerba(){
   var fin=parseM(document.getElementById('vfin')),sub=parseM(document.getElementById('vsub')),ent=parseM(document.getElementById('vent')),ter=parseM(document.getElementById('vter')),doc_val=document.getElementById('vdoc')?parseM(document.getElementById('vdoc')):0;
@@ -631,6 +823,33 @@ function calcVerba(){
     var totalImovel=fin+sub+ent;
     document.getElementById('r7').textContent=totalImovel>0?'R$ '+totalImovel.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
   }
+  // Atualiza parcela dinamicamente quando vfin muda
+  try{
+    var rendaCV=parseM(document.getElementById('renda'));
+    var depCV=document.getElementById('dep').value;
+    var fgtsCV=document.getElementById('fgts').value;
+    var nascCV=document.getElementById('nascimento').value;
+    var idadeCV=null;
+    if(nascCV){var dnCV=new Date(nascCV),hjCV=new Date();idadeCV=hjCV.getFullYear()-dnCV.getFullYear();if(hjCV.getMonth()-dnCV.getMonth()<0||(hjCV.getMonth()===dnCV.getMonth()&&hjCV.getDate()<dnCV.getDate()))idadeCV--;}
+    var estCV=getEstInterp(rendaCV,depCV,fgtsCV,idadeCV,parseM(document.getElementById('val_imovel_ref')));
+  var taxaInputCV=document.getElementById('ep_taxa_input');
+  if(taxaInputCV&&taxaInputCV.getAttribute('data-auto')==='0'&&parseFloat(taxaInputCV.value)>0){
+    estCV=Object.assign({},estCV,{taxa:parseFloat(taxaInputCV.value)});
+  }
+    var prazoCV=idadeCV?calcPrazoMax(idadeCV):420;
+    var finReal=fin>0?fin:estCV.fin;
+    var p1=pricePMT(finReal,estCV.taxa,prazoCV)+calcSeg(finReal,idadeCV||35,estCV.taxa);
+    var pl=pricePMT(finReal,estCV.taxa,prazoCV);
+    // Atualiza pp_first e pp_last no painel de parcelas
+    var pp1=document.getElementById('pp_first');
+    var pp2=document.getElementById('pp_last');
+    if(pp1)pp1.textContent=fmt(p1)+' (estimado)';
+    if(pp2)pp2.textContent=fmt(pl)+' (estimado)';
+    // Atualiza prazo display
+    var anosCV=Math.floor(prazoCV/12),mesesRCV=prazoCV%12;
+    var pd=document.getElementById('prazo-display');
+    if(pd)pd.textContent=prazoCV+' meses ('+anosCV+' anos'+(mesesRCV>0?' e '+mesesRCV+' meses':'')+')';
+  }catch(e){}
   // Atualiza indicador de custo por m²
   atualizarIndicadorCPM();
 }
@@ -727,13 +946,25 @@ function go(n){
     CPM_PLANO=eoSel.cpm||CPM_PLANO;
     CPM_DESNIVEL=eoSel.cpm_desn||CPM_DESNIVEL;
     CPM=document.getElementById('terreno').value==='desnivel'?CPM_DESNIVEL:CPM_PLANO;
-    var est=getEstInterp(renda,dep,fgts);
+    atualizarValorImovel();
+    var imovelRef=parseM(document.getElementById('val_imovel_ref'));
+    var est=getEstInterp(renda,dep,fgts,idade,imovelRef);
+    calcEntradaRef();
     document.getElementById('ep_faixa').textContent=est.faixa;
     document.getElementById('ep_taxa').textContent=est.taxa.toFixed(2).replace('.',',')+' % a.a.';
+    var taxaInput=document.getElementById('ep_taxa_input');
+    if(taxaInput&&(!taxaInput.value||taxaInput.getAttribute('data-auto')==='1')){
+      taxaInput.value=est.taxa.toFixed(2);
+      taxaInput.setAttribute('data-auto','1');
+    }
     document.getElementById('ep_sub').textContent=est.sub>0?fmt(est.sub)+' (estimado)':'Sem subsídio nesta faixa';
     document.getElementById('ep_fin').textContent=fmt(est.fin)+' (estimado)';
-    var pl=pricePMT(est.fin,est.taxa,420);
-    document.getElementById('pp_first').textContent=fmt(pl+calcSeg(est.fin,idade))+' (estimado)';
+    var prazoMax=calcPrazoMax(idade);
+    var anos=Math.floor(prazoMax/12),mesesR=prazoMax%12;
+    var prazoStr=prazoMax+' meses ('+anos+' anos'+(mesesR>0?' e '+mesesR+' meses':'')+')';
+    var pd=document.getElementById('prazo-display');if(pd)pd.textContent=prazoStr;
+    var pl=pricePMT(est.fin,est.taxa,prazoMax);
+    document.getElementById('pp_first').textContent=fmt(pl+calcSeg(est.fin,idade,est.taxa))+' (estimado)';
     document.getElementById('pp_last').textContent=fmt(pl)+' (estimado)';
     // Preenche estimativa apenas se o campo estiver vazio ou se a renda mudou
     var vfinEl=document.getElementById('vfin');
@@ -861,8 +1092,17 @@ function gerar(){
   var idade=hoje.getFullYear()-dn.getFullYear();if(hoje.getMonth()-dn.getMonth()<0||(hoje.getMonth()-dn.getMonth()===0&&hoje.getDate()<dn.getDate()))idade--;
   var fin=parseM(document.getElementById('vfin')),sub=parseM(document.getElementById('vsub')),ent=parseM(document.getElementById('vent')),ter=parseM(document.getElementById('vter')),doc_val=document.getElementById('vdoc')?parseM(document.getElementById('vdoc')):0;
   var verba=fin+sub+ent-ter,area=Math.floor(verba/CPM);
-  var est=getEstInterp(renda,dep,fgts);
-  var pl=pricePMT(fin>0?fin:est.fin,est.taxa,420);
+  var est=getEstInterp(renda,dep,fgts,idade,parseM(document.getElementById('val_imovel_ref')));
+  // Usa taxa editada manualmente se disponível
+  var taxaInputEl=document.getElementById('ep_taxa_input');
+  if(taxaInputEl&&taxaInputEl.getAttribute('data-auto')==='0'&&parseFloat(taxaInputEl.value)>0){
+    est=Object.assign({},est,{taxa:parseFloat(taxaInputEl.value)});
+  }
+  var prazoMax=calcPrazoMax(idade);
+  var anos=Math.floor(prazoMax/12),mesesRest=prazoMax%12;
+  var prazoStr=prazoMax+' meses ('+anos+' anos'+(mesesRest>0?' e '+mesesRest+' meses':'')+')';
+  var pd=document.getElementById('prazo-display');if(pd)pd.textContent=prazoStr;
+  var pl=pricePMT(fin>0?fin:est.fin,est.taxa,prazoMax);
   var modLabel=qSel===3?'Modelo 3 Quartos':qSel===2?'Modelo 2 Quartos':'Modelo 1 Quarto';
   var civMap={solteiro:'Solteiro(a)',casado:'Casado(a)',uniao:'União Estável',divorciado:'Divorciado(a)',viuvo:'Viúvo(a)'};
   var endereco_completo=g('rua')+', '+g('bairro')+', CEP '+g('cep')+' — '+g('cidade_cliente')+'/'+g('uf_cliente');
@@ -874,7 +1114,7 @@ function gerar(){
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
     renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,renda_fmt:fmt(renda),
     fin:fin,sub:sub,ent:ent,doc_val:doc_val,ter:ter,verba:verba,area:area,quartos:qSel,mod:modLabel,est:est,
-    pmt_first:pl+calcSeg(fin>0?fin:est.fin,idade),pmt_last:pl,idade:idade
+    pmt_first:pl+calcSeg(fin>0?fin:est.fin,idade,est.taxa),pmt_last:pl,idade:idade,prazo:prazoMax
   };
   plantasAtuais=getPlantKeys(qSel);plantaIdx=0;renderPwThumbs();showPlanta(0);
   document.getElementById('rn').textContent='Casa de '+D.nome.split(' ')[0];
@@ -906,8 +1146,9 @@ function gerarPDF(){
     var idade2=hoje2.getFullYear()-dn2.getFullYear();if(hoje2.getMonth()-dn2.getMonth()<0||(hoje2.getMonth()-dn2.getMonth()===0&&hoje2.getDate()<dn2.getDate()))idade2--;
     var fin2=parseM(document.getElementById('vfin')),sub2=parseM(document.getElementById('vsub')),ent2=parseM(document.getElementById('vent')),ter2=parseM(document.getElementById('vter')),doc_val2=document.getElementById('vdoc')?parseM(document.getElementById('vdoc')):0;
     var verba2=fin2+sub2+ent2-ter2,area2=Math.floor(verba2/CPM);
-    var est2=getEstInterp(renda2,dep2,fgts2);
-    var pl2=pricePMT(fin2>0?fin2:est2.fin,est2.taxa,420);
+    var est2=getEstInterp(renda2,dep2,fgts2,idade2,parseM(document.getElementById('val_imovel_ref')));
+    var prazoMax2=calcPrazoMax(idade2);
+    var pl2=pricePMT(fin2>0?fin2:est2.fin,est2.taxa,prazoMax2);
     var modLabel2=qSel===3?'Modelo 3 Quartos':qSel===2?'Modelo 2 Quartos':'Modelo 1 Quarto';
     var civMap2={solteiro:'Solteiro(a)',casado:'Casado(a)',uniao:'União Estável',divorciado:'Divorciado(a)',viuvo:'Viúvo(a)'};
     D={
@@ -918,7 +1159,7 @@ function gerarPDF(){
       t_area:document.getElementById('t_area').value,t_bairro:g2('t_bairro'),t_cidade:g2('t_cidade'),
       renda:renda2,dep:dep2,fgts:fgts2,terreno:terreno2,cidade_atend:cidade_atend2,
       fin:fin2,sub:sub2,ent:ent2,doc_val:doc_val2,ter:ter2,verba:verba2,area:area2,quartos:qSel,mod:modLabel2,est:est2,
-      pmt_first:pl2+calcSeg(fin2>0?fin2:est2.fin,idade2),pmt_last:pl2,idade:idade2
+      pmt_first:pl2+calcSeg(fin2>0?fin2:est2.fin,idade2,est2.taxa),pmt_last:pl2,idade:idade2
     };
   }
   var jsPDF=window.jspdf.jsPDF;
@@ -988,7 +1229,7 @@ function gerarPDF(){
   // Parcelas
   doc.setFillColor(13,32,68);doc.rect(M,y-3,W-M*2,9,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  doc.text('Parcelas Estimadas - Tabela PRICE/TR - 420 meses - sujeitas à variação da TR e aprovação da Caixa',M+2,y+4);y+=13;
+  doc.text('Parcelas Estimadas - Tabela PRICE/TR - '+(D.prazo||420)+' meses - sujeitas a variacao da TR e aprovacao da Caixa',M+2,y+4);y+=13;
   doc.setFillColor(232,240,254);doc.rect(M,y-3,W-M*2,14,'F');
   doc.setTextColor(13,32,68);doc.setFontSize(8.5);doc.setFont('helvetica','normal');
   doc.text('1ª Parcela (est., incl. seguro MIP+DFI): '+fmt(D.pmt_first),M+2,y+2);doc.text('Última Parcela (est.): '+fmt(D.pmt_last),W/2+2,y+2);y+=8;
@@ -1301,15 +1542,24 @@ function carregarCodigo(){
     document.getElementById('cidade_atend').value=p.cidade_atend||'vgs';
     calcIdade();
     // Passo 2
-    var est=getEstInterp(p.renda||0,p.dep||'nao',p.fgts||'sim');
+    var est=getEstInterp(p.renda||0,p.dep||'nao',p.fgts||'sim',null,null);
     document.getElementById('ep_faixa').textContent=est.faixa;
     document.getElementById('ep_taxa').textContent=est.taxa.toFixed(2).replace('.',',')+' % a.a.';
+    var taxaInput=document.getElementById('ep_taxa_input');
+    if(taxaInput&&(!taxaInput.value||taxaInput.getAttribute('data-auto')==='1')){
+      taxaInput.value=est.taxa.toFixed(2);
+      taxaInput.setAttribute('data-auto','1');
+    }
     document.getElementById('ep_sub').textContent=est.sub>0?fmt(est.sub)+' (estimado)':'Sem subsídio nesta faixa';
     document.getElementById('ep_fin').textContent=fmt(est.fin)+' (estimado)';
     var nasc=p.nasc,dn=new Date(nasc),hoje=new Date();
     var idade=hoje.getFullYear()-dn.getFullYear();if(hoje.getMonth()-dn.getMonth()<0||(hoje.getMonth()-dn.getMonth()===0&&hoje.getDate()<dn.getDate()))idade--;
-    var pl2=pricePMT(est.fin,est.taxa,420);
-    document.getElementById('pp_first').textContent=fmt(pl2+calcSeg(est.fin,idade))+' (estimado)';
+    var prazoMax2=calcPrazoMax(idade);
+    var anos2=Math.floor(prazoMax2/12),mesesR2=prazoMax2%12;
+    var prazoStr2=prazoMax2+' meses ('+anos2+' anos'+(mesesR2>0?' e '+mesesR2+' meses':'')+')';
+    var pd2=document.getElementById('prazo-display');if(pd2)pd2.textContent=prazoStr2;
+    var pl2=pricePMT(est.fin,est.taxa,prazoMax2);
+    document.getElementById('pp_first').textContent=fmt(pl2+calcSeg(est.fin,idade,est.taxa))+' (estimado)';
     document.getElementById('pp_last').textContent=fmt(pl2)+' (estimado)';
     var finFmt=(p.fin||est.fin).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     var subFmt=(p.sub||est.sub).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1352,8 +1602,10 @@ function copiarDados(){
   var idade=hoje.getFullYear()-dn.getFullYear();if(hoje.getMonth()-dn.getMonth()<0||(hoje.getMonth()-dn.getMonth()===0&&hoje.getDate()<dn.getDate()))idade--;
   var fin=parseM(document.getElementById('vfin')),sub=parseM(document.getElementById('vsub')),ent=parseM(document.getElementById('vent')),ter=parseM(document.getElementById('vter'));
   var verba=fin+sub+ent-ter,area=Math.floor(verba/CPM);
-  var est=getEstInterp(renda,dep,fgts);
-  var pl=pricePMT(fin>0?fin:est.fin,est.taxa,420);
+  var imovelRefCV=parseM(document.getElementById('val_imovel_ref'));
+  var est=getEstInterp(renda,dep,fgts,idade,imovelRefCV);
+  var prazoMax=calcPrazoMax(idade);
+  var pl=pricePMT(fin>0?fin:est.fin,est.taxa,prazoMax);
   // Recupera qSel dos botões visuais caso a variável tenha sido zerada
   if(!qSel){for(var qi=1;qi<=3;qi++){if(document.getElementById('q'+qi)&&document.getElementById('q'+qi).classList.contains('sel')){qSel=qi;break;}}}
   var modLabel=qSel===3?'Modelo 3 Quartos':qSel===2?'Modelo 2 Quartos':'Modelo 1 Quarto';
@@ -1366,7 +1618,7 @@ function copiarDados(){
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
     renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,
     fin:fin,sub:sub,ent:ent,ter:ter,verba:verba,area:area,quartos:qSel,mod:modLabel,est:est,
-    pmt_first:pl+calcSeg(fin>0?fin:est.fin,idade),pmt_last:pl,idade:idade
+    pmt_first:pl+calcSeg(fin>0?fin:est.fin,idade,est.taxa),pmt_last:pl,idade:idade
   };
   var payload={
     v:1,
