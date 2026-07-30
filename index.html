@@ -278,6 +278,13 @@
   <div class="pfx"><span>R$</span><input type="text" id="vter" placeholder="0,00" oninput="fmtM(this);calcVerba()"/></div>
   <div class="hint">Este valor será descontado — o saldo restante determina a área de construção.</div>
 
+  <div id="aviso-comprometimento-renda" style="display:none;margin-top:12px;padding:10px 13px;background:#fff0f0;border:1.5px solid #fc8181;border-radius:10px;font-size:12px;color:#7a1f1f;line-height:1.5">
+    <div id="aviso-comprometimento-texto"></div>
+    <button type="button" class="btn" style="margin-top:8px;padding:7px 12px;font-size:12px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;border:none;border-radius:8px;cursor:pointer" onclick="ajustarFinanciamentoRenda()">
+      ⚙️ Ajustar automaticamente (reduzir financiamento e aumentar entrada)
+    </button>
+  </div>
+
   <div class="resumo-box" id="resumo" style="display:none">
     <div class="rl"><span>Valor financiado</span><span id="r1">—</span></div>
     <div class="rl"><span>+ Subsídio</span><span id="r2">—</span></div>
@@ -537,23 +544,29 @@ var ANCHORS=[
   // Taxas confirmadas por simulacoes reais da Caixa (SP) + tabela oficial MCMV 2026
   // FAIXA 1 (ate R$ 3.200) - taxas em degraus confirmadas Caixa SP
   // cFGTS+sDep | cFGTS+cDep | sFGTS+sDep | sFGTS+cDep
-  // Confirmado: <=2000=4.25%, 2001-2800=4.50%, 2801-3200=4.75%
-  [1700,  105077,13499,4.25,  102658,44998,4.25,   98532,13711,4.50,   98019,45703,5.00],
-  [2000,  123807, 9929,4.25,  123807,33099,4.25,  116095,10121,4.50,  115491,33737,5.00],
-  [2001,  130000, 7000,4.50,  130000,22000,4.50,  120000, 7000,4.50,  120000,22000,5.00],
-  [2800,  155000, 5000,4.50,  155000,10000,4.50,  145000, 5000,4.50,  145000,10000,5.00],
-  [2801,  160000, 3000,4.75,  160000, 8000,4.75,  150000, 3000,5.00,  150000, 8000,5.25],
-  [3200,  165000, 2000,4.75,  165000, 7000,4.75,  160000, 2000,5.00,  160000, 7000,5.25],
+  // CALIBRADO com simulacoes reais Caixa (renda 2.000/2.400/3.000, imovel 210k):
+  //   Padrao confirmado (igual a Faixa 2): sFGTS = cFGTS + 0.50 p.p., independente de dependente
+  //   <=2000: cFGTS=4.25% / sFGTS=4.75%  |  2001-2800: cFGTS=4.50% / sFGTS=5.00%
+  //   2801-3200: cFGTS=4.75% / sFGTS=5.25%
+  [1700,  105077,13499,4.25,  102658,44998,4.25,   98532,13711,4.75,   98019,45703,4.75],
+  [2000,  123807, 9929,4.25,  123807,33099,4.25,  116095,10121,4.75,  115491,33737,4.75],
+  [2001,  130000, 7000,4.50,  130000,22000,4.50,  120000, 7000,5.00,  120000,22000,5.00],
+  [2800,  155000, 5000,4.50,  155000,10000,4.50,  145000, 5000,5.00,  145000,10000,5.00],
+  [2801,  160000, 3000,4.75,  160000, 8000,4.75,  150000, 3000,5.25,  150000, 8000,5.25],
+  [3200,  165000, 2000,4.75,  165000, 7000,4.75,  160000, 2000,5.25,  160000, 7000,5.25],
   // FAIXA 2 (R$ 3.200,01 ate R$ 5.000) - taxas em degraus confirmadas Caixa SP
   // cFGTS+sDep | cFGTS+cDep | sFGTS+sDep | sFGTS+cDep
-  // Confirmado: renda 3500=5.00%, renda 4000=5.50%, renda 5000=6.50%
+  // CALIBRADO com 16 simulacoes reais Caixa (renda 3.201/3.500/4.000/5.000 x 4 combinacoes, imovel 210k):
+  //   Padrao confirmado: sFGTS = cFGTS + 0.50 p.p., nos MESMOS pontos de quebra (independente de dependente)
+  //   3.201: cFGTS=5.00% / sFGTS=5.50%  |  3.500: cFGTS=5.00% / sFGTS=5.50%
+  //   4.000: cFGTS=5.50% / sFGTS=6.00%  |  5.000: cFGTS=6.50% / sFGTS=7.00%
   // Corte abrupto Faixa 1->2 em 3201
-  [3201,  170000,    0,5.00,  170000,    0,5.00,  165000,    0,5.00,  165000,    0,5.00],
-  [3500,  180000,    0,5.00,  180000,    0,5.00,  170000,    0,5.00,  170000,    0,5.00],
-  [3501,  185000,    0,5.50,  185000,    0,5.50,  175000,    0,5.50,  175000,    0,5.50],
-  [4000,  210000,    0,5.50,  210000,    0,5.50,  200000,    0,5.50,  200000,    0,5.50],
-  [4001,  235000,    0,6.50,  235000,    0,6.50,  225000,    0,6.50,  225000,    0,6.50],
-  [5000,  275000,    0,6.50,  275000,    0,6.50,  265000,    0,6.50,  265000,    0,6.50],
+  [3201,  170000,    0,5.00,  170000,    0,5.00,  165000,    0,5.50,  165000,    0,5.50],
+  [3500,  180000,    0,5.00,  180000,    0,5.00,  170000,    0,5.50,  170000,    0,5.50],
+  [3501,  185000,    0,5.50,  185000,    0,5.50,  175000,    0,6.00,  175000,    0,6.00],
+  [4000,  210000,    0,5.50,  210000,    0,5.50,  200000,    0,6.00,  200000,    0,6.00],
+  [4001,  235000,    0,6.50,  235000,    0,6.50,  225000,    0,7.00,  225000,    0,7.00],
+  [5000,  275000,    0,6.50,  275000,    0,6.50,  265000,    0,7.00,  265000,    0,7.00],
   // FAIXA 3 (R$ 5.000,01 ate R$ 9.600)
   // cFGTS=7.66% | sFGTS=8.16% (confirmado Caixa, qualquer dep)
   // Ponto 5001 garante corte abrupto Faixa 2 -> Faixa 3
@@ -562,22 +575,39 @@ var ANCHORS=[
   [7000,  220000,    0,7.66,  220000,    0,7.66,  205000,    0,8.16,  205000,    0,8.16],
   [8000,  250000,    0,7.66,  250000,    0,7.66,  235000,    0,8.16,  235000,    0,8.16],
   [9600,  300000,    0,7.66,  300000,    0,7.66,  280000,    0,8.16,  280000,    0,8.16],
-  // FAIXA 4 (R$ 9.600,01 ate R$ 13.000) - 10.00% confirmado Caixa
-  [9601,  300000,    0,10.00, 300000,    0,10.00, 280000,    0,10.00, 280000,    0,10.00],
+  // FAIXA 4 (R$ 9.600,01 ate R$ 13.000)
+  // CALIBRADO com 14 simulacoes reais Caixa (renda 9.601/10.300/11.000/13.000):
+  //   Descoberta 1: desconto do FGTS (8.66%, cota 60%) so existe entre R$9.601 e R$10.300
+  //   Descoberta 2 (confirmada 2x, R$9.601 e R$10.300 repetidos): esse desconto SO vale COM dependente!
+  //     sem dependente + com FGTS fica igual ao sFGTS (10.00% / cota 80%), mesmo dentro do bolso 9.601-10.300
+  //   A partir de R$11.000 a taxa volta pra 10.00%/cota80% pra todo mundo, mesmo com FGTS+dependente
+  [9601,  280000,    0,10.00, 300000,    0,8.66,  280000,    0,10.00, 280000,    0,10.00],
+  [10300, 280000,    0,10.00, 300000,    0,8.66,  280000,    0,10.00, 280000,    0,10.00],
+  [10301, 400000,    0,10.00, 400000,    0,10.00, 380000,    0,10.00, 380000,    0,10.00],
   [11000, 400000,    0,10.00, 400000,    0,10.00, 380000,    0,10.00, 380000,    0,10.00],
   [13000, 600000,    0,10.00, 600000,    0,10.00, 580000,    0,10.00, 580000,    0,10.00],
 ];
+// Cota maxima do financiamento: 80% no geral, mas cai pra 60% no "bolso" FGTS+dependente entre 9.601-10.300 (Faixa 4)
+function getCotaMax(renda,fgts,dep){
+  if(fgts==='sim'&&dep==='sim'&&renda>=9601&&renda<=10300)return 0.60;
+  return 0.80;
+}
 function getEstInterp(renda,dep,fgts,idade,imovelRef){
   var r=Math.max(ANCHORS[0][0],Math.min(renda,ANCHORS[ANCHORS.length-1][0]));
   var lo=ANCHORS[0],hi=ANCHORS[ANCHORS.length-1];
   for(var i=0;i<ANCHORS.length-1;i++){if(r>=ANCHORS[i][0]&&r<=ANCHORS[i+1][0]){lo=ANCHORS[i];hi=ANCHORS[i+1];break;}}
   var t=lo[0]===hi[0]?0:(r-lo[0])/(hi[0]-lo[0]);
   var ci=(dep==='sim'&&fgts==='sim')?4:(dep==='sim'&&fgts==='nao')?10:(fgts==='nao')?7:1;
-  var finBase=Math.round(lerp(lo[ci],hi[ci],t));
   var taxa=parseFloat(lerp(lo[ci+2],hi[ci+2],t).toFixed(2));
-  // Limitar pela cota de 80% do valor do imovel (quando informado)
+  // Financiamento maximo: NAO vem mais de valores fixos da tabela (estavam desatualizados e
+  // ficavam abaixo da cota real aprovada pela Caixa). Agora e calculado ao vivo pelo limite
+  // de 30% de comprometimento de renda (formula PRICE+MIP+DFI ja validada com dados reais).
+  var prazoCalc=idade?calcPrazoMax(idade):420;
+  var finBase=calcFinMaxRenda(renda,taxa,prazoCalc,idade||35);
+  // Limitar pela cota do valor do imovel (80% em geral, 60% no bolso FGTS+dependente 9.601-10.300)
   if(imovelRef&&imovelRef>0){
-    finBase=Math.min(finBase,Math.floor(imovelRef*0.80/1000)*1000);
+    var cotaMax=getCotaMax(renda,fgts,dep);
+    finBase=Math.min(finBase,Math.floor(imovelRef*cotaMax/1000)*1000);
   }
   finBase=Math.max(finBase,0);
   return{fin:finBase,sub:Math.round(lerp(lo[ci+1],hi[ci+1],t)),taxa:taxa,faixa:getFaixa(renda)};
@@ -708,6 +738,17 @@ function calcSeg(pv,idade,taxa){
     return pv*(mip+dfi) + 25; // com R$25 admin
   }
 }
+// Financiamento maximo respeitando o limite de 30% de comprometimento de renda da Caixa
+// (mesma formula usada no painel de estimativa do Passo 1, para manter consistencia)
+function calcFinMaxRenda(renda,taxa,prazoMeses,idade){
+  if(!renda||renda<=0||!taxa||!prazoMeses)return 0;
+  var im=taxa/100/12;
+  var factor=im===0?1/prazoMeses:im*Math.pow(1+im,prazoMeses)/(Math.pow(1+im,prazoMeses)-1);
+  var idadeRef=idade||35;
+  var mip=(idadeRef<=25?0.000053:idadeRef<=30?0.000062:idadeRef<=35?0.000082:idadeRef<=40?0.000102:idadeRef<=45?0.000135:idadeRef<=50?0.000198:idadeRef<=55?0.000287:idadeRef<=60?0.000414:idadeRef<=65?0.000599:idadeRef<=70?0.000868:0.001257);
+  var dfi=0.000169;
+  return Math.max(0,Math.floor((renda*0.30-25)/(factor+mip+dfi)/1000)*1000);
+}
 
 // Tabela de valor do imóvel extraída das simulações reais da CAIXA
 // Formato: [renda, val_com_fgts_com_dep, val_com_fgts_sem_dep, val_sem_fgts_com_dep, val_sem_fgts_sem_dep]
@@ -773,17 +814,11 @@ function atualizarFinanciamento(){
     if(_hj.getDate()<_dn.getDate())_idadeMs--;
   }
   // SEM imovelRef — painel passo 1 é independente do passo 2
-  var est=getEstInterp(renda,dep,fgts,null,0);
+  var est=getEstInterp(renda,dep,fgts,idadeAF,0);
   var prazoAF=(_idadeMs!=null)?calcPrazoMax(idadeAF,_idadeMs):(idadeAF?calcPrazoMax(idadeAF):420);
-  // Valor máximo real considerando prazo + renda (30%)
-  var taxa=est.taxa,im=taxa/100/12;
-  var factor=im===0?1/prazoAF:im*Math.pow(1+im,prazoAF)/(Math.pow(1+im,prazoAF)-1);
   var idadeRef=idadeAF||35;
-  var mip=(idadeRef<=25?0.000053:idadeRef<=30?0.000062:idadeRef<=35?0.000082:idadeRef<=40?0.000102:idadeRef<=45?0.000135:idadeRef<=50?0.000198:idadeRef<=55?0.000287:idadeRef<=60?0.000414:idadeRef<=65?0.000599:idadeRef<=70?0.000868:0.001257);
-  var dfi=0.000169;
-  var finMaxPrazo=Math.floor((renda*0.30-25)/(factor+mip+dfi)/1000)*1000;
-  var finMax=Math.min(est.fin,Math.max(0,finMaxPrazo));
-  var parcAF=pricePMT(finMax,taxa,prazoAF)+calcSeg(finMax,idadeRef,est.taxa);
+  var finMax=est.fin; // ja calculado via 30% de renda dentro de getEstInterp
+  var parcAF=pricePMT(finMax,est.taxa,prazoAF)+calcSeg(finMax,idadeRef,est.taxa);
   painel.style.display='block';
   document.getElementById('pf-fin').textContent='R$ '+finMax.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   document.getElementById('pf-sub').textContent=est.sub>0?'R$ '+est.sub.toLocaleString('pt-BR'):'Sem subsidio';
@@ -800,22 +835,18 @@ function atualizarFinanciamento(){
     // Calcula o finMax que o cliente teria se estivesse R$1 abaixo (faixa anterior)
     if(renda>3201 && renda<=3500){
       // Início da Faixa 2 - compara com final da Faixa 1
-      var estF1=getEstInterp(3200,dep,fgts,null,0);
-      var finMaxF1=Math.floor((renda*0.30-25)/((estF1.taxa/100/12*Math.pow(1+estF1.taxa/100/12,prazoAF))/(Math.pow(1+estF1.taxa/100/12,prazoAF)-1)+mip+dfi)/1000)*1000;
+      var estF1=getEstInterp(3200,dep,fgts,idadeAF,0);
+      var finMaxF1=calcFinMaxRenda(renda,estF1.taxa,prazoAF,idadeRef);
       if(finMax<finMaxF1)mostrarAviso=true;
     } else if(renda>5001 && renda<=6000){
       // Início da Faixa 3 - compara com final da Faixa 2
-      var estF2=getEstInterp(5000,dep,fgts,null,0);
-      var taxaF2=estF2.taxa/100/12;
-      var factorF2=taxaF2*Math.pow(1+taxaF2,prazoAF)/(Math.pow(1+taxaF2,prazoAF)-1);
-      var finMaxF2=Math.floor((renda*0.30-25)/(factorF2+mip+dfi)/1000)*1000;
+      var estF2=getEstInterp(5000,dep,fgts,idadeAF,0);
+      var finMaxF2=calcFinMaxRenda(renda,estF2.taxa,prazoAF,idadeRef);
       if(finMax<finMaxF2)mostrarAviso=true;
     } else if(renda>9601 && renda<=11000){
       // Início da Faixa 4 - compara com final da Faixa 3
-      var estF3=getEstInterp(9600,dep,fgts,null,0);
-      var taxaF3=estF3.taxa/100/12;
-      var factorF3=taxaF3*Math.pow(1+taxaF3,prazoAF)/(Math.pow(1+taxaF3,prazoAF)-1);
-      var finMaxF3=Math.floor((renda*0.30-25)/(factorF3+mip+dfi)/1000)*1000;
+      var estF3=getEstInterp(9600,dep,fgts,idadeAF,0);
+      var finMaxF3=calcFinMaxRenda(renda,estF3.taxa,prazoAF,idadeRef);
       if(finMax<finMaxF3)mostrarAviso=true;
     }
     avisoEl.style.display=mostrarAviso?'block':'none';
@@ -859,9 +890,39 @@ function calcVerba(){
     var anosCV=Math.floor(prazoCV/12),mesesRCV=prazoCV%12;
     var pd=document.getElementById('prazo-display');
     if(pd)pd.textContent=prazoCV+' meses ('+anosCV+' anos'+(mesesRCV>0?' e '+mesesRCV+' meses':'')+')';
+    // Verifica limite de comprometimento de renda (30% - regra Caixa)
+    var avisoRendaEl=document.getElementById('aviso-comprometimento-renda');
+    if(avisoRendaEl){
+      var limiteParcela=rendaCV*0.30;
+      if(rendaCV>0 && finReal>0 && p1>limiteParcela+0.005){
+        var finMaxRenda=calcFinMaxRenda(rendaCV,estCV.taxa,prazoCV,idadeCV);
+        var percComprometido=(p1/rendaCV*100);
+        var diffEntrada=Math.max(0,finReal-finMaxRenda);
+        var txtEl=document.getElementById('aviso-comprometimento-texto');
+        if(txtEl)txtEl.innerHTML='⚠️ <strong>Parcela acima de 30% da renda:</strong> a parcela estimada ('+fmt(p1)+') representa <strong>'+percComprometido.toFixed(1).replace('.',',')+'%</strong> da renda informada — acima do limite de comprometimento aceito pela Caixa.<br/>'+
+          'Financiamento máximo dentro dos 30%: <strong>'+fmt(finMaxRenda)+'</strong>.<br/>'+
+          'Para manter o valor total do imóvel/obra, é necessário aumentar a entrada em <strong>'+fmt(diffEntrada)+'</strong>.';
+        avisoRendaEl.style.display='block';
+        window._finMaxRendaAtual=finMaxRenda;
+      } else {
+        avisoRendaEl.style.display='none';
+      }
+    }
   }catch(e){}
   // Atualiza indicador de custo por m²
   atualizarIndicadorCPM();
+}
+function ajustarFinanciamentoRenda(){
+  var vfinEl=document.getElementById('vfin'),ventEl=document.getElementById('vent');
+  if(!vfinEl||!ventEl)return;
+  var finAtual=parseM(vfinEl),entAtual=parseM(ventEl);
+  var finMax=window._finMaxRendaAtual;
+  if(finMax===undefined||finMax===null||finMax<=0||finMax>=finAtual)return;
+  var diferenca=finAtual-finMax;
+  vfinEl.value=finMax.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  ventEl.value=(entAtual+diferenca).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  calcVerba();
+  sincronizarImovelFin('fin');
 }
 
 function atualizarIndicadorCPM(){
