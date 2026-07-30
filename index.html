@@ -136,6 +136,7 @@
     <div style="margin-top:10px;padding:8px 12px;background:#d1e8ff;border-radius:8px">
       <div style="font-size:11px;color:#555;margin-bottom:2px">Valor máximo financiável (pela renda)</div>
       <div style="font-size:18px;font-weight:700;color:#1a3a6b" id="pf-fin">—</div>
+      <div style="font-size:11px;color:#1a3a6b;margin-top:4px" id="pf-fin-detalhe">—</div>
       <div style="font-size:11px;color:#555;margin-top:6px">Prazo estimado</div>
       <div style="font-size:13px;font-weight:600;color:#1a3a6b" id="pf-prazo">—</div>
       <div style="font-size:11px;color:#555;margin-top:6px">1ª Parcela estimada (incl. MIP+DFI)</div>
@@ -260,13 +261,14 @@
     <label style="font-size:12px;color:#7a5e00;margin:0 0 4px 0">Valor do imóvel (simulação CAIXA) <span style="font-weight:400;font-size:11px">— apenas para consulta, não entra no PDF</span></label>
     <div class="pfx"><span style="color:#a07800">R$</span><input type="text" id="val_imovel_ref" placeholder="0,00" oninput="fmtM(this);atualizarIndicadorCPM();calcEntradaRef();sincronizarImovelFin('imovel');atualizarFinanciamento()" style="background:#fffef0;border-color:#e5d070"/></div>
     <div id="entrada-ref-box" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:8px;border:1px solid #a5d6a7;font-size:12px;color:#2e7d32">
-      📌 <strong>Entrada de referência (20%):</strong> <span id="entrada-ref-val">—</span>
-      <span style="color:#555;font-size:11px;margin-left:6px">— valor mínimo que a Caixa costuma exigir</span>
+      📌 <strong><span id="entrada-ref-label">Entrada de referência (20%):</span></strong> <span id="entrada-ref-val">—</span>
+      <span id="entrada-ref-nota" style="color:#555;font-size:11px;margin-left:6px">— valor mínimo que a Caixa costuma exigir</span>
     </div>
+    <div id="aviso-teto-imovel" style="display:none;margin-top:8px;padding:8px 12px;background:#fff0f0;border-radius:8px;border:1px solid #fc8181;font-size:12px;color:#7a1f1f"></div>
   </div>
 
   <label>Valor financiado <span style="font-weight:400;font-size:11px;color:var(--gz)">(estimado — edite se necessário)</span></label>
-  <div class="pfx"><span>R$</span><input type="text" id="vfin" placeholder="0,00" oninput="fmtM(this);calcVerba();sincronizarImovelFin('fin')"/></div>
+  <div class="pfx"><span>R$</span><input type="text" id="vfin" placeholder="0,00" oninput="fmtM(this);sincronizarImovelFin('fin');calcVerba()"/></div>
   <label>Subsídio do governo (MCMV) <span style="font-weight:400;font-size:11px;color:var(--gz)">(estimado)</span></label>
   <div class="pfx"><span>R$</span><input type="text" id="vsub" placeholder="0,00" oninput="fmtM(this);calcVerba()"/></div>
   <label>Valor de entrada (FGTS mais recursos próprios)</label>
@@ -587,6 +589,15 @@ var ANCHORS=[
   [11000, 400000,    0,10.00, 400000,    0,10.00, 380000,    0,10.00, 380000,    0,10.00],
   [13000, 600000,    0,10.00, 600000,    0,10.00, 580000,    0,10.00, 580000,    0,10.00],
 ];
+// Teto do valor do imovel para manter a linha MCMV subsidiada (Faixas 1 e 2).
+// Nossas 4 cidades atendidas sao municipios com populacao <100 mil habitantes = menor teto do programa.
+// CONFIRMADO com simulacao real (renda 3.100, imovel R$210.000 x R$210.001): acima do teto, some o
+// subsidio e a taxa vira 7,66% a.a. (linha tipo Pro-Cotista/SBPE, sem os beneficios do MCMV)
+var TETO_IMOVEL_F1F2=210000;
+var TAXA_FORA_TETO_F1F2=7.66;
+// Teto da Faixa 3 (R$400 mil) que migra o financiamento pra condicoes de Faixa 4.
+// ATENCAO: baseado em pesquisa (nao em simulacao real nossa) - considerar provisorio ate confirmar
+var TETO_IMOVEL_F3=400000;
 // Cota maxima do financiamento: 80% no geral, mas cai pra 60% no "bolso" FGTS+dependente entre 9.601-10.300 (Faixa 4)
 function getCotaMax(renda,fgts,dep){
   if(fgts==='sim'&&dep==='sim'&&renda>=9601&&renda<=10300)return 0.60;
@@ -598,19 +609,41 @@ function getEstInterp(renda,dep,fgts,idade,imovelRef){
   for(var i=0;i<ANCHORS.length-1;i++){if(r>=ANCHORS[i][0]&&r<=ANCHORS[i+1][0]){lo=ANCHORS[i];hi=ANCHORS[i+1];break;}}
   var t=lo[0]===hi[0]?0:(r-lo[0])/(hi[0]-lo[0]);
   var ci=(dep==='sim'&&fgts==='sim')?4:(dep==='sim'&&fgts==='nao')?10:(fgts==='nao')?7:1;
-  var taxa=parseFloat(lerp(lo[ci+2],hi[ci+2],t).toFixed(2));
-  // Financiamento maximo: NAO vem mais de valores fixos da tabela (estavam desatualizados e
-  // ficavam abaixo da cota real aprovada pela Caixa). Agora e calculado ao vivo pelo limite
-  // de 30% de comprometimento de renda (formula PRICE+MIP+DFI ja validada com dados reais).
+  var taxaOriginal=parseFloat(lerp(lo[ci+2],hi[ci+2],t).toFixed(2));
+  var subBase=Math.round(lerp(lo[ci+1],hi[ci+1],t));
+  var faixaAtual=getFaixa(renda);
+  var taxa=taxaOriginal;
+  var cotaNormal=getCotaMax(renda,fgts,dep);
+  var estouraTeto=false; // ultrapassou o teto de valor do imovel (fato: taxa realmente muda)
+  if(imovelRef&&imovelRef>0){
+    if((faixaAtual.indexOf('Faixa 1')===0||faixaAtual.indexOf('Faixa 2')===0)&&imovelRef>TETO_IMOVEL_F1F2){
+      // Imovel acima do teto do municipio: perde subsidio e migra pra taxa de mercado
+      taxa=TAXA_FORA_TETO_F1F2;subBase=0;estouraTeto=true;
+    } else if(faixaAtual.indexOf('Faixa 3')===0&&imovelRef>TETO_IMOVEL_F3){
+      // Imovel acima de R$400 mil: migra pra condicoes de Faixa 4 (usa a mesma renda pra escolher a coluna)
+      var estF4=getEstInterp(Math.max(renda,9601),dep,fgts,idade,0);
+      taxa=estF4.taxa;subBase=0;estouraTeto=true;
+    }
+  }
+  // Financiamento maximo: calculado ao vivo pelo limite de 30% de comprometimento de renda
+  // (formula PRICE+MIP+DFI ja validada com dados reais), usando a taxa efetiva (dentro ou fora do teto)
   var prazoCalc=idade?calcPrazoMax(idade):420;
   var finBase=calcFinMaxRenda(renda,taxa,prazoCalc,idade||35);
   // Limitar pela cota do valor do imovel (80% em geral, 60% no bolso FGTS+dependente 9.601-10.300)
   if(imovelRef&&imovelRef>0){
-    var cotaMax=getCotaMax(renda,fgts,dep);
+    var cotaMax=estouraTeto?0.80:cotaNormal;
     finBase=Math.min(finBase,Math.floor(imovelRef*cotaMax/1000)*1000);
   }
   finBase=Math.max(finBase,0);
-  return{fin:finBase,sub:Math.round(lerp(lo[ci+1],hi[ci+1],t)),taxa:taxa,faixa:getFaixa(renda)};
+  // So avisa o usuario quando a mudanca de taxa REALMENTE reduz o quanto da pra financiar
+  // (compara com o que seria financiavel nesse mesmo imovel, se a taxa nao tivesse mudado)
+  var avisoNecessario=false;
+  if(estouraTeto&&imovelRef&&imovelRef>0){
+    var finSemTeto=Math.min(calcFinMaxRenda(renda,taxaOriginal,prazoCalc,idade||35),Math.floor(imovelRef*cotaNormal/1000)*1000);
+    avisoNecessario=finBase<finSemTeto;
+  }
+  var faixaLabel=estouraTeto?(faixaAtual+' (imóvel acima do teto — taxa de mercado)'):faixaAtual;
+  return{fin:finBase,sub:subBase,taxa:taxa,faixa:faixaLabel,foraDoTeto:avisoNecessario,estouraTeto:estouraTeto};
 }
 function getFaixa(r){if(r<=3200)return'Faixa 1 - ate R$ 3.200';if(r<=5000)return'Faixa 2 - ate R$ 5.000';if(r<=9600)return'Faixa 3 - ate R$ 9.600';if(r<=13000)return'Faixa 4 - ate R$ 13.000';return'Fora do programa';}
 function recalcularComTaxaEditada(){
@@ -642,27 +675,99 @@ function recalcularComTaxaEditada(){
   // Atualiza taxa no objeto para o PDF
   if(window._taxaEditada!==undefined)window._taxaEditada=taxa;
 }
+function getPerfilAtualForm(){
+  var renda=parseM(document.getElementById('renda'));
+  var dep=document.getElementById('dep')?document.getElementById('dep').value:'nao';
+  var fgts=document.getElementById('fgts')?document.getElementById('fgts').value:'nao';
+  var nascEl=document.getElementById('nascimento');
+  var idade=null;
+  if(nascEl&&nascEl.value){
+    var dn=new Date(nascEl.value),hj=new Date();
+    idade=hj.getFullYear()-dn.getFullYear();
+    if(hj.getMonth()-dn.getMonth()<0||(hj.getMonth()===dn.getMonth()&&hj.getDate()<dn.getDate()))idade--;
+  }
+  return{renda:renda,dep:dep,fgts:fgts,idade:idade};
+}
+function atualizarPainelEstimativa(est,imovel,idade){
+  var faixaEl=document.getElementById('ep_faixa');
+  var taxaEl=document.getElementById('ep_taxa');
+  var subEl=document.getElementById('ep_sub');
+  var finEl=document.getElementById('ep_fin');
+  if(faixaEl)faixaEl.textContent=est.faixa;
+  if(taxaEl)taxaEl.textContent=est.taxa.toFixed(2).replace('.',',')+' % a.a.';
+  var taxaInput=document.getElementById('ep_taxa_input');
+  if(taxaInput&&taxaInput.getAttribute('data-auto')!=='0'){
+    taxaInput.value=est.taxa.toFixed(2);
+    taxaInput.setAttribute('data-auto','1');
+  }
+  if(subEl)subEl.textContent=est.sub>0?fmt(est.sub)+' (estimado)':'Sem subsídio nesta faixa';
+  if(finEl)finEl.textContent=fmt(est.fin)+' (estimado)';
+  // Aviso de teto de imovel ultrapassado
+  var avisoTeto=document.getElementById('aviso-teto-imovel');
+  if(avisoTeto){
+    if(est.foraDoTeto){
+      var tetoAplicavel=(est.faixa.indexOf('Faixa 3')===0)?TETO_IMOVEL_F3:TETO_IMOVEL_F1F2;
+      window._tetoImovelAtual=tetoAplicavel;
+      var prazoP=calcPrazoMax(idade||35);
+      var parcelaP=pricePMT(est.fin,est.taxa,prazoP)+calcSeg(est.fin,idade||35,est.taxa);
+      avisoTeto.style.display='block';
+      avisoTeto.innerHTML='⚠️ <strong>Imóvel acima do teto de R$ '+tetoAplicavel.toLocaleString('pt-BR')+':</strong> a taxa de juros sobe para <strong>'+est.taxa.toFixed(2).replace('.',',')+'% a.a.</strong> e a parcela fica em torno de <strong>'+fmt(parcelaP)+'</strong>.<br/>'+
+        'Financiamento ajustado para <strong>'+fmt(est.fin)+'</strong> — o máximo possível sem ultrapassar 30% da renda nessa taxa.<br/>'+
+        '<button type="button" class="btn" style="margin-top:8px;padding:6px 11px;font-size:12px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;border:none;border-radius:8px;cursor:pointer" onclick="ajustarParaTeto()">⚙️ Voltar para o teto (R$ '+tetoAplicavel.toLocaleString('pt-BR')+')</button>';
+    } else {
+      avisoTeto.style.display='none';
+    }
+  }
+  // Ajusta o texto da "entrada de referencia" quando nao for exatamente 20% (cota diferente ou fora do teto)
+  var labelEl=document.getElementById('entrada-ref-label');
+  var notaEl=document.getElementById('entrada-ref-nota');
+  if(labelEl&&notaEl){
+    if(est.foraDoTeto){
+      labelEl.textContent='Entrada necessária:';
+      notaEl.textContent='— fora do teto do programa, a entrada mínima muda';
+    } else {
+      labelEl.textContent='Entrada de referência (20%):';
+      notaEl.textContent='— valor mínimo que a Caixa costuma exigir';
+    }
+  }
+}
+function ajustarParaTeto(){
+  var imovelEl=document.getElementById('val_imovel_ref');
+  var teto=window._tetoImovelAtual;
+  if(!imovelEl||!teto)return;
+  imovelEl.value=teto.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  atualizarIndicadorCPM();
+  calcEntradaRef();
+  sincronizarImovelFin('imovel');
+}
 function sincronizarImovelFin(origem){
   var vfinEl=document.getElementById('vfin');
   var imovelEl=document.getElementById('val_imovel_ref');
   var entradaEl=document.getElementById('entrada-ref-val');
   var entradaBox=document.getElementById('entrada-ref-box');
   if(!vfinEl||!imovelEl)return;
+  var p=getPerfilAtualForm();
   if(origem==='fin'){
     var fin=parseM(vfinEl);
     if(fin>0){
-      var imovel=Math.round(fin/0.80);
+      var cotaAprox=getCotaMax(p.renda,p.fgts,p.dep);
+      var imovel=Math.round(fin/cotaAprox);
       imovelEl.value=imovel.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
       if(entradaEl)entradaEl.textContent='R$ '+(imovel-fin).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
       if(entradaBox)entradaBox.style.display='block';
+      var estFin=getEstInterp(p.renda,p.dep,p.fgts,p.idade,imovel);
+      atualizarPainelEstimativa(estFin,imovel,p.idade);
+      calcVerba();
     }
   } else if(origem==='imovel'){
     var imovel=parseM(imovelEl);
     if(imovel>0){
-      var fin=Math.round(imovel*0.80);
+      var est=getEstInterp(p.renda,p.dep,p.fgts,p.idade,imovel);
+      var fin=est.fin;
       vfinEl.value=fin.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
       if(entradaEl)entradaEl.textContent='R$ '+(imovel-fin).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
       if(entradaBox)entradaBox.style.display='block';
+      atualizarPainelEstimativa(est,imovel,p.idade);
       calcVerba();
     }
   }
@@ -813,14 +918,38 @@ function atualizarFinanciamento(){
     _idadeMs=(_hj.getFullYear()-_dn.getFullYear())*12+(_hj.getMonth()-_dn.getMonth());
     if(_hj.getDate()<_dn.getDate())_idadeMs--;
   }
-  // SEM imovelRef — painel passo 1 é independente do passo 2
-  var est=getEstInterp(renda,dep,fgts,idadeAF,0);
+  // Calcula o valor DENTRO do teto do imovel (cenario subsidiado MCMV) — usado como referencia complementar
+  var faixaProv=getFaixa(renda);
+  var tetoProv=(faixaProv.indexOf('Faixa 3')===0)?TETO_IMOVEL_F3:((faixaProv.indexOf('Faixa 1')===0||faixaProv.indexOf('Faixa 2')===0)?TETO_IMOVEL_F1F2:0);
+  var estDentro=getEstInterp(renda,dep,fgts,idadeAF,tetoProv);
   var prazoAF=(_idadeMs!=null)?calcPrazoMax(idadeAF,_idadeMs):(idadeAF?calcPrazoMax(idadeAF):420);
   var idadeRef=idadeAF||35;
-  var finMax=est.fin; // ja calculado via 30% de renda dentro de getEstInterp
+  // Calcula o valor ABSOLUTO que a renda permite financiar, independente de mudanca de taxa
+  // (mesmo que o imovel custe mais que o teto e a taxa suba, ainda da pra financiar ate esse valor)
+  var taxaFora=estDentro.taxa;
+  if(tetoProv>0){
+    if(faixaProv.indexOf('Faixa 3')===0){
+      taxaFora=getEstInterp(Math.max(renda,9601),dep,fgts,idadeAF,0).taxa;
+    } else {
+      taxaFora=TAXA_FORA_TETO_F1F2;
+    }
+  }
+  var finAbsoluto=calcFinMaxRenda(renda,taxaFora,prazoAF,idadeRef);
+  var finMax=Math.max(finAbsoluto,estDentro.fin); // o absoluto nunca e menor que o valor dentro do teto
+  // Taxa/subsidio/parcela exibidos sempre correspondem ao MESMO cenario do valor mostrado em pf-fin
+  var precisaSairDoTeto=finMax>estDentro.fin;
+  var est={taxa:precisaSairDoTeto?taxaFora:estDentro.taxa, sub:precisaSairDoTeto?0:estDentro.sub, faixa:estDentro.faixa+(precisaSairDoTeto?' (considerando imóvel acima do teto)':'')};
   var parcAF=pricePMT(finMax,est.taxa,prazoAF)+calcSeg(finMax,idadeRef,est.taxa);
   painel.style.display='block';
   document.getElementById('pf-fin').textContent='R$ '+finMax.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  var detEl=document.getElementById('pf-fin-detalhe');
+  if(detEl){
+    if(precisaSairDoTeto){
+      detEl.textContent='Dentro do teto do imóvel (até R$ '+tetoProv.toLocaleString('pt-BR')+'): R$ '+estDentro.fin.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' a '+estDentro.taxa.toFixed(2).replace('.',',')+'% a.a. — acima disso, a taxa sobe para '+taxaFora.toFixed(2).replace('.',',')+'% a.a.';
+    } else {
+      detEl.textContent='';
+    }
+  }
   document.getElementById('pf-sub').textContent=est.sub>0?'R$ '+est.sub.toLocaleString('pt-BR'):'Sem subsidio';
   document.getElementById('pf-taxa').textContent=est.taxa.toFixed(2).replace('.',',')+' % a.a.';
   document.getElementById('pf-faixa').textContent=est.faixa;
