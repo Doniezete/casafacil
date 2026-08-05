@@ -6,6 +6,8 @@
 <title>Casa Fácil — Simulador MCMV</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>:root{--nv:#0d2044;--nl:#1a3a6b;--am:#f5c518;--bg:#f0f4f8;--tx:#0d2044;--gz:#6b7280}*{box-sizing:border-box;margin:0;padding:0}body{font-family:"DM Sans",sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}.hdr{background:linear-gradient(135deg,#0d2044,#1a3a6b);color:#fff;padding:28px 20px 48px;text-align:center;position:relative}.hdr::after{content:"";position:absolute;bottom:-2px;left:0;right:0;height:34px;background:var(--bg);border-radius:60% 60% 0 0}.logo{font-family:"Fraunces",serif;font-size:34px;font-weight:900;letter-spacing:3px;color:#fff}.logo span{color:var(--am)}.hdr-sub{font-size:13px;opacity:.75;margin-top:5px}.badge{display:inline-block;background:rgba(245,197,24,.18);border:1px solid rgba(245,197,24,.5);border-radius:20px;padding:3px 14px;font-size:11px;margin-top:9px;letter-spacing:1px;color:var(--am)}.dots{display:flex;justify-content:center;gap:8px;padding:16px 0 2px}.dot{width:9px;height:9px;border-radius:50%;background:#ccd6e8;transition:all .3s}.dot.on{background:var(--am);transform:scale(1.35);box-shadow:0 0 0 3px rgba(245,197,24,.25)}.dot.ok{background:var(--nl)}.step-label{text-align:center;font-size:11px;color:var(--gz);padding-bottom:10px;letter-spacing:.5px}.card{background:#fff;border-radius:18px;margin:10px 16px 18px;padding:22px 18px;box-shadow:0 4px 24px rgba(13,32,68,.10);animation:fu .35s ease}@keyframes fu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}.ct{font-family:"Fraunces",serif;font-size:20px;font-weight:700;color:var(--nv);margin-bottom:2px}.cs{font-size:13px;color:var(--gz);margin-bottom:16px}.info-box{background:#e8f0fe;border:1.5px solid #b8cef0;border-radius:10px;padding:10px 13px;font-size:12px;color:#1a3a6b;margin-bottom:16px;line-height:1.7}.estim-banner{background:linear-gradient(135deg,#fff3cd,#fff8dc);border:2px solid #f5c518;border-radius:12px;padding:13px 15px;margin:14px 0;line-height:1.7}.estim-banner strong{color:#7a5e00;font-size:13px;display:block;margin-bottom:3px}.estim-banner span{font-size:12px;color:#7a5e00}.notice-box{background:#f0fdf4;border:1.5px solid #68d391;border-radius:10px;padding:11px 14px;font-size:12px;color:#276749;margin-top:14px;line-height:1.7}.error-box{background:#fff0f0;border:2px solid #fc8181;border-radius:10px;padding:11px 14px;font-size:12px;color:#c53030;margin-top:10px;line-height:1.7;display:none}.terrain-detail{background:#f0f4ff;border:1.5px solid #b8cef0;border-radius:10px;padding:14px;margin-top:10px;display:none}label{font-size:13px;font-weight:600;display:block;margin:14px 0 5px;color:var(--nv)}input,select{width:100%;padding:13px 14px;border:1.5px solid #dce6f5;border-radius:10px;font-family:"DM Sans",sans-serif;font-size:15px;color:var(--tx);background:#fafcff;-webkit-appearance:none;transition:border .2s}input:focus,select:focus{outline:none;border-color:var(--nl);background:#fff}.pfx{position:relative}.pfx span{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--gz);font-weight:600;pointer-events:none}.pfx input{padding-left:33px}.hint{font-size:11px;color:var(--gz);margin-top:3px;line-height:1.5}.warn{background:#fff8dc;border:1.5px solid #f5c518;border-radius:10px;padding:10px 13px;font-size:12px;color:#7a5e00;margin-top:10px;line-height:1.6}.terrain-box{background:#f0fff4;border:1.5px solid #68d391;border-radius:10px;padding:11px 13px;font-size:12px;color:#276749;margin-top:8px;line-height:1.6}.terrain-warn{background:#fff0f0;border:1.5px solid #fc8181;border-radius:10px;padding:11px 13px;font-size:12px;color:#c53030;margin-top:8px;line-height:1.6}.sep{height:1px;background:#e8eef8;margin:16px 0}.sec-title{font-size:11px;font-weight:700;color:var(--gz);text-transform:uppercase;letter-spacing:1px;margin:18px 0 4px;padding-bottom:6px;border-bottom:2px solid #e8eef8}.est-box{background:#e8f0fe;border-radius:12px;padding:14px;border:1.5px solid #b8cef0;margin-top:12px}.est-title{font-size:11px;font-weight:700;color:var(--gz);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}.est-row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px dashed #c8d8f0;color:var(--gz)}.est-row:last-child{border:none;font-weight:700;color:var(--nv);font-size:14px;padding-top:8px}.parc-box{background:#fff8dc;border-radius:12px;padding:14px;border:1.5px solid #f5c518;margin-top:12px}.parc-title{font-size:11px;font-weight:700;color:#7a5e00;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}.parc-subtitle{font-size:10px;color:#a07800;margin-bottom:10px;font-style:italic}.parc-row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px dashed #e5d070;color:#7a5e00}.parc-row:last-child{border:none;font-weight:700;color:#0d2044;font-size:15px;padding-top:8px}.resumo-box{background:#f0f4ff;border-radius:12px;padding:14px;border:1.5px solid #b8cef0;margin-top:14px}.rl{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--gz)}.rl.dest{color:var(--tx);font-weight:700;border-top:1px solid #b8cef0;margin-top:6px;padding-top:8px;font-size:14px}.qopts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px}.qopt{border:2px solid #dce6f5;border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .2s;background:#fafcff;user-select:none}.qopt-num{font-size:26px;font-weight:700;color:var(--gz);font-family:"Fraunces",serif}.qopt-lb{font-size:11px;color:var(--gz);margin-top:2px}.qopt.sel{border-color:var(--nv);background:#f0f4ff}.qopt.sel .qopt-num,.qopt.sel .qopt-lb{color:var(--nv)}.qopt.dis{opacity:.35;cursor:not-allowed}.btn{display:block;width:100%;padding:15px;border:none;border-radius:12px;font-family:"DM Sans",sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;transition:all .2s}.bp{background:linear-gradient(135deg,#0d2044,#1a3a6b);color:#fff}.bs{background:#f0f4ff;color:var(--nv);margin-top:9px;border:1.5px solid var(--nl)}.bpdf{background:linear-gradient(135deg,#f5c518,#e0a800);color:#0d2044}.rh{background:linear-gradient(135deg,#0d2044,#1a3a6b);color:#fff;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px}.rh-logo{font-family:"Fraunces",serif;font-size:12px;opacity:.6;letter-spacing:2px;margin-bottom:4px}.rh h2{font-family:"Fraunces",serif;font-size:21px;font-weight:900}.rh p{font-size:13px;opacity:.85;margin-top:4px}.tag{display:inline-block;background:var(--am);color:#0d2044;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;margin-top:9px}.pw{background:#f0f4f8;border-radius:14px;padding:14px;margin-bottom:14px;border:1.5px solid #dce6f5}.pt{font-size:12px;font-weight:700;color:var(--gz);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}.pw-thumb{border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid #dce6f5;transition:border-color .2s;aspect-ratio:4/3;background:#f0f4f8}.pw-thumb img{width:100%;height:100%;object-fit:contain;background:#f0f4f8;display:block}.pw-thumb:hover{border-color:#1a3a6b}.pw-thumb.sel{border-color:var(--nv);box-shadow:0 0 0 3px rgba(13,32,68,.15)}.pw-thumb-label{font-size:10px;text-align:center;color:var(--gz);padding:3px 0 4px;background:#fff}#pw-lb{display:none}#pw-lb.open{display:flex!important}.pw-nav{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px;gap:6px}.pw-nav button{padding:7px 12px;border:1.5px solid var(--nl);background:#fff;border-radius:8px;font-size:11px;font-weight:600;color:var(--nv);cursor:pointer}.pw-nav button.act{background:var(--nv);color:#fff}.pw-pg{font-size:11px;color:var(--gz);text-align:center;margin-top:6px}.fachada-wrap{background:#f0f4f8;border-radius:14px;padding:14px;margin-bottom:14px;border:1.5px solid #dce6f5;overflow:hidden}.fachada-placeholder{background:linear-gradient(135deg,#1a3a6b,#0d2044);border-radius:10px;padding:32px 20px;text-align:center;color:#fff}.fp-icon{font-size:48px;margin-bottom:10px}.fp-title{font-family:"Fraunces",serif;font-size:16px;font-weight:700;margin-bottom:6px}.fp-sub{font-size:12px;opacity:.7;line-height:1.6}.ci{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:12px;background:#f0f4ff;margin-bottom:7px;border-left:4px solid var(--nl)}.cin{font-weight:600;font-size:14px}.cia{font-size:12px;color:var(--gz)}.av{background:#fff8dc;border:1.5px solid #f5c518;border-radius:10px;padding:11px 13px;font-size:12px;color:#7a5e00;margin-bottom:10px;line-height:1.7}.area-info{background:#e8f0fe;border-radius:8px;padding:10px 13px;font-size:13px;font-weight:600;color:var(--nv);margin-bottom:14px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid2 label{margin-top:0}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.grid3 label{margin-top:0}.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center}.modal-bg.open{display:flex}.modal{background:#fff;border-radius:18px;padding:26px 22px;width:92%;max-width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.3)}.modal h3{font-family:"Fraunces",serif;font-size:18px;color:var(--nv);margin-bottom:4px}.modal .msub{font-size:12px;color:var(--gz);margin-bottom:18px}.modal label{font-size:12px;font-weight:600;margin:12px 0 4px;color:var(--nv)}.modal input{font-size:14px;padding:11px 13px}.admin-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.modal-footer{display:flex;gap:10px;margin-top:18px}.modal-footer button{flex:1;padding:13px;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px}.btn-save{background:linear-gradient(135deg,#0d2044,#1a3a6b);color:#fff}.btn-cancel{background:#f0f4ff;color:var(--nv);border:1.5px solid var(--nl)!important}.pwd-screen{text-align:center;padding:10px 0 6px}.pwd-screen p{font-size:13px;color:var(--gz);margin-bottom:12px}.admin-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gz);border-bottom:1px solid #e8eef8;padding-bottom:5px;margin:16px 0 4px}.saved-msg{background:#f0fdf4;border:1px solid #68d391;border-radius:8px;padding:8px 12px;font-size:12px;color:#276749;margin-top:10px;display:none;text-align:center}</style>
 </head>
 <body>
@@ -466,6 +468,59 @@ var PLANTAS = {
 };
 
 var D={}, qSel=0, plantaIdx=0, plantasAtuais=[];
+
+/* ============================================================
+   INTEGRAÇÃO COM O SISTEMA DE LEADS — COLE AQUI o firebaseConfig
+   (mesmo projeto do Casa Fácil: casa-facil-4aef8)
+   Se não configurar, o simulador continua funcionando normalmente —
+   só não vai salvar os leads automaticamente.
+   ============================================================ */
+var leadsFirebaseConfig = {
+  apiKey: "AIzaSyBZGILaMIHssrQaQz_ZTLH0ilWV1_kkMi0",
+  authDomain: "casa-facil-4aef8.firebaseapp.com",
+  projectId: "casa-facil-4aef8",
+  storageBucket: "casa-facil-4aef8.firebasestorage.app",
+  messagingSenderId: "244246614237",
+  appId: "1:244246614237:web:45cc6e0db81559aed7cb34"
+};
+var leadsDb=null;
+try{
+  if(leadsFirebaseConfig.apiKey && leadsFirebaseConfig.apiKey.indexOf('COLE_AQUI')!==0){
+    var leadsApp = firebase.initializeApp(leadsFirebaseConfig, 'leadsApp');
+    leadsDb = leadsApp.firestore();
+  }
+}catch(e){ console.warn('Sistema de leads nao configurado ainda:', e); }
+
+function salvarLeadAutomatico(dadosD){
+  if(!leadsDb || !dadosD || !dadosD.nome) return; // nao quebra o simulador se nao estiver configurado
+  try{
+    var cpfDigits=(dadosD.cpf||'').replace(/\D/g,'');
+    var docId = cpfDigits ? cpfDigits : null;
+    var payload={
+      nome:dadosD.nome,
+      telefone:dadosD.telefone||'',
+      cpf:dadosD.cpf||'',
+      renda:dadosD.renda||0,
+      faixa:(dadosD.est&&dadosD.est.faixa)||'',
+      financiamento:(dadosD.fin>0?dadosD.fin:(dadosD.est&&dadosD.est.fin))||0,
+      parcela:dadosD.pmt_first||0,
+      cidade:dadosD.cidade_atend||'',
+      origem:'simulador',
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    var ref = docId ? leadsDb.collection('leads').doc(docId) : leadsDb.collection('leads').doc();
+    ref.get().then(function(snap){
+      if(!snap.exists){
+        payload.status='quente';
+        payload.criadoEm=firebase.firestore.FieldValue.serverTimestamp();
+        payload.ultimoContato=null;
+        payload.proximoContato=null;
+        payload.notas='';
+      }
+      ref.set(payload,{merge:true});
+    }).catch(function(err){ console.warn('Nao foi possivel salvar o lead:', err.message); });
+  }catch(e){ console.warn('Erro ao salvar lead:', e); }
+}
 var CPM_PLANO=2280, CPM_DESNIVEL=2350, CPM=2280;
 var CPM_FAIXA_MIN=2070, CPM_FAIXA_MAX=2950;
 var CONTRATO_ATUAL=(function(){
@@ -1316,6 +1371,7 @@ function gerar(){
     fin:fin,sub:sub,ent:ent,doc_val:doc_val,ter:ter,verba:verba,area:area,quartos:qSel,mod:modLabel,est:est,
     pmt_first:pl+calcSeg(fin>0?fin:est.fin,idade,est.taxa),pmt_last:pl,idade:idade,prazo:prazoMax
   };
+  salvarLeadAutomatico(D);
   plantasAtuais=getPlantKeys(qSel);plantaIdx=0;renderPwThumbs();showPlanta(0);
   document.getElementById('rn').textContent='Casa de '+D.nome.split(' ')[0];
   document.getElementById('rf').textContent=area+' m² estimados · '+qSel+(qSel===1?' quarto':' quartos')+' · '+est.faixa;
