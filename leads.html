@@ -751,6 +751,32 @@ function ativarNotificacoesNavegador(){
   });
 }
 
+/* Quantos dias desde o último registro de atendimento (histórico) deste cliente.
+   Usa o item mais recente do histórico; se não houver histórico, usa a data de criação. */
+function diasSemAtualizacao(lead){
+  var hist = Array.isArray(lead.historico) ? lead.historico : [];
+  if(hist.length>0){
+    var ultima = hist[hist.length-1].data;
+    return ultima ? diasEntre(ultima) : null;
+  }
+  if(lead.criadoEm && lead.criadoEm.toDate){
+    return Math.round((new Date() - lead.criadoEm.toDate()) / 86400000);
+  }
+  return null;
+}
+
+// Prazo (em dias) pra cobrar atualização de um cliente ativo. Fixo por enquanto —
+// dá pra evoluir pra um prazo diferente por etapa no futuro (ex: "aguardando aprovação" tolera mais dias).
+var LIMIAR_COBRANCA_DIAS = 12;
+
+function clientesSemAtualizar(){
+  return leads.filter(function(l){
+    if(l.tipoCliente!=='cliente_ativo' || l.etapa==='entregue') return false;
+    var dias = diasSemAtualizacao(l);
+    return dias!=null && dias>=LIMIAR_COBRANCA_DIAS;
+  });
+}
+
 function checkAvisos(){
   var hoje = hojeISO();
   var pendentes = agendamentos.filter(function(a){ return !a.concluido; });
@@ -758,13 +784,19 @@ function checkAvisos(){
   var deHoje = pendentes.filter(function(a){ return a.data === hoje; });
 
   var banner = document.getElementById('avisoAtrasados');
+  var semAtualizar = clientesSemAtualizar();
+
   if(atrasados.length>0){
     banner.style.display='block';
-    banner.innerHTML = '⚠️ Você tem <b>'+atrasados.length+'</b> compromisso(s) atrasado(s) na Agenda. Clique pra ver.';
-  } else if(deHoje.length>0){
+    banner.style.background='#3a1414'; banner.style.borderColor='#7a2020'; banner.style.color='#fca5a5';
+    banner.innerHTML = '⚠️ Você tem <b>'+atrasados.length+'</b> compromisso(s) atrasado(s) na Agenda. Clique pra ver.'
+      + (semAtualizar.length>0 ? '<br>📋 <b>'+semAtualizar.length+'</b> cliente(s) ativo(s) sem atualização de atendimento há '+LIMIAR_COBRANCA_DIAS+'+ dias.' : '');
+  } else if(deHoje.length>0 || semAtualizar.length>0){
     banner.style.display='block';
     banner.style.background='#1a2438'; banner.style.borderColor='var(--bd)'; banner.style.color='var(--tx2)';
-    banner.innerHTML = '📅 Você tem <b>'+deHoje.length+'</b> compromisso(s) pra hoje. Clique pra ver.';
+    banner.innerHTML = (deHoje.length>0 ? '📅 Você tem <b>'+deHoje.length+'</b> compromisso(s) pra hoje.' : '')
+      + (deHoje.length>0 && semAtualizar.length>0 ? '<br>' : '')
+      + (semAtualizar.length>0 ? '📋 <b>'+semAtualizar.length+'</b> cliente(s) ativo(s) sem atualização há '+LIMIAR_COBRANCA_DIAS+'+ dias — clique pra ver quem.' : '');
   } else {
     banner.style.display='none';
   }
@@ -772,11 +804,12 @@ function checkAvisos(){
   // Notificação do navegador — no máximo 1x por dia, só se o usuário já ativou
   if(localStorage.getItem('cf_notif_ativas')==='1' && 'Notification' in window && Notification.permission==='granted'){
     var jaAvisouHoje = localStorage.getItem('cf_notif_ultima') === hoje;
-    if(!jaAvisouHoje && (atrasados.length>0 || deHoje.length>0)){
+    if(!jaAvisouHoje && (atrasados.length>0 || deHoje.length>0 || semAtualizar.length>0)){
       var titulo = atrasados.length>0 ? '⚠️ Compromissos atrasados — Casa Fácil' : '📅 Agenda de hoje — Casa Fácil';
       var corpo = atrasados.length>0
         ? atrasados.length+' compromisso(s) atrasado(s), '+deHoje.length+' pra hoje.'
         : deHoje.length+' compromisso(s) agendado(s) pra hoje.';
+      if(semAtualizar.length>0) corpo += ' '+semAtualizar.length+' cliente(s) sem atualização há '+LIMIAR_COBRANCA_DIAS+'+ dias.';
       try{ new Notification(titulo, {body:corpo}); }catch(e){}
       localStorage.setItem('cf_notif_ultima', hoje);
     }
@@ -1020,6 +1053,8 @@ function render(){
   lista.forEach(function(l){
     var atrasado = estaAtrasado(l);
     var dias = l.ultimoContato!=null ? diasEntre(l.ultimoContato) : null;
+    var diasSemAtu = (l.tipoCliente==='cliente_ativo' && l.etapa!=='entregue') ? diasSemAtualizacao(l) : null;
+    var precisaCobranca = diasSemAtu!=null && diasSemAtu>=LIMIAR_COBRANCA_DIAS;
     html += '<div class="lead" onclick="abrirModal(leads.find(function(x){return x.id===\''+l.id+'\'}))">'
       + '<div class="lead-top">'
       +   '<div><div class="lead-nome">'+esc(l.nome)+(l.tipoCliente==='cliente_ativo'?' <span style="font-size:10px;color:var(--convertido);border:1px solid var(--convertido);border-radius:999px;padding:1px 7px;vertical-align:middle">CLIENTE ATIVO</span>':'')+'</div><div class="lead-info">'+esc(l.telefone||'sem telefone')+' · '+esc(l.faixa||'faixa nao informada')+(l.etapa?' · '+labelEtapa(l.etapa):'')+'</div></div>'
@@ -1032,6 +1067,7 @@ function render(){
       +   (l.proximoContato?'<span'+(atrasado?' class="atrasado"':'')+'>Retomar em: <b>'+fmtData(l.proximoContato)+(atrasado?' (chegou a hora!)':'')+'</b></span>':'')
       + '</div>'
       + (l.notas?'<div class="lead-info" style="margin-top:6px">📝 '+esc(l.notas)+'</div>':'')
+      + (precisaCobranca?'<div class="atrasado" style="margin-top:4px;font-size:12px">📋 Sem atualização de atendimento há '+diasSemAtu+' dias — que tal um contato?</div>':'')
       + (l.sugestaoIA?'<div class="lead-info" style="margin-top:4px;color:#a78bfa">💡 Já tem sugestão da IA — clique pra ver</div>':'')
       + '<div class="modal-actions" style="margin-top:10px;justify-content:flex-start" onclick="event.stopPropagation()">'
       +   '<button class="btn small secondary" onclick="marcarContatoHoje(\''+l.id+'\')">✅ Contato feito hoje</button>'
