@@ -105,8 +105,14 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <h1>📋 Acompanhamento de Leads</h1>
       <p>Casa Fácil — quem contatar e quando</p>
     </div>
-    <button class="btn" onclick="abrirModal()">+ Novo lead</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn small secondary" id="btnAtivarNotif" onclick="ativarNotificacoesNavegador()">🔔 Ativar avisos no navegador</button>
+      <button class="btn small secondary" onclick="analisarPerfilGlobal()">📊 Análise de perfil (todos os leads)</button>
+      <button class="btn" onclick="abrirModal()">+ Novo lead</button>
+    </div>
   </div>
+
+  <div id="avisoAtrasados" style="display:none;background:#3a1414;border:1px solid #7a2020;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#fca5a5;cursor:pointer" onclick="mudarView('agenda')"></div>
 
   <div id="configAlerta" class="config-alerta" style="display:none">
     ⚠️ <strong>Configuração pendente:</strong> este arquivo ainda não está ligado ao banco de dados.
@@ -182,8 +188,60 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
     </div>
     <div class="campo"><label>Minhas anotações rápidas</label><textarea id="f_notas" placeholder="Ex: disse que só teria a renda em julho. Já tem entrada guardada."></textarea></div>
 
+    <div class="campo" id="historicoBox" style="display:none;border-top:1px solid var(--bd2);padding-top:14px;margin-top:6px">
+      <label>📜 Histórico de atendimentos anteriores com este cliente</label>
+      <div id="historicoLista"></div>
+    </div>
+
     <div class="campo" style="border-top:1px solid var(--bd2);padding-top:14px;margin-top:6px">
       <label>📝 Resumo do atendimento (conversa de hoje)</label>
+
+      <div class="linha2" style="margin-bottom:10px">
+        <div class="campo" style="margin-bottom:0">
+          <label>Tipo de cliente</label>
+          <select id="f_tipoCliente" onchange="ajustarEtapasPorTipo()">
+            <option value="lead_novo">Lead novo (primeiro contato / ainda não fechou)</option>
+            <option value="cliente_ativo">Cliente já adquirido (contrato em andamento)</option>
+          </select>
+        </div>
+        <div class="campo" style="margin-bottom:0">
+          <label>Etapa atual do processo</label>
+          <select id="f_etapa">
+            <option value="primeiro_contato">Primeiro contato</option>
+            <option value="negociando">Negociando valores</option>
+            <option value="documentacao">Reunindo documentação</option>
+            <option value="aguardando_aprovacao">Aguardando aprovação da Caixa</option>
+            <option value="aprovado">Aprovado / assinando contrato</option>
+            <option value="obra">Obra em andamento</option>
+            <option value="entregue">Entregue / concluído</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="linha2" style="margin-bottom:10px">
+        <div class="campo" style="margin-bottom:0">
+          <label>Principal objeção/dificuldade neste contato</label>
+          <select id="f_objecao">
+            <option value="sem_objecao">Sem objeção neste contato</option>
+            <option value="entrada">Valor da entrada</option>
+            <option value="renda">Renda insuficiente / não comprova renda</option>
+            <option value="documentacao">Falta de documentação</option>
+            <option value="prazo_obra">Receio com prazo de obra</option>
+            <option value="concorrencia">Comparando com outra proposta/concorrente</option>
+          </select>
+        </div>
+        <div class="campo" style="margin-bottom:0">
+          <label>Como chegou até você</label>
+          <select id="f_origem">
+            <option value="indicacao">Indicação</option>
+            <option value="jardim_ranzani">Jardim Ranzani (loteamento)</option>
+            <option value="redes_sociais">Redes sociais / WhatsApp</option>
+            <option value="contato_antigo">Contato antigo que retornou</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+      </div>
+
       <textarea id="f_resumo" style="min-height:100px" placeholder="Conte como foi a conversa: interesse, objeções, prazos que a pessoa mencionou, terreno, dinheiro guardado, etc. Quanto mais detalhe, melhor a análise."></textarea>
       <button class="btn small" id="btnAnalisarIA" style="margin-top:8px" onclick="analisarComIA()">🧠 Analisar com IA</button>
     </div>
@@ -191,6 +249,21 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <label>💡 Sugestão da IA</label>
       <div class="msg-box" id="sugestaoIATexto"></div>
       <textarea id="f_sugestaoIA" style="display:none"></textarea>
+      <div id="agendarSugestaoBox" style="display:none;margin-top:10px;background:rgba(245,158,11,.08);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px">
+        <div style="font-size:12px;color:var(--tx2);margin-bottom:8px">📅 A IA sugeriu um prazo de retorno. Confira a data e confirme:</div>
+        <div class="linha2" style="margin-bottom:8px">
+          <div class="campo" style="margin-bottom:0"><label>Data sugerida</label><input type="date" id="ag_sugerida_data"/></div>
+          <div class="campo" style="margin-bottom:0"><label>Tipo</label>
+            <select id="ag_sugerida_tipo">
+              <option value="retorno">🔁 Retomar contato</option>
+              <option value="ligacao">📞 Ligação</option>
+              <option value="reuniao">🤝 Reunião</option>
+              <option value="mensagem">💬 Mensagem</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn small" onclick="confirmarAgendamentoSugerido()">✅ Confirmar agendamento</button>
+      </div>
     </div>
 
     <div class="modal-actions">
@@ -212,6 +285,17 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <button class="btn secondary" onclick="copiarMsg()">📋 Copiar</button>
       <button class="btn" id="btnWhats" onclick="abrirWhats()">Abrir no WhatsApp</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal de análise de perfil global -->
+<div class="overlay" id="overlayPerfil">
+  <div class="modal">
+    <button class="close-x" onclick="document.getElementById('overlayPerfil').classList.remove('show')">×</button>
+    <h2>📊 Análise de perfil (todos os leads)</h2>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:6px">Baseado em números agregados dos <span id="perfilTotalLeads">0</span> leads/clientes cadastrados. Nenhum dado individual é enviado nessa análise.</p>
+    <div id="perfilCarregando" style="display:none;color:var(--mut);font-size:13px;padding:20px 0;text-align:center">Analisando...</div>
+    <div class="msg-box" id="perfilResultado" style="min-height:120px"></div>
   </div>
 </div>
 
@@ -267,7 +351,7 @@ const firebaseConfig = {
    Cole aqui a URL que aparece depois de publicar a função
    (instruções no final da conversa).
    ============================================================ */
-const ANALISE_IA_URL = "https://analisar-lead-244246614237.southamerica-east1.run.app";
+const ANALISE_IA_URL = "https://southamerica-east1-casa-facil-4aef8.cloudfunctions.net/analisar-lead";
 
 let db = null, leads = [], filtroAtual = 'pendentes';
 let agendamentos = [], viewAtual = 'leads', mesAtual = new Date().getMonth(), anoAtual = new Date().getFullYear(), diaSelecionado = null;
@@ -325,6 +409,7 @@ function carregarAgendamentos(){
     snap.forEach(function(doc){ agendamentos.push(Object.assign({id:doc.id}, doc.data())); });
     renderCalendario();
     render();
+    checkAvisos();
   }).catch(function(err){ console.error(err); alert('Erro ao carregar agenda: '+err.message); });
 }
 
@@ -463,6 +548,7 @@ function salvarLead(){
   var nome=document.getElementById('f_nome').value.trim();
   if(!nome){ alert('Preencha o nome.'); return; }
   var id=document.getElementById('leadId').value;
+  var historico = montarHistoricoAtualizado(id);
   var dados={
     nome:nome,
     telefone:document.getElementById('f_telefone').value,
@@ -475,17 +561,83 @@ function salvarLead(){
     ultimoContato:document.getElementById('f_ultimoContato').value||null,
     proximoContato:document.getElementById('f_proximoContato').value||null,
     notas:document.getElementById('f_notas').value,
+    tipoCliente:document.getElementById('f_tipoCliente').value,
+    etapa:document.getElementById('f_etapa').value,
+    objecao:document.getElementById('f_objecao').value,
+    origem:document.getElementById('f_origem').value,
     resumoAtendimento:document.getElementById('f_resumo').value,
     sugestaoIA:document.getElementById('f_sugestaoIA').value,
+    historico:historico,
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   if(!db){ alert('Banco de dados nao configurado ainda (veja o aviso no topo da pagina).'); return; }
   var ref = id ? db.collection('leads').doc(id) : db.collection('leads').doc();
   if(!id) dados.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
-  ref.set(dados,{merge:true}).then(function(){
+  return ref.set(dados,{merge:true}).then(function(){
+    document.getElementById('leadId').value = ref.id;
     fecharModal();
     carregarLeads();
-  }).catch(function(err){ alert('Erro ao salvar: '+err.message); });
+    return ref.id;
+  }).catch(function(err){ alert('Erro ao salvar: '+err.message); throw err; });
+}
+
+/* Monta o array de histórico do cliente, acrescentando o resumo de hoje
+   como um novo registro (sem sobrescrever os anteriores), só se o
+   resumo escrito agora for novo/diferente do que já estava salvo. */
+function montarHistoricoAtualizado(idAtual){
+  var leadExistente = idAtual ? leads.find(function(l){return l.id===idAtual;}) : null;
+  var historico = (leadExistente && Array.isArray(leadExistente.historico)) ? leadExistente.historico.slice() : [];
+  var resumoNovo = (document.getElementById('f_resumo').value||'').trim();
+  var resumoAnterior = leadExistente ? (leadExistente.resumoAtendimento||'') : '';
+  if(resumoNovo && resumoNovo !== resumoAnterior){
+    historico.push({
+      data: hojeISO(),
+      resumo: resumoNovo,
+      sugestaoIA: document.getElementById('f_sugestaoIA').value || '',
+      tipoCliente: document.getElementById('f_tipoCliente').value,
+      etapa: document.getElementById('f_etapa').value
+    });
+    if(historico.length>15) historico = historico.slice(historico.length-15);
+  }
+  return historico;
+}
+
+/* Garante que o lead atual tem um ID salvo no Firestore, sem fechar o modal.
+   Usado antes de confirmar um agendamento sugerido pela IA. */
+function garantirLeadSalvo(){
+  var idAtual = document.getElementById('leadId').value;
+  if(idAtual) return Promise.resolve(idAtual);
+  var nome=document.getElementById('f_nome').value.trim();
+  if(!nome){ alert('Preencha o nome do lead antes de agendar.'); return Promise.reject(new Error('sem nome')); }
+  var dados={
+    nome:nome,
+    telefone:document.getElementById('f_telefone').value,
+    cpf:document.getElementById('f_cpf').value,
+    renda:parseM(document.getElementById('f_renda')),
+    faixa:document.getElementById('f_faixa').value,
+    financiamento:parseM(document.getElementById('f_fin')),
+    parcela:parseM(document.getElementById('f_parcela')),
+    status:document.getElementById('f_status').value,
+    ultimoContato:document.getElementById('f_ultimoContato').value||null,
+    proximoContato:document.getElementById('f_proximoContato').value||null,
+    notas:document.getElementById('f_notas').value,
+    tipoCliente:document.getElementById('f_tipoCliente').value,
+    etapa:document.getElementById('f_etapa').value,
+    objecao:document.getElementById('f_objecao').value,
+    origem:document.getElementById('f_origem').value,
+    resumoAtendimento:document.getElementById('f_resumo').value,
+    sugestaoIA:document.getElementById('f_sugestaoIA').value,
+    historico:montarHistoricoAtualizado(null),
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(!db) return Promise.reject(new Error('sem banco'));
+  var ref = db.collection('leads').doc();
+  return ref.set(dados).then(function(){
+    document.getElementById('leadId').value = ref.id;
+    carregarLeads();
+    return ref.id;
+  });
 }
 
 function marcarContatoHoje(id){
@@ -502,6 +654,9 @@ function analisarComIA(){
   }
   var btn=document.getElementById('btnAnalisarIA');
   btn.disabled=true; btn.textContent='Analisando...';
+  var idAtual = document.getElementById('leadId').value;
+  var leadExistente = idAtual ? leads.find(function(l){return l.id===idAtual;}) : null;
+  var historico = (leadExistente && Array.isArray(leadExistente.historico)) ? leadExistente.historico : [];
   var leadInfo={
     nome:document.getElementById('f_nome').value,
     renda:parseM(document.getElementById('f_renda')),
@@ -509,12 +664,16 @@ function analisarComIA(){
     financiamento:parseM(document.getElementById('f_fin')),
     parcela:parseM(document.getElementById('f_parcela')),
     status:document.getElementById('f_status').value,
-    notasAnteriores:document.getElementById('f_notas').value
+    notasAnteriores:document.getElementById('f_notas').value,
+    tipoCliente:document.getElementById('f_tipoCliente').value,
+    etapa:document.getElementById('f_etapa').value,
+    objecao:document.getElementById('f_objecao').value,
+    origem:document.getElementById('f_origem').value
   };
   fetch(ANALISE_IA_URL,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({resumo:resumo, lead:leadInfo})
+    body:JSON.stringify({resumo:resumo, lead:leadInfo, historico:historico})
   }).then(function(r){
     if(!r.ok) throw new Error('Resposta '+r.status);
     return r.json();
@@ -523,10 +682,172 @@ function analisarComIA(){
     document.getElementById('sugestaoIABox').style.display='block';
     document.getElementById('sugestaoIATexto').textContent = texto;
     document.getElementById('f_sugestaoIA').value = texto;
+    var dias = extrairDiasSugeridos(texto);
+    var d = new Date(hojeISO()+'T00:00:00');
+    d.setDate(d.getDate()+dias);
+    document.getElementById('ag_sugerida_data').value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    document.getElementById('agendarSugestaoBox').style.display='block';
   }).catch(function(err){
     alert('Não consegui falar com a IA agora: '+err.message+'\n\nVerifique se a Cloud Function foi publicada e se a URL foi colada certinho.');
   }).finally(function(){
     btn.disabled=false; btn.textContent='🧠 Analisar com IA';
+  });
+}
+
+/* Tenta achar quantos dias a IA sugeriu esperar pro próximo contato,
+   olhando no texto por padrões tipo "3-5 dias", "em 3 dias", "amanhã", "1 semana".
+   Se não achar nada, assume 3 dias como padrão razoável. */
+function extrairDiasSugeridos(texto){
+  texto = (texto||'').toLowerCase();
+  if(/amanh[ãa]/.test(texto)) return 1;
+  var semanas = texto.match(/(\d+)\s*semanas?/);
+  if(semanas) return parseInt(semanas[1],10)*7;
+  var faixa = texto.match(/(\d+)\s*[-a]\s*(\d+)\s*dias?/);
+  if(faixa) return Math.round((parseInt(faixa[1],10)+parseInt(faixa[2],10))/2);
+  var unico = texto.match(/(\d+)\s*dias?/);
+  if(unico) return parseInt(unico[1],10);
+  return 3;
+}
+
+/* Confirma (1 clique) o agendamento sugerido pela IA: garante que o lead
+   está salvo e cria o compromisso já vinculado a ele. */
+function confirmarAgendamentoSugerido(){
+  var data = document.getElementById('ag_sugerida_data').value;
+  var tipo = document.getElementById('ag_sugerida_tipo').value;
+  if(!data){ alert('Escolha uma data.'); return; }
+  garantirLeadSalvo().then(function(leadId){
+    var nome = document.getElementById('f_nome').value;
+    var sugestao = document.getElementById('f_sugestaoIA').value || '';
+    var obs = sugestao.length>200 ? sugestao.slice(0,200)+'…' : sugestao;
+    var dados={ leadId:leadId, leadNome:nome, data:data, hora:null, tipo:tipo, obs:'Sugestão da IA: '+obs, concluido:false, criadoEm: firebase.firestore.FieldValue.serverTimestamp() };
+    return db.collection('agenda').doc().set(dados);
+  }).then(function(){
+    alert('Agendamento confirmado pra '+fmtData(data)+'!');
+    document.getElementById('agendarSugestaoBox').style.display='none';
+    carregarAgendamentos();
+  }).catch(function(err){
+    if(err && err.message!=='sem nome') alert('Erro ao agendar: '+err.message);
+  });
+}
+
+/* ============================================================
+   8) AVISOS — atrasados/hoje dentro do sistema + notificação do navegador
+   ============================================================ */
+function ativarNotificacoesNavegador(){
+  if(!('Notification' in window)){
+    alert('Esse navegador não suporta notificações.');
+    return;
+  }
+  Notification.requestPermission().then(function(perm){
+    var btn=document.getElementById('btnAtivarNotif');
+    if(perm==='granted'){
+      btn.textContent='🔔 Avisos ativados';
+      btn.disabled=true;
+      localStorage.setItem('cf_notif_ativas','1');
+      checkAvisos();
+    } else {
+      alert('Permissão de notificação não concedida. Você pode tentar de novo depois pelo cadeado ao lado do endereço do site.');
+    }
+  });
+}
+
+function checkAvisos(){
+  var hoje = hojeISO();
+  var pendentes = agendamentos.filter(function(a){ return !a.concluido; });
+  var atrasados = pendentes.filter(function(a){ return a.data < hoje; });
+  var deHoje = pendentes.filter(function(a){ return a.data === hoje; });
+
+  var banner = document.getElementById('avisoAtrasados');
+  if(atrasados.length>0){
+    banner.style.display='block';
+    banner.innerHTML = '⚠️ Você tem <b>'+atrasados.length+'</b> compromisso(s) atrasado(s) na Agenda. Clique pra ver.';
+  } else if(deHoje.length>0){
+    banner.style.display='block';
+    banner.style.background='#1a2438'; banner.style.borderColor='var(--bd)'; banner.style.color='var(--tx2)';
+    banner.innerHTML = '📅 Você tem <b>'+deHoje.length+'</b> compromisso(s) pra hoje. Clique pra ver.';
+  } else {
+    banner.style.display='none';
+  }
+
+  // Notificação do navegador — no máximo 1x por dia, só se o usuário já ativou
+  if(localStorage.getItem('cf_notif_ativas')==='1' && 'Notification' in window && Notification.permission==='granted'){
+    var jaAvisouHoje = localStorage.getItem('cf_notif_ultima') === hoje;
+    if(!jaAvisouHoje && (atrasados.length>0 || deHoje.length>0)){
+      var titulo = atrasados.length>0 ? '⚠️ Compromissos atrasados — Casa Fácil' : '📅 Agenda de hoje — Casa Fácil';
+      var corpo = atrasados.length>0
+        ? atrasados.length+' compromisso(s) atrasado(s), '+deHoje.length+' pra hoje.'
+        : deHoje.length+' compromisso(s) agendado(s) pra hoje.';
+      try{ new Notification(titulo, {body:corpo}); }catch(e){}
+      localStorage.setItem('cf_notif_ultima', hoje);
+    }
+  }
+}
+
+/* ============================================================
+   9) ANÁLISE DE PERFIL GLOBAL — números agregados de todos os leads
+   ============================================================ */
+function agregarStatsLeads(){
+  var stats = { totalLeads: leads.length, porStatus:{}, porOrigem:{}, porObjecao:{}, porFaixa:{}, conversaoPorOrigem:{} };
+  var totalPorOrigem = {}, convertidosPorOrigem = {};
+  var somaDiasConversao = 0, qtdConversaoComData = 0;
+
+  leads.forEach(function(l){
+    var st = l.status || 'não informado';
+    stats.porStatus[st] = (stats.porStatus[st]||0) + 1;
+
+    var origem = l.origem || 'não informado';
+    stats.porOrigem[origem] = (stats.porOrigem[origem]||0) + 1;
+    totalPorOrigem[origem] = (totalPorOrigem[origem]||0) + 1;
+    if(st==='convertido') convertidosPorOrigem[origem] = (convertidosPorOrigem[origem]||0) + 1;
+
+    var obj = l.objecao || 'não informado';
+    stats.porObjecao[obj] = (stats.porObjecao[obj]||0) + 1;
+
+    var faixa = l.faixa || 'não informada';
+    stats.porFaixa[faixa] = (stats.porFaixa[faixa]||0) + 1;
+
+    if(st==='convertido' && l.criadoEm && l.atualizadoEm && l.criadoEm.toDate && l.atualizadoEm.toDate){
+      var dias = Math.round((l.atualizadoEm.toDate() - l.criadoEm.toDate()) / 86400000);
+      if(dias>=0){ somaDiasConversao += dias; qtdConversaoComData++; }
+    }
+  });
+
+  Object.keys(totalPorOrigem).forEach(function(o){
+    var conv = convertidosPorOrigem[o]||0;
+    var total = totalPorOrigem[o];
+    stats.conversaoPorOrigem[o] = total>0 ? Math.round((conv/total)*100)+'%' : '0%';
+  });
+  stats.tempoMedioConversaoDias = qtdConversaoComData>0 ? Math.round(somaDiasConversao/qtdConversaoComData) : null;
+  return stats;
+}
+
+function analisarPerfilGlobal(){
+  if(leads.length===0){ alert('Cadastre ao menos alguns leads antes de pedir essa análise.'); return; }
+  if(!ANALISE_IA_URL || ANALISE_IA_URL.indexOf('COLE_AQUI')===0){
+    alert('A análise por IA ainda não foi configurada nesta página.');
+    return;
+  }
+  var overlay = document.getElementById('overlayPerfil');
+  document.getElementById('perfilTotalLeads').textContent = leads.length;
+  document.getElementById('perfilResultado').textContent = '';
+  document.getElementById('perfilCarregando').style.display='block';
+  overlay.classList.add('show');
+
+  var stats = agregarStatsLeads();
+  fetch(ANALISE_IA_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({modo:'perfil_global', stats:stats})
+  }).then(function(r){
+    if(!r.ok) throw new Error('Resposta '+r.status);
+    return r.json();
+  }).then(function(data){
+    document.getElementById('perfilResultado').textContent = data.text || 'A IA não retornou uma resposta.';
+  }).catch(function(err){
+    document.getElementById('perfilResultado').textContent = '';
+    alert('Não consegui falar com a IA agora: '+err.message);
+  }).finally(function(){
+    document.getElementById('perfilCarregando').style.display='none';
   });
 }
 
@@ -566,7 +887,14 @@ function abrirModal(lead){
   document.getElementById('f_ultimoContato').value = lead ? (lead.ultimoContato||'') : hojeISO();
   document.getElementById('f_proximoContato').value = lead ? (lead.proximoContato||'') : '';
   document.getElementById('f_notas').value = lead ? (lead.notas||'') : '';
+  document.getElementById('f_tipoCliente').value = lead ? (lead.tipoCliente||'lead_novo') : 'lead_novo';
+  document.getElementById('f_etapa').value = lead ? (lead.etapa||'primeiro_contato') : 'primeiro_contato';
+  ajustarEtapasPorTipo(true);
+  document.getElementById('f_objecao').value = lead ? (lead.objecao||'sem_objecao') : 'sem_objecao';
+  document.getElementById('f_origem').value = lead ? (lead.origem||'indicacao') : 'indicacao';
   document.getElementById('f_resumo').value = lead ? (lead.resumoAtendimento||'') : '';
+  renderHistoricoBox(lead);
+  document.getElementById('agendarSugestaoBox').style.display='none';
   var sBox=document.getElementById('sugestaoIABox');
   if(lead && lead.sugestaoIA){
     sBox.style.display='block';
@@ -579,6 +907,21 @@ function abrirModal(lead){
   document.getElementById('overlay').classList.add('show');
 }
 function fecharModal(){ document.getElementById('overlay').classList.remove('show'); }
+
+function renderHistoricoBox(lead){
+  var box = document.getElementById('historicoBox');
+  var hist = (lead && Array.isArray(lead.historico)) ? lead.historico : [];
+  if(hist.length===0){ box.style.display='none'; return; }
+  box.style.display='block';
+  var html = hist.slice().reverse().map(function(h){
+    return '<div class="msg-box" style="margin-top:6px">'
+      + '<b>'+fmtData(h.data)+'</b>'+(h.etapa?' · '+esc(labelEtapa(h.etapa)):'')+'<br>'
+      + esc(h.resumo||'')
+      + (h.sugestaoIA ? '<div style="margin-top:4px;color:#a78bfa;font-size:12px">💡 '+esc(h.sugestaoIA.slice(0,220))+(h.sugestaoIA.length>220?'…':'')+'</div>' : '')
+      + '</div>';
+  }).join('');
+  document.getElementById('historicoLista').innerHTML = html;
+}
 
 /* ============================================================
    5) PRIORIDADE — quem contatar primeiro
@@ -679,7 +1022,7 @@ function render(){
     var dias = l.ultimoContato!=null ? diasEntre(l.ultimoContato) : null;
     html += '<div class="lead" onclick="abrirModal(leads.find(function(x){return x.id===\''+l.id+'\'}))">'
       + '<div class="lead-top">'
-      +   '<div><div class="lead-nome">'+esc(l.nome)+'</div><div class="lead-info">'+esc(l.telefone||'sem telefone')+' · '+esc(l.faixa||'faixa nao informada')+'</div></div>'
+      +   '<div><div class="lead-nome">'+esc(l.nome)+(l.tipoCliente==='cliente_ativo'?' <span style="font-size:10px;color:var(--convertido);border:1px solid var(--convertido);border-radius:999px;padding:1px 7px;vertical-align:middle">CLIENTE ATIVO</span>':'')+'</div><div class="lead-info">'+esc(l.telefone||'sem telefone')+' · '+esc(l.faixa||'faixa nao informada')+(l.etapa?' · '+labelEtapa(l.etapa):'')+'</div></div>'
       +   '<span class="badge '+badgeClass(l.status)+'">'+labelStatus(l.status)+'</span>'
       + '</div>'
       + '<div class="lead-meta">'
@@ -699,9 +1042,33 @@ function render(){
   });
   document.getElementById('lista').innerHTML = html;
 }
+function labelEtapa(e){ return {primeiro_contato:'Primeiro contato',negociando:'Negociando valores',documentacao:'Reunindo documentação',aguardando_aprovacao:'Aguardando aprovação',aprovado:'Aprovado/assinando',obra:'Obra em andamento',entregue:'Entregue'}[e]||e; }
+
+/* Etapas visíveis mudam de acordo com o tipo de cliente (lead novo x cliente ativo) */
+var ETAPAS_POR_TIPO = {
+  lead_novo: ['primeiro_contato','negociando','documentacao','aguardando_aprovacao'],
+  cliente_ativo: ['aprovado','obra','entregue']
+};
+function ajustarEtapasPorTipo(manterValor){
+  var tipo = document.getElementById('f_tipoCliente').value;
+  var permitidas = ETAPAS_POR_TIPO[tipo] || [];
+  var sel = document.getElementById('f_etapa');
+  var valorAtual = sel.value;
+  Array.from(sel.options).forEach(function(o){ o.hidden = permitidas.indexOf(o.value)===-1; });
+  if(!manterValor || permitidas.indexOf(valorAtual)===-1){
+    sel.value = permitidas[0];
+  }
+}
+
 function badgeClass(s){ if(s==='aguardando renda') return 'aguardando'; return s||'quente'; }
 function labelStatus(s){ return {quente:'🔥 Quente','aguardando renda':'⏳ Aguardando renda',esfriando:'🧊 Esfriando',convertido:'✅ Convertido'}[s]||s; }
 function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+if('Notification' in window && Notification.permission==='granted' && localStorage.getItem('cf_notif_ativas')==='1'){
+  var btnN=document.getElementById('btnAtivarNotif');
+  btnN.textContent='🔔 Avisos ativados';
+  btnN.disabled=true;
+}
 
 carregarLeads();
 carregarAgendamentos();
