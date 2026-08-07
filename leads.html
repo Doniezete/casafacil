@@ -306,7 +306,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
     <h2 id="agendaModalTitulo">📅 Agendar</h2>
     <input type="hidden" id="ag_id"/>
     <div class="campo">
-      <label>Lead</label>
+      <label>Lead (opcional — deixe em branco pra uma tarefa avulsa)</label>
       <select id="ag_leadId"></select>
     </div>
     <div class="linha2">
@@ -316,6 +316,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
     <div class="campo">
       <label>Tipo</label>
       <select id="ag_tipo">
+        <option value="tarefa">✅ Tarefa do dia a dia</option>
         <option value="reuniao">🤝 Reunião / atendimento presencial</option>
         <option value="ligacao">📞 Ligação</option>
         <option value="mensagem">💬 Enviar mensagem</option>
@@ -410,6 +411,7 @@ function carregarAgendamentos(){
     renderCalendario();
     render();
     checkAvisos();
+    processarTarefasAtrasadas();
   }).catch(function(err){ console.error(err); alert('Erro ao carregar agenda: '+err.message); });
 }
 
@@ -465,19 +467,31 @@ function renderAgendaDoDia(){
   var isHoje = diaSelecionado===hojeISO();
   titulo.textContent = (isHoje?'Hoje — ':'')+fmtData(diaSelecionado);
   var itens = agendamentos.filter(function(a){return a.data===diaSelecionado;})
-    .sort(function(a,b){return (a.hora||'99:99').localeCompare(b.hora||'99:99');});
+    .sort(function(a,b){
+      if(!!a.prioridade !== !!b.prioridade) return a.prioridade ? -1 : 1;
+      return (a.hora||'99:99').localeCompare(b.hora||'99:99');
+    });
   var html='';
   if(itens.length===0){
     html='<div class="vazio" style="padding:20px">Nada agendado nesse dia.</div>';
   }
   itens.forEach(function(a){
     var atrasadoAg = !a.concluido && a.data < hojeISO();
-    html += '<div class="item-agenda'+(a.concluido?' concluido':'')+(atrasadoAg?' atrasado-ag':'')+'">'
+    var remanejadaMuito = (a.vezesRemanejada||0) >= LIMIAR_REMANEJAMENTO;
+    html += '<div class="item-agenda'+(a.concluido?' concluido':'')+(atrasadoAg?' atrasado-ag':'')+'"'+(a.prioridade?' style="border-left:3px solid #f59e0b"':'')+'>'
       + '<div>'
       +   '<span class="tipo-badge '+(a.tipo||'retorno')+'">'+labelTipo(a.tipo)+'</span> '
+      +   (a.prioridade?'🔥 ':'')
       +   (a.hora?'<b>'+a.hora+'</b> — ':'')
-      +   '<b>'+esc(a.leadNome||'—')+'</b>'
+      +   '<b>'+esc(a.leadNome || (a.tipo==='tarefa'?'Tarefa avulsa':'—'))+'</b>'
       +   (a.obs?'<div class="lead-info" style="margin-top:3px">'+esc(a.obs)+'</div>':'')
+      +   (a.vezesRemanejada?'<div class="lead-info" style="margin-top:3px;color:#fbbf24">🔁 adiada '+a.vezesRemanejada+'x</div>':'')
+      +   (remanejadaMuito ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
+            + '<span style="font-size:11px;color:var(--mut);width:100%">Essa tarefa já foi adiada '+a.vezesRemanejada+' vezes. O que fazer?</span>'
+            + '<button class="btn small secondary" onclick="decidirTarefaRemanejada(\''+a.id+'\',\'continuar\')">Continuar adiando</button>'
+            + '<button class="btn small secondary" onclick="decidirTarefaRemanejada(\''+a.id+'\',\'prioridade\')">🔥 Priorizar</button>'
+            + '<button class="btn small secondary" style="color:#f87171" onclick="decidirTarefaRemanejada(\''+a.id+'\',\'excluir\')">Excluir</button>'
+            + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:6px">'
       +   '<button class="btn small secondary" onclick="marcarAgConcluido(\''+a.id+'\','+(!a.concluido)+')">'+(a.concluido?'↩️ Reabrir':'✅ Feito')+'</button>'
@@ -488,17 +502,20 @@ function renderAgendaDoDia(){
   document.getElementById('agendaDoDia').innerHTML = html;
 }
 
-function labelTipo(t){ return {reuniao:'🤝 Reunião',ligacao:'📞 Ligação',mensagem:'💬 Mensagem',retorno:'🔁 Retorno'}[t]||t; }
+function labelTipo(t){ return {tarefa:'✅ Tarefa',reuniao:'🤝 Reunião',ligacao:'📞 Ligação',mensagem:'💬 Mensagem',retorno:'🔁 Retorno'}[t]||t; }
+
+// Depois de quantos adiamentos seguidos uma tarefa avulsa entra em alerta de decisão.
+var LIMIAR_REMANEJAMENTO = 3;
 
 function abrirAgendamento(item, dataPreenchida){
   var sel=document.getElementById('ag_leadId');
-  sel.innerHTML = leads.map(function(l){return '<option value="'+l.id+'">'+esc(l.nome)+'</option>';}).join('') || '<option value="">Cadastre um lead primeiro</option>';
+  sel.innerHTML = '<option value="">— Tarefa avulsa (sem cliente) —</option>' + leads.map(function(l){return '<option value="'+l.id+'">'+esc(l.nome)+'</option>';}).join('');
   document.getElementById('agendaModalTitulo').textContent = item ? 'Editar agendamento' : '📅 Agendar';
   document.getElementById('ag_id').value = item ? item.id : '';
-  sel.value = item ? item.leadId : (leads[0]?leads[0].id:'');
+  sel.value = item ? (item.leadId||'') : '';
   document.getElementById('ag_data').value = item ? item.data : (dataPreenchida||diaSelecionado||hojeISO());
   document.getElementById('ag_hora').value = item ? (item.hora||'') : '';
-  document.getElementById('ag_tipo').value = item ? (item.tipo||'reuniao') : 'reuniao';
+  document.getElementById('ag_tipo').value = item ? (item.tipo||'reuniao') : 'tarefa';
   document.getElementById('ag_obs').value = item ? (item.obs||'') : '';
   document.getElementById('btnExcluirAg').style.display = item ? '' : 'none';
   document.getElementById('overlayAgenda').classList.add('show');
@@ -507,11 +524,11 @@ function abrirAgendamento(item, dataPreenchida){
 function salvarAgendamento(){
   var leadId=document.getElementById('ag_leadId').value;
   var data=document.getElementById('ag_data').value;
-  if(!leadId || !data){ alert('Escolha o lead e a data.'); return; }
-  var lead=leads.find(function(l){return l.id===leadId;});
+  if(!data){ alert('Escolha a data.'); return; }
+  var lead=leadId ? leads.find(function(l){return l.id===leadId;}) : null;
   var id=document.getElementById('ag_id').value;
   var dados={
-    leadId:leadId,
+    leadId:leadId||null,
     leadNome:lead?lead.nome:'',
     data:data,
     hora:document.getElementById('ag_hora').value||null,
@@ -521,12 +538,54 @@ function salvarAgendamento(){
   };
   if(!db){ alert('Banco de dados nao configurado ainda.'); return; }
   var ref = id ? db.collection('agenda').doc(id) : db.collection('agenda').doc();
-  if(!id) dados.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
+  if(!id){
+    dados.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
+    dados.vezesRemanejada = 0;
+    dados.prioridade = false;
+    dados.ultimaVerificacaoAdiamento = null;
+  }
   ref.set(dados,{merge:true}).then(function(){
     document.getElementById('overlayAgenda').classList.remove('show');
     diaSelecionado=data;
     carregarAgendamentos();
   }).catch(function(err){ alert('Erro ao salvar agendamento: '+err.message); });
+}
+
+function decidirTarefaRemanejada(id, acao){
+  if(!db) return;
+  if(acao==='excluir'){
+    if(!confirm('Excluir esta tarefa definitivamente?')) return;
+    db.collection('agenda').doc(id).delete().then(carregarAgendamentos);
+  } else if(acao==='prioridade'){
+    db.collection('agenda').doc(id).update({prioridade:true, vezesRemanejada:0}).then(carregarAgendamentos);
+  } else if(acao==='continuar'){
+    db.collection('agenda').doc(id).update({vezesRemanejada:0}).then(carregarAgendamentos);
+  }
+}
+
+/* Toda tarefa avulsa (sem cliente) que passou da data e não foi concluída
+   pula sozinha pro dia de hoje, contando quantas vezes isso já aconteceu.
+   Roda no máximo 1x por dia por tarefa (guarda por 'ultimaVerificacaoAdiamento'). */
+function processarTarefasAtrasadas(){
+  if(!db) return;
+  var hoje = hojeISO();
+  var pendentes = agendamentos.filter(function(a){
+    return a.tipo==='tarefa' && !a.concluido && a.data < hoje && a.ultimaVerificacaoAdiamento !== hoje;
+  });
+  if(pendentes.length===0) return;
+  var batch = db.batch();
+  pendentes.forEach(function(a){
+    var novoContador = (a.vezesRemanejada||0) + 1;
+    batch.update(db.collection('agenda').doc(a.id), {
+      data: hoje,
+      vezesRemanejada: novoContador,
+      ultimaVerificacaoAdiamento: hoje
+    });
+    a.data = hoje; a.vezesRemanejada = novoContador; a.ultimaVerificacaoAdiamento = hoje;
+  });
+  batch.commit().then(function(){
+    renderCalendario();
+  }).catch(function(err){ console.error('Erro ao remanejar tarefas:', err.message); });
 }
 
 function excluirAgendamento(){
