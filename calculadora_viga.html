@@ -3787,7 +3787,11 @@ async function salvarProjetoAtual(nomeForcado) {
     state.meta.projetoNome = window._integrado.nomeCliente;
     state.meta.projetoId = window._integrado.login;
     try {
-      await window._integrado.salvar(serializarEstado(), { status: state.meta.status || 'rascunho' });
+      await window._integrado.salvar(serializarEstado(), {
+        status: state.meta.status || 'rascunho',
+        assinaturaAdmin: state.meta.assinaturaAdmin || null,
+        assinaturaCliente: state.meta.assinaturaCliente || null,
+      });
       render();
     } catch(e) {
       if (e && e.message==='EMPTY_GUARD') {
@@ -4811,6 +4815,8 @@ window._bld = {
   getMedidas: () => state.medidas,
   salvar: () => salvarProjetoAtual(),
   abrirPainelProjetos: () => window.bldAbrirPainelProjetos(),
+  setStatus: (s) => { state.meta.status = s; },
+  setAssinatura: (quem, dados) => { if(quem==='admin') state.meta.assinaturaAdmin = dados; else state.meta.assinaturaCliente = dados; },
 };
 
 async function carregarInicial() {
@@ -4824,6 +4830,8 @@ async function carregarInicial() {
         state.meta.projetoId = window._integrado.login;
         state.meta.projetoNome = window._integrado.nomeCliente;
         state.meta.status = dados.status || 'rascunho';
+        state.meta.assinaturaAdmin = dados.assinaturaAdmin || null;
+        state.meta.assinaturaCliente = dados.assinaturaCliente || null;
       }
     } catch(e) { console.error('[modo integrado] falha ao carregar projeto:', e); }
   }
@@ -4978,21 +4986,40 @@ function buildSemProjeto() {
 function buildBarra() {
   const meta = window._bld.getMeta();
   const integrado = window._integrado && window._integrado.ativo;
+  const modo = integrado ? window._integrado.modo : null;
+  const statusLabel = { rascunho:'📝 Rascunho', enviado:'📤 Enviado ao cliente', cliente_sugeriu:'✏️ Cliente sugeriu ajuste', aprovado:'✅ Aprovado' };
   const d = document.createElement('div');
-  d.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:8px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)';
+  d.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:8px;padding:8px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)';
   d.innerHTML = `
-    <span style="font-family:var(--mono);font-size:9px;color:var(--text3)">PROJETO:</span>
-    <span style="font-family:var(--mono);font-size:11px;color:var(--text);font-weight:600;flex:1">${meta.projetoNome}</span>
-    <button id="ee-salvar" style="padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer">💾 Salvar</button>
-    <button id="ee-relatorio" style="padding:5px 12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:10px;cursor:pointer">📋 Gerar relatório</button>
-    <button id="ee-pedreiro" style="padding:5px 12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:10px;cursor:pointer">🧱 Planta para o pedreiro</button>
-    ${integrado ? '' : `<button id="ee-projetos" style="padding:5px 12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:10px;cursor:pointer">📂 Trocar projeto</button>`}
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-family:var(--mono);font-size:9px;color:var(--text3)">PROJETO:</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text);font-weight:600;flex:1">${meta.projetoNome}</span>
+      ${integrado ? `<span style="font-family:var(--mono);font-size:9px;color:var(--text2);padding:3px 8px;background:var(--bg3);border-radius:10px">${statusLabel[meta.status||'rascunho']}</span>` : ''}
+      <button id="ee-salvar" style="padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer">💾 Salvar</button>
+      <button id="ee-relatorio" style="padding:5px 12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:10px;cursor:pointer">📋 Gerar relatório</button>
+      <button id="ee-pedreiro" style="padding:5px 12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:10px;cursor:pointer">🧱 Planta para o pedreiro</button>
+      ${integrado ? '' : `<button id="ee-projetos" style="padding:5px 12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:10px;cursor:pointer">📂 Trocar projeto</button>`}
+    </div>
+    ${integrado ? `
+    <div style="display:flex;align-items:center;gap:10px;padding-top:8px;border-top:1px solid var(--border)">
+      ${modo==='admin' ? `<button id="ee-enviar-cliente" style="padding:5px 12px;background:var(--green);color:#0a2e22;border:none;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer">📤 Enviar para o cliente</button>` : ''}
+      ${modo==='cliente' ? `<button id="ee-enviar-sugestao" style="padding:5px 12px;background:var(--green);color:#0a2e22;border:none;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer">📨 Enviar ajuste para a Casa Fácil</button>` : ''}
+      <button id="ee-assinatura" style="padding:5px 12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:10px;cursor:pointer">✍️ Assinatura</button>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--text3);flex:1">
+        ${meta.assinaturaAdmin ? '✅ Assinado pela Casa Fácil' : '— aguardando assinatura da Casa Fácil'}
+        &nbsp;·&nbsp;
+        ${meta.assinaturaCliente ? '✅ Assinado pelo cliente' : '— aguardando assinatura do cliente'}
+      </span>
+    </div>` : ''}
   `;
   setTimeout(()=>{
     document.getElementById('ee-salvar')?.addEventListener('click', ()=>window._bld.salvar());
     document.getElementById('ee-relatorio')?.addEventListener('click', ()=>abrirEscolhaImpressao('relatorio'));
     document.getElementById('ee-pedreiro')?.addEventListener('click', ()=>abrirEscolhaImpressao('pedreiro'));
     document.getElementById('ee-projetos')?.addEventListener('click', ()=>window._bld.abrirPainelProjetos());
+    document.getElementById('ee-enviar-cliente')?.addEventListener('click', ()=>enviarParaCliente());
+    document.getElementById('ee-enviar-sugestao')?.addEventListener('click', ()=>enviarSugestaoCliente());
+    document.getElementById('ee-assinatura')?.addEventListener('click', ()=>abrirPainelAssinatura());
   },0);
   return d;
 }
@@ -5917,6 +5944,87 @@ function buildResumo() {
 
 // ── RELATÓRIO / IMPRESSÃO ──
 // ── ESCOLHA DO QUE ENTRA NA IMPRESSÃO (pontos / móveis / ambos) ──
+// ── ENVIO E ASSINATURA (só existem no modo integrado, ligado ao Casa Fácil) ──
+async function enviarParaCliente() {
+  if (!confirm('Enviar este projeto para o cliente poder ver e ajustar? Ele passa a aparecer no Portal do Cliente.')) return;
+  window._bld.setStatus('enviado');
+  try {
+    await window._bld.salvar();
+    render();
+    alert('Enviado! Já está disponível no Portal do Cliente.');
+  } catch(e) {
+    alert('Não deu pra enviar agora — verifique sua internet e tente de novo.');
+  }
+}
+async function enviarSugestaoCliente() {
+  if (!confirm('Enviar seus ajustes de volta para a Casa Fácil analisar?')) return;
+  window._bld.setStatus('cliente_sugeriu');
+  try {
+    await window._bld.salvar();
+    render();
+    alert('Enviado! A Casa Fácil vai revisar seus ajustes.');
+  } catch(e) {
+    alert('Não deu pra enviar agora — verifique sua internet e tente de novo.');
+  }
+}
+function abrirPainelAssinatura() {
+  const meta = window._bld.getMeta();
+  const modo = window._integrado.modo;
+  const quemSouEu = modo==='admin' ? 'admin' : 'cliente';
+  const jaAssineiEu = quemSouEu==='admin' ? meta.assinaturaAdmin : meta.assinaturaCliente;
+  const overlay = document.createElement('div');
+  overlay.id = 'ee-assinatura-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const fmtData = iso => { try{ return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';} };
+  overlay.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;max-width:360px;width:100%;padding:18px">
+      <div style="font-family:var(--mono);font-weight:700;color:var(--text);margin-bottom:12px">✍️ Assinatura</div>
+
+      <div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:10px">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:4px">CASA FÁCIL</div>
+        ${meta.assinaturaAdmin
+          ? `<div style="font-family:var(--mono);font-size:10px;color:var(--green)">✅ ${meta.assinaturaAdmin.nome} — ${fmtData(meta.assinaturaAdmin.data)}</div>`
+          : `<div style="font-family:var(--mono);font-size:10px;color:var(--text3)">— ainda não assinado</div>`}
+      </div>
+      <div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:14px">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:4px">CLIENTE</div>
+        ${meta.assinaturaCliente
+          ? `<div style="font-family:var(--mono);font-size:10px;color:var(--green)">✅ ${meta.assinaturaCliente.nome} — ${fmtData(meta.assinaturaCliente.data)}</div>`
+          : `<div style="font-family:var(--mono);font-size:10px;color:var(--text3)">— ainda não assinado</div>`}
+      </div>
+
+      ${jaAssineiEu ? `
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);text-align:center;padding:8px 0">Você já assinou este projeto.</div>
+      ` : `
+      <label style="font-family:var(--mono);font-size:9px;color:var(--text3);display:block;margin:0 0 3px">Seu nome completo</label>
+      <input id="ee-assin-nome" type="text" placeholder="Digite seu nome" style="${selStyle()}width:100%;margin-bottom:10px"/>
+      <label style="display:flex;align-items:flex-start;gap:6px;font-family:var(--mono);font-size:9px;color:var(--text2);cursor:pointer">
+        <input id="ee-assin-concordo" type="checkbox" style="margin-top:2px"/>
+        Li e concordo com os pontos elétricos e móveis definidos neste projeto. Sei que alterações depois disso podem gerar custos adicionais.
+      </label>
+      `}
+
+      <div style="display:flex;gap:8px;margin-top:14px">
+        ${jaAssineiEu ? '' : `<button id="ee-assin-salvar" style="flex:1;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer">Assinar</button>`}
+        <button id="ee-assin-fechar" style="flex:1;padding:7px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:10px;cursor:pointer">Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const fechar = ()=> overlay.remove();
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) fechar(); });
+  document.getElementById('ee-assin-fechar').addEventListener('click', fechar);
+  document.getElementById('ee-assin-salvar')?.addEventListener('click', async ()=>{
+    const nome = document.getElementById('ee-assin-nome').value.trim();
+    const concordou = document.getElementById('ee-assin-concordo').checked;
+    if (!nome) { alert('Digite seu nome pra assinar.'); return; }
+    if (!concordou) { alert('Marque que você leu e concorda antes de assinar.'); return; }
+    window._bld.setAssinatura(quemSouEu, { nome, data: new Date().toISOString(), concordou: true });
+    try { await window._bld.salvar(); } catch(e) { alert('Assinatura salva localmente, mas não deu pra sincronizar agora.'); }
+    fechar();
+    render();
+  });
+}
+
 function abrirEscolhaImpressao(tipoDoc) {
   const overlay = document.createElement('div');
   overlay.id = 'ee-print-choice-overlay';
@@ -6152,7 +6260,10 @@ ${blocoPlantaHTML}
   win.document.close();
 }
 
-render();
+// Nota: não chamamos render() aqui de cara — a aba "Pontos Elétricos" começa escondida
+// (display:none) e só é desenhada quando setModo('eletrica') é chamado (pelo botão do menu,
+// ou automaticamente no modo integrado). Chamar render() aqui também causava duplicidade de
+// listeners nos botões (cada clique disparava a ação duas vezes).
 })();
 </script>
 
