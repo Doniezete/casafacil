@@ -193,6 +193,11 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <div id="historicoLista"></div>
     </div>
 
+    <div class="campo" id="simulacoesBox" style="display:none;border-top:1px solid var(--bd2);padding-top:14px;margin-top:6px">
+      <label>📄 Simulações salvas no simulador</label>
+      <div id="simulacoesLista"></div>
+    </div>
+
     <div class="campo" style="border-top:1px solid var(--bd2);padding-top:14px;margin-top:6px">
       <label>📝 Resumo do atendimento (conversa de hoje)</label>
 
@@ -1003,16 +1008,27 @@ function fecharModal(){ document.getElementById('overlay').classList.remove('sho
 function renderHistoricoBox(lead){
   var box = document.getElementById('historicoBox');
   var hist = (lead && Array.isArray(lead.historico)) ? lead.historico : [];
-  if(hist.length===0){ box.style.display='none'; return; }
-  box.style.display='block';
-  var html = hist.slice().reverse().map(function(h){
-    return '<div class="msg-box" style="margin-top:6px">'
-      + '<b>'+fmtData(h.data)+'</b>'+(h.etapa?' · '+esc(labelEtapa(h.etapa)):'')+'<br>'
-      + esc(h.resumo||'')
-      + (h.sugestaoIA ? '<div style="margin-top:4px;color:#a78bfa;font-size:12px">💡 '+esc(h.sugestaoIA.slice(0,220))+(h.sugestaoIA.length>220?'…':'')+'</div>' : '')
-      + '</div>';
+  if(hist.length===0){ box.style.display='none'; } else {
+    box.style.display='block';
+    var html = hist.slice().reverse().map(function(h){
+      return '<div class="msg-box" style="margin-top:6px">'
+        + '<b>'+fmtData(h.data)+'</b>'+(h.etapa?' · '+esc(labelEtapa(h.etapa)):'')+'<br>'
+        + esc(h.resumo||'')
+        + (h.sugestaoIA ? '<div style="margin-top:4px;color:#a78bfa;font-size:12px">💡 '+esc(h.sugestaoIA.slice(0,220))+(h.sugestaoIA.length>220?'…':'')+'</div>' : '')
+        + '</div>';
+    }).join('');
+    document.getElementById('historicoLista').innerHTML = html;
+  }
+
+  var simBox = document.getElementById('simulacoesBox');
+  var sims = (lead && Array.isArray(lead.snapshotsAtendimento)) ? lead.snapshotsAtendimento : [];
+  if(sims.length===0){ simBox.style.display='none'; return; }
+  simBox.style.display='block';
+  document.getElementById('simulacoesLista').innerHTML = sims.slice().reverse().map(function(s){
+    return '<a href="'+encodeURI(s.url)+'" target="_blank" rel="noopener" class="msg-box" style="display:block;margin-top:6px;text-decoration:none;color:inherit">'
+      + '📄 <b>'+esc(s.nomeArquivo||'atendimento')+'</b> — '+fmtData(s.data)+' <span style="color:var(--mut);font-size:12px">(abrir)</span>'
+      + '</a>';
   }).join('');
-  document.getElementById('historicoLista').innerHTML = html;
 }
 
 /* ============================================================
@@ -1128,6 +1144,7 @@ function render(){
       + (l.notas?'<div class="lead-info" style="margin-top:6px">📝 '+esc(l.notas)+'</div>':'')
       + (precisaCobranca?'<div class="atrasado" style="margin-top:4px;font-size:12px">📋 Sem atualização de atendimento há '+diasSemAtu+' dias — que tal um contato?</div>':'')
       + (l.sugestaoIA?'<div class="lead-info" style="margin-top:4px;color:#a78bfa">💡 Já tem sugestão da IA — clique pra ver</div>':'')
+      + (l.snapshotsAtendimento && l.snapshotsAtendimento.length>0 ? '<div class="lead-info" style="margin-top:4px;color:#60a5fa">📄 '+l.snapshotsAtendimento.length+' simulação(ões) salva(s)</div>' : '')
       + '<div class="modal-actions" style="margin-top:10px;justify-content:flex-start" onclick="event.stopPropagation()">'
       +   '<button class="btn small secondary" onclick="marcarContatoHoje(\''+l.id+'\')">✅ Contato feito hoje</button>'
       +   '<button class="btn small" onclick="abrirMensagem(leads.find(function(x){return x.id===\''+l.id+'\'}))">✍️ Sugerir mensagem</button>'
