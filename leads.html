@@ -782,7 +782,7 @@ function confirmarAgendamentoSugerido(){
   garantirLeadSalvo().then(function(leadId){
     var nome = document.getElementById('f_nome').value;
     var sugestao = document.getElementById('f_sugestaoIA').value || '';
-    var obs = sugestao.length>200 ? sugestao.slice(0,200)+'…' : sugestao;
+    var obs = sugestao;
     var dados={ leadId:leadId, leadNome:nome, data:data, hora:null, tipo:tipo, obs:'Sugestão da IA: '+obs, concluido:false, criadoEm: firebase.firestore.FieldValue.serverTimestamp() };
     return db.collection('agenda').doc().set(dados);
   }).then(function(){
