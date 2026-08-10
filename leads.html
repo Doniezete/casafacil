@@ -108,6 +108,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn small secondary" id="btnAtivarNotif" onclick="ativarNotificacoesNavegador()">🔔 Ativar avisos no navegador</button>
       <button class="btn small secondary" onclick="analisarPerfilGlobal()">📊 Análise de perfil (todos os leads)</button>
+      <button class="btn small secondary" onclick="abrirCapturaVoz()">🎤 Falar uma tarefa</button>
       <button class="btn" onclick="abrirModal()">+ Novo lead</button>
     </div>
   </div>
@@ -301,6 +302,49 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
     <p style="color:var(--mut);font-size:12px;margin-bottom:6px">Baseado em números agregados dos <span id="perfilTotalLeads">0</span> leads/clientes cadastrados. Nenhum dado individual é enviado nessa análise.</p>
     <div id="perfilCarregando" style="display:none;color:var(--mut);font-size:13px;padding:20px 0;text-align:center">Analisando...</div>
     <div class="msg-box" id="perfilResultado" style="min-height:120px"></div>
+  </div>
+</div>
+
+<!-- Modal de captura de tarefa por voz -->
+<div class="overlay" id="overlayVoz">
+  <div class="modal">
+    <button class="close-x" onclick="fecharCapturaVoz()">×</button>
+    <h2>🎤 Falar uma tarefa</h2>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:14px">Aperte o microfone e fale naturalmente, tipo "marca pra eu ligar pro Bruno depois de amanhã sobre a documentação".</p>
+
+    <div style="text-align:center;padding:10px 0">
+      <button id="btnMicVoz" onclick="alternarGravacaoVoz()" style="width:80px;height:80px;border-radius:50%;border:none;background:var(--ac);font-size:32px;cursor:pointer">🎤</button>
+      <div id="statusVoz" style="margin-top:10px;color:var(--mut);font-size:13px">Toque pra começar a falar</div>
+    </div>
+
+    <div class="campo" id="transcricaoBox" style="display:none">
+      <label>O que foi entendido (fala)</label>
+      <div class="msg-box" id="transcricaoTexto"></div>
+    </div>
+
+    <div id="previaTarefaBox" style="display:none;margin-top:10px;background:rgba(245,158,11,.08);border:1px dashed var(--ac);border-radius:10px;padding:12px">
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">📋 Confirme antes de salvar:</div>
+      <div class="linha2" style="margin-bottom:8px">
+        <div class="campo" style="margin-bottom:0"><label>Título</label><input type="text" id="voz_titulo"/></div>
+        <div class="campo" style="margin-bottom:0"><label>Tipo</label>
+          <select id="voz_tipo">
+            <option value="tarefa">✅ Tarefa</option>
+            <option value="ligacao">📞 Ligação</option>
+            <option value="reuniao">🤝 Reunião</option>
+            <option value="mensagem">💬 Mensagem</option>
+          </select>
+        </div>
+      </div>
+      <div class="linha2" style="margin-bottom:10px">
+        <div class="campo" style="margin-bottom:0"><label>Data</label><input type="date" id="voz_data"/></div>
+        <div class="campo" style="margin-bottom:0"><label>Hora (opcional)</label><input type="time" id="voz_hora"/></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn small secondary" onclick="fecharCapturaVoz()">Cancelar</button>
+        <button class="btn small secondary" onclick="reiniciarCapturaVoz()">🔁 Falar de novo</button>
+        <button class="btn small" onclick="confirmarTarefaPorVoz()">✅ Confirmar e salvar</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -946,6 +990,120 @@ function analisarPerfilGlobal(){
   }).finally(function(){
     document.getElementById('perfilCarregando').style.display='none';
   });
+}
+
+/* ============================================================
+   10) CAPTURA DE TAREFA POR VOZ — fala > transcrição > IA estrutura > confirma
+   ============================================================ */
+var reconhecimentoVoz = null;
+var gravandoVoz = false;
+
+function vozDisponivel(){
+  return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+}
+
+function abrirCapturaVoz(){
+  if(!vozDisponivel()){
+    alert('Esse navegador não suporta ditado por voz. Funciona bem no Chrome (Android ou computador). No iPhone pode não funcionar direito.');
+    return;
+  }
+  document.getElementById('transcricaoBox').style.display='none';
+  document.getElementById('previaTarefaBox').style.display='none';
+  document.getElementById('statusVoz').textContent = 'Toque pra começar a falar';
+  document.getElementById('btnMicVoz').textContent = '🎤';
+  document.getElementById('overlayVoz').classList.add('show');
+}
+
+function fecharCapturaVoz(){
+  if(reconhecimentoVoz && gravandoVoz){ try{ reconhecimentoVoz.stop(); }catch(e){} }
+  document.getElementById('overlayVoz').classList.remove('show');
+}
+
+function reiniciarCapturaVoz(){
+  document.getElementById('transcricaoBox').style.display='none';
+  document.getElementById('previaTarefaBox').style.display='none';
+  document.getElementById('statusVoz').textContent = 'Toque pra começar a falar';
+}
+
+function alternarGravacaoVoz(){
+  if(gravandoVoz){
+    if(reconhecimentoVoz){ try{ reconhecimentoVoz.stop(); }catch(e){} }
+    return;
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  reconhecimentoVoz = new SR();
+  reconhecimentoVoz.lang = 'pt-BR';
+  reconhecimentoVoz.interimResults = false;
+  reconhecimentoVoz.maxAlternatives = 1;
+
+  reconhecimentoVoz.onstart = function(){
+    gravandoVoz = true;
+    document.getElementById('btnMicVoz').textContent = '⏹️';
+    document.getElementById('statusVoz').textContent = 'Ouvindo... toque de novo pra parar';
+  };
+  reconhecimentoVoz.onerror = function(e){
+    gravandoVoz = false;
+    document.getElementById('btnMicVoz').textContent = '🎤';
+    document.getElementById('statusVoz').textContent = 'Não consegui ouvir (erro: '+e.error+'). Tente de novo.';
+  };
+  reconhecimentoVoz.onend = function(){
+    gravandoVoz = false;
+    document.getElementById('btnMicVoz').textContent = '🎤';
+  };
+  reconhecimentoVoz.onresult = function(event){
+    var transcricao = event.results[0][0].transcript;
+    document.getElementById('transcricaoBox').style.display='block';
+    document.getElementById('transcricaoTexto').textContent = transcricao;
+    document.getElementById('statusVoz').textContent = 'Entendendo o que você pediu...';
+    interpretarTarefaPorVoz(transcricao);
+  };
+  reconhecimentoVoz.start();
+}
+
+function interpretarTarefaPorVoz(transcricao){
+  fetch(ANALISE_IA_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({modo:'interpretar_tarefa', transcricao:transcricao, dataHoje:hojeISO()})
+  }).then(function(r){
+    if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||('Resposta '+r.status)); });
+    return r.json();
+  }).then(function(obj){
+    document.getElementById('voz_titulo').value = obj.titulo || transcricao.slice(0,80);
+    document.getElementById('voz_tipo').value = obj.tipo || 'tarefa';
+    document.getElementById('voz_data').value = obj.data || hojeISO();
+    document.getElementById('voz_hora').value = obj.hora || '';
+    document.getElementById('statusVoz').textContent = '';
+    document.getElementById('previaTarefaBox').style.display='block';
+  }).catch(function(err){
+    document.getElementById('statusVoz').textContent = 'Não consegui entender: '+err.message+'. Toque no microfone pra tentar de novo.';
+  });
+}
+
+function confirmarTarefaPorVoz(){
+  var titulo = document.getElementById('voz_titulo').value.trim();
+  var data = document.getElementById('voz_data').value;
+  if(!titulo || !data){ alert('Preencha ao menos o título e a data.'); return; }
+  if(!db){ alert('Banco de dados não configurado.'); return; }
+  var dados = {
+    leadId: null,
+    leadNome: '',
+    data: data,
+    hora: document.getElementById('voz_hora').value || null,
+    tipo: document.getElementById('voz_tipo').value,
+    obs: titulo,
+    concluido: false,
+    vezesRemanejada: 0,
+    prioridade: false,
+    ultimaVerificacaoAdiamento: null,
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  db.collection('agenda').doc().set(dados).then(function(){
+    fecharCapturaVoz();
+    diaSelecionado = data;
+    carregarAgendamentos();
+    mudarView('agenda');
+  }).catch(function(err){ alert('Erro ao salvar: '+err.message); });
 }
 
 function copiarDadosCasaFacil(){
