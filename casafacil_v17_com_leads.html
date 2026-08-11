@@ -1547,7 +1547,9 @@ function gerarPDF(){
   if(D.cidade_atend !== 'srv'){
     // Check page space
     if(y+plantH>280){doc.addPage();y=14;}
-    doc.addImage(PLANTAS[plantasAtuais[plantaIdx]],'PNG',M,y,plantW,plantH);
+    var plantSrc=PLANTAS[plantasAtuais[plantaIdx]];
+    var plantFmt=plantSrc.indexOf('data:image/jpeg')===0?'JPEG':'PNG';
+    doc.addImage(plantSrc,plantFmt,M,y,plantW,plantH);
     // Fachada: centered vertically relative to plant
     var fachY=y+(plantH-fachH)/2;
     doc.addImage(fachSrc,'JPEG',M+plantW+gap,fachY,fachW,fachH);
