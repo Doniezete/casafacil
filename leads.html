@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 :root{
   --bg:#0f1420;--bg2:#0c0f1a;--card:#161d2e;--card2:#131827;
@@ -99,6 +100,16 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
 </style>
 </head>
 <body>
+
+<div id="telaLogin" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:20px">
+  <div style="font-size:40px">🔒</div>
+  <h1 style="margin:0">Acompanhamento de Leads</h1>
+  <p style="color:var(--mut);max-width:320px">Acesso restrito. Entre com a conta Google autorizada pra continuar.</p>
+  <button class="btn" onclick="fazerLoginGoogle()">Entrar com Google</button>
+  <div id="loginErro" style="display:none;color:#fca5a5;font-size:13px;max-width:320px"></div>
+</div>
+
+<div id="appConteudo" style="display:none">
 <div class="wrap">
   <div class="top">
     <div>
@@ -106,10 +117,12 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <p>Casa Fácil — quem contatar e quando</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span id="usuarioLogado" style="font-size:12px;color:var(--mut)"></span>
       <button class="btn small secondary" id="btnAtivarNotif" onclick="ativarNotificacoesNavegador()">🔔 Ativar avisos no navegador</button>
       <button class="btn small secondary" onclick="analisarPerfilGlobal()">📊 Análise de perfil (todos os leads)</button>
       <button class="btn small secondary" onclick="abrirCapturaVoz()">🎤 Falar uma tarefa</button>
       <button class="btn" onclick="abrirModal()">+ Novo lead</button>
+      <button class="btn small secondary" onclick="sairDaConta()">🚪 Sair</button>
     </div>
   </div>
 
@@ -153,6 +166,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
     <h3 style="margin-top:22px;font-size:15px;color:var(--ac)" id="diaSelecionadoTitulo">Hoje</h3>
     <div id="agendaDoDia"></div>
   </div>
+</div>
 </div>
 
 <!-- Modal de lead (novo / editar) -->
@@ -410,6 +424,43 @@ try{
   db = firebase.firestore();
 }catch(e){ console.error('Firebase nao inicializado:', e); }
 
+/* ============================================================
+   LOGIN — só essas contas Google conseguem entrar no painel
+   ============================================================ */
+var EMAILS_AUTORIZADOS = ['donizetecmartins@gmail.com','tatygabricio@gmail.com'];
+
+function fazerLoginGoogle(){
+  document.getElementById('loginErro').style.display='none';
+  var provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider).catch(function(err){
+    document.getElementById('loginErro').style.display='block';
+    document.getElementById('loginErro').textContent = 'Não foi possível entrar: '+err.message;
+  });
+}
+
+function sairDaConta(){
+  firebase.auth().signOut();
+}
+
+firebase.auth().onAuthStateChanged(function(user){
+  if(user && EMAILS_AUTORIZADOS.indexOf((user.email||'').toLowerCase())!==-1){
+    document.getElementById('telaLogin').style.display='none';
+    document.getElementById('appConteudo').style.display='block';
+    var badge = document.getElementById('usuarioLogado');
+    if(badge) badge.textContent = '👤 '+(user.displayName||user.email);
+    carregarLeads();
+    carregarAgendamentos();
+  } else {
+    document.getElementById('appConteudo').style.display='none';
+    document.getElementById('telaLogin').style.display='flex';
+    if(user){
+      document.getElementById('loginErro').style.display='block';
+      document.getElementById('loginErro').textContent = 'A conta '+user.email+' não tem acesso liberado a este painel.';
+      firebase.auth().signOut();
+    }
+  }
+});
+
 if(!firebaseConfig.apiKey || firebaseConfig.apiKey.indexOf('COLE_AQUI') === 0){
   document.getElementById('configAlerta').style.display='block';
 }
@@ -533,7 +584,7 @@ function renderAgendaDoDia(){
       +   (a.prioridade?'🔥 ':'')
       +   (a.hora?'<b>'+a.hora+'</b> — ':'')
       +   '<b>'+esc(a.leadNome || (a.tipo==='tarefa'?'Tarefa avulsa':'—'))+'</b>'
-      +   (a.obs?'<div class="lead-info" style="margin-top:3px">'+esc(a.obs)+'</div>':'')
+      +   (a.obs?renderObsAgenda(a):'')
       +   (a.vezesRemanejada?'<div class="lead-info" style="margin-top:3px;color:#fbbf24">🔁 adiada '+a.vezesRemanejada+'x</div>':'')
       +   (remanejadaMuito ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
             + '<span style="font-size:11px;color:var(--mut);width:100%">Essa tarefa já foi adiada '+a.vezesRemanejada+' vezes. O que fazer?</span>'
@@ -552,6 +603,24 @@ function renderAgendaDoDia(){
 }
 
 function labelTipo(t){ return {tarefa:'✅ Tarefa',reuniao:'🤝 Reunião',ligacao:'📞 Ligação',mensagem:'💬 Mensagem',retorno:'🔁 Retorno'}[t]||t; }
+
+var LIMIAR_OBS_CURTA = 140;
+function renderObsAgenda(a){
+  var texto = esc(a.obs);
+  if(a.obs.length<=LIMIAR_OBS_CURTA){
+    return '<div class="lead-info" style="margin-top:3px;white-space:pre-wrap">'+texto+'</div>';
+  }
+  return '<div class="lead-info obs-truncada" id="obs-'+a.id+'" style="margin-top:3px;white-space:pre-wrap;max-height:2.6em;overflow:hidden">'+texto+'</div>'
+    + '<span onclick="toggleObsAgenda(\''+a.id+'\')" style="color:#60a5fa;font-size:12px;cursor:pointer" id="obsToggle-'+a.id+'">Ver mais</span>';
+}
+function toggleObsAgenda(id){
+  var el = document.getElementById('obs-'+id);
+  var link = document.getElementById('obsToggle-'+id);
+  if(!el) return;
+  var expandido = el.style.maxHeight === 'none';
+  el.style.maxHeight = expandido ? '2.6em' : 'none';
+  link.textContent = expandido ? 'Ver mais' : 'Ver menos';
+}
 
 // Depois de quantos adiamentos seguidos uma tarefa avulsa entra em alerta de decisão.
 var LIMIAR_REMANEJAMENTO = 3;
@@ -1340,8 +1409,6 @@ if('Notification' in window && Notification.permission==='granted' && localStora
   btnN.disabled=true;
 }
 
-carregarLeads();
-carregarAgendamentos();
 </script>
 </body>
 </html>
