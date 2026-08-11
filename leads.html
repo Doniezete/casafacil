@@ -121,6 +121,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <button class="btn small secondary" id="btnAtivarNotif" onclick="ativarNotificacoesNavegador()">🔔 Ativar avisos no navegador</button>
       <button class="btn small secondary" onclick="analisarPerfilGlobal()">📊 Análise de perfil (todos os leads)</button>
       <button class="btn small secondary" onclick="abrirCapturaVoz()">🎤 Falar uma tarefa</button>
+      <button class="btn small secondary" onclick="abrirCapturaEstoque()">📦 Estoque por voz</button>
       <button class="btn" onclick="abrirModal()">+ Novo lead</button>
       <button class="btn small secondary" onclick="sairDaConta()">🚪 Sair</button>
     </div>
@@ -365,6 +366,48 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
         <button class="btn small secondary" onclick="fecharCapturaVoz()">Cancelar</button>
         <button class="btn small secondary" onclick="reiniciarCapturaVoz()">🔁 Falar de novo</button>
         <button class="btn small" onclick="confirmarTarefaPorVoz()">✅ Confirmar e salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de retirada de estoque por voz/texto -->
+<div class="overlay" id="overlayEstoque">
+  <div class="modal">
+    <button class="close-x" onclick="fecharCapturaEstoque()">×</button>
+    <h2>📦 Estoque por voz</h2>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:14px">Fale ou digite o que retirou, tipo "peguei 10 joelhos, 5 luvas e 4 Tê de 3/4 pra obra do João". Isso grava direto no estoque do Casa Fácil.</p>
+
+    <div style="text-align:center;padding:10px 0">
+      <button id="btnMicEstoque" onclick="alternarGravacaoEstoque()" style="width:80px;height:80px;border-radius:50%;border:none;background:var(--ac);font-size:32px;cursor:pointer">🎤</button>
+      <div id="statusEstoque" style="margin-top:10px;color:var(--mut);font-size:13px">Carregando catálogo do estoque...</div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--mut);font-size:12px">
+      <div style="flex:1;height:1px;background:var(--bd2)"></div>ou digite<div style="flex:1;height:1px;background:var(--bd2)"></div>
+    </div>
+    <div class="campo" style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1"><textarea id="textoEstoqueDigitado" placeholder="Ex: peguei 10 joelhos 3/4 pra obra do João" style="min-height:44px"></textarea></div>
+      <button class="btn small" onclick="enviarEstoqueDigitado()">Enviar</button>
+    </div>
+
+    <div class="campo" id="transcricaoEstoqueBox" style="display:none">
+      <label>O que foi entendido (fala)</label>
+      <div class="msg-box" id="transcricaoEstoqueTexto"></div>
+    </div>
+
+    <div id="previaEstoqueBox" style="display:none;margin-top:10px;background:rgba(245,158,11,.08);border:1px dashed var(--ac);border-radius:10px;padding:12px">
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">📋 Confira antes de dar baixa — corrija qualquer item ou a obra se a IA errar:</div>
+      <div class="campo">
+        <label>Obra / cliente</label>
+        <select id="estoque_obra"></select>
+      </div>
+      <div id="estoqueItensLista"></div>
+      <button class="btn small secondary" style="margin-top:8px" onclick="adicionarLinhaEstoque()">➕ Adicionar item</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn small secondary" onclick="fecharCapturaEstoque()">Cancelar</button>
+        <button class="btn small secondary" onclick="reiniciarCapturaEstoque()">🔁 Falar de novo</button>
+        <button class="btn small" onclick="confirmarEstoquePorVoz()">✅ Confirmar e dar baixa</button>
       </div>
     </div>
   </div>
@@ -1194,6 +1237,214 @@ function confirmarTarefaPorVoz(){
     carregarAgendamentos();
     mudarView('agenda');
   }).catch(function(err){ alert('Erro ao salvar: '+err.message); });
+}
+
+/* ============================================================
+   11) RETIRADA DE ESTOQUE POR VOZ/TEXTO — grava direto no documento do Casa Fácil
+   ============================================================ */
+var reconhecimentoEstoque = null;
+var gravandoEstoque = false;
+var catalogoEstoque = [];  // [{id, nome, un, qtdDisponivel}]
+var catalogoObras = [];    // [{id, nome, obra}]
+
+function uidCasaFacil(){ return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function abrirCapturaEstoque(){
+  document.getElementById('transcricaoEstoqueBox').style.display='none';
+  document.getElementById('previaEstoqueBox').style.display='none';
+  document.getElementById('textoEstoqueDigitado').value = '';
+  document.getElementById('statusEstoque').textContent = 'Carregando catálogo do estoque...';
+  document.getElementById('btnMicEstoque').style.display = vozDisponivel() ? '' : 'none';
+  document.getElementById('btnMicEstoque').textContent = '🎤';
+  document.getElementById('overlayEstoque').classList.add('show');
+
+  if(!db){ document.getElementById('statusEstoque').textContent = 'Banco de dados não configurado.'; return; }
+  db.collection('dados').doc('principal').get().then(function(doc){
+    if(!doc.exists){ throw new Error('Documento principal do Casa Fácil não encontrado.'); }
+    var S = JSON.parse(doc.data().dados);
+    catalogoEstoque = (S.estoque||[]).map(function(i){ return {id:i.id, nome:i.nome, un:i.un, qtdDisponivel:i.qtd}; });
+    catalogoObras = (S.obras||[]).filter(function(o){ return o.status!=='Concluída'; }).map(function(o){ return {id:o.id, nome:o.nome, obra:o.obra}; });
+    document.getElementById('statusEstoque').textContent = catalogoEstoque.length+' itens e '+catalogoObras.length+' obras carregadas. Toque pra falar.';
+  }).catch(function(err){
+    document.getElementById('statusEstoque').textContent = 'Erro ao carregar catálogo: '+err.message;
+  });
+}
+
+function fecharCapturaEstoque(){
+  if(reconhecimentoEstoque && gravandoEstoque){ try{ reconhecimentoEstoque.stop(); }catch(e){} }
+  document.getElementById('overlayEstoque').classList.remove('show');
+}
+
+function reiniciarCapturaEstoque(){
+  document.getElementById('transcricaoEstoqueBox').style.display='none';
+  document.getElementById('previaEstoqueBox').style.display='none';
+  document.getElementById('statusEstoque').textContent = 'Toque pra falar de novo.';
+}
+
+function alternarGravacaoEstoque(){
+  if(gravandoEstoque){
+    if(reconhecimentoEstoque){ try{ reconhecimentoEstoque.stop(); }catch(e){} }
+    return;
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  reconhecimentoEstoque = new SR();
+  reconhecimentoEstoque.lang = 'pt-BR';
+  reconhecimentoEstoque.interimResults = false;
+  reconhecimentoEstoque.maxAlternatives = 1;
+
+  reconhecimentoEstoque.onstart = function(){
+    gravandoEstoque = true;
+    document.getElementById('btnMicEstoque').textContent = '⏹️';
+    document.getElementById('statusEstoque').textContent = 'Ouvindo... toque de novo pra parar';
+  };
+  reconhecimentoEstoque.onerror = function(e){
+    gravandoEstoque = false;
+    document.getElementById('btnMicEstoque').textContent = '🎤';
+    document.getElementById('statusEstoque').textContent = 'Não consegui ouvir (erro: '+e.error+'). Tente de novo.';
+  };
+  reconhecimentoEstoque.onend = function(){
+    gravandoEstoque = false;
+    document.getElementById('btnMicEstoque').textContent = '🎤';
+  };
+  reconhecimentoEstoque.onresult = function(event){
+    var transcricao = event.results[0][0].transcript;
+    document.getElementById('transcricaoEstoqueBox').style.display='block';
+    document.getElementById('transcricaoEstoqueTexto').textContent = transcricao;
+    document.getElementById('statusEstoque').textContent = 'Entendendo os itens...';
+    interpretarEstoquePorFala(transcricao);
+  };
+  reconhecimentoEstoque.start();
+}
+
+function enviarEstoqueDigitado(){
+  var texto = document.getElementById('textoEstoqueDigitado').value.trim();
+  if(!texto) return;
+  document.getElementById('transcricaoEstoqueBox').style.display='block';
+  document.getElementById('transcricaoEstoqueTexto').textContent = texto;
+  document.getElementById('statusEstoque').textContent = 'Entendendo os itens...';
+  interpretarEstoquePorFala(texto);
+  document.getElementById('textoEstoqueDigitado').value = '';
+}
+
+function interpretarEstoquePorFala(transcricao){
+  fetch(ANALISE_IA_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      modo:'interpretar_estoque',
+      transcricao:transcricao,
+      dataHoje:hojeISO(),
+      itens: catalogoEstoque.map(function(i){ return {id:i.id, nome:i.nome, un:i.un}; }),
+      obras: catalogoObras
+    })
+  }).then(function(r){
+    if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||('Resposta '+r.status)); });
+    return r.json();
+  }).then(function(obj){
+    montarPreviaEstoque(obj);
+    document.getElementById('statusEstoque').textContent = '';
+    document.getElementById('previaEstoqueBox').style.display='block';
+  }).catch(function(err){
+    document.getElementById('statusEstoque').textContent = 'Não consegui entender: '+err.message+'. Toque no microfone pra tentar de novo.';
+  });
+}
+
+function montarPreviaEstoque(obj){
+  var selObra = document.getElementById('estoque_obra');
+  selObra.innerHTML = '<option value="">— Selecione a obra —</option>' + catalogoObras.map(function(o){
+    return '<option value="'+o.id+'">'+esc(o.nome)+' — '+esc(o.obra||'')+'</option>';
+  }).join('');
+  selObra.value = obj.obraId || '';
+
+  var lista = document.getElementById('estoqueItensLista');
+  lista.innerHTML = '';
+  var itensParaMostrar = (obj.itens && obj.itens.length>0) ? obj.itens : [{itemId:null, quantidade:1}];
+  itensParaMostrar.forEach(function(it){
+    adicionarLinhaEstoque(it.itemId, it.quantidade);
+  });
+}
+
+function adicionarLinhaEstoque(itemIdPreSelecionado, quantidadePre){
+  var lista = document.getElementById('estoqueItensLista');
+  var linhaId = 'linhaEst_'+uidCasaFacil();
+  var opcoesItens = '<option value="">— sem correspondência, escolha —</option>' + catalogoEstoque.map(function(i){
+    return '<option value="'+i.id+'">'+esc(i.nome)+' ('+esc(i.un||'')+' · disp: '+i.qtdDisponivel+')</option>';
+  }).join('');
+  var div = document.createElement('div');
+  div.id = linhaId;
+  div.className = 'linha2';
+  div.style.marginTop = '8px';
+  div.innerHTML =
+    '<div class="campo" style="margin-bottom:0"><label>Item</label><select class="estoque-item-sel">'+opcoesItens+'</select></div>'
+    + '<div class="campo" style="margin-bottom:0;display:flex;gap:6px;align-items:flex-end">'
+    +   '<div style="flex:1"><label>Quantidade</label><input type="number" class="estoque-item-qtd" value="'+(quantidadePre||1)+'" min="0" step="any"/></div>'
+    +   '<button class="btn small secondary" onclick="document.getElementById(\''+linhaId+'\').remove()">🗑️</button>'
+    + '</div>';
+  lista.appendChild(div);
+  if(itemIdPreSelecionado){ div.querySelector('.estoque-item-sel').value = itemIdPreSelecionado; }
+}
+
+/* Confirma a retirada: lê o documento gigante do Casa Fácil dentro de uma
+   TRANSAÇÃO (evita que duas gravações simultâneas se sobreponham), aplica
+   a mesma lógica PEPS de custo que o saveEstUsoObra usa, e grava de volta. */
+function confirmarEstoquePorVoz(){
+  var obraId = document.getElementById('estoque_obra').value;
+  if(!obraId){ alert('Selecione a obra/cliente.'); return; }
+  var linhas = [];
+  document.querySelectorAll('#estoqueItensLista .linha2').forEach(function(div){
+    var itemId = div.querySelector('.estoque-item-sel').value;
+    var qtd = parseFloat(div.querySelector('.estoque-item-qtd').value);
+    if(itemId && qtd>0) linhas.push({itemId:itemId, quantidade:qtd});
+  });
+  if(linhas.length===0){ alert('Selecione ao menos um item com quantidade.'); return; }
+  if(!db){ alert('Banco de dados não configurado.'); return; }
+
+  var ref = db.collection('dados').doc('principal');
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      if(!doc.exists) throw new Error('Documento principal do Casa Fácil não encontrado.');
+      var S = JSON.parse(doc.data().dados);
+      S.estUsos = S.estUsos || [];
+      S.estLotes = S.estLotes || [];
+
+      linhas.forEach(function(l){
+        var it = S.estoque.find(function(e){ return e.id===l.itemId; });
+        if(!it) throw new Error('Item não encontrado no estoque (id '+l.itemId+').');
+        if(l.quantidade > it.qtd) throw new Error('Quantidade de "'+it.nome+'" ('+l.quantidade+') maior que o disponível ('+it.qtd+' '+(it.un||'')+').');
+
+        var qtdRestante = l.quantidade, custoMedio = 0, qtdTotal = 0;
+        var lotesItem = S.estLotes
+          .filter(function(lo){ return lo.nome.toLowerCase()===it.nome.toLowerCase() && lo.qtdDisp>0; })
+          .sort(function(a,b){ return (a.data||'').localeCompare(b.data||''); });
+
+        lotesItem.forEach(function(lote){
+          if(qtdRestante<=0) return;
+          var consumido = Math.min(lote.qtdDisp, qtdRestante);
+          custoMedio += consumido*lote.custo;
+          qtdTotal += consumido;
+          lote.qtdDisp -= consumido;
+          qtdRestante -= consumido;
+        });
+        var custoUnitPEPS = qtdTotal>0 ? custoMedio/qtdTotal : it.custo;
+
+        it.qtd -= l.quantidade;
+        var proximoLote = lotesItem.find(function(lo){ return lo.qtdDisp>0; });
+        if(proximoLote) it.custo = proximoLote.custo;
+
+        S.estUsos.push({
+          id: uidCasaFacil(), obraId: obraId, estoqueId: it.id, nome: it.nome,
+          qtd: l.quantidade, custo: custoUnitPEPS, data: hojeISO()
+        });
+      });
+
+      tx.update(ref, {dados: JSON.stringify(S)});
+    });
+  }).then(function(){
+    alert('✅ Baixa no estoque registrada com sucesso!');
+    fecharCapturaEstoque();
+  }).catch(function(err){
+    alert('Não consegui dar baixa no estoque: '+err.message);
+  });
 }
 
 function copiarDadosCasaFacil(){
