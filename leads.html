@@ -331,6 +331,14 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <div id="statusVoz" style="margin-top:10px;color:var(--mut);font-size:13px">Toque pra começar a falar</div>
     </div>
 
+    <div style="display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--mut);font-size:12px">
+      <div style="flex:1;height:1px;background:var(--bd2)"></div>ou digite<div style="flex:1;height:1px;background:var(--bd2)"></div>
+    </div>
+    <div class="campo" style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1"><textarea id="textoTarefaDigitada" placeholder="Ex: marca pra eu ligar pro Bruno amanhã de manhã" style="min-height:44px"></textarea></div>
+      <button class="btn small" onclick="enviarTarefaDigitada()">Enviar</button>
+    </div>
+
     <div class="campo" id="transcricaoBox" style="display:none">
       <label>O que foi entendido (fala)</label>
       <div class="msg-box" id="transcricaoTexto"></div>
@@ -1072,13 +1080,16 @@ function vozDisponivel(){
 }
 
 function abrirCapturaVoz(){
-  if(!vozDisponivel()){
-    alert('Esse navegador não suporta ditado por voz. Funciona bem no Chrome (Android ou computador). No iPhone pode não funcionar direito.');
-    return;
-  }
   document.getElementById('transcricaoBox').style.display='none';
   document.getElementById('previaTarefaBox').style.display='none';
-  document.getElementById('statusVoz').textContent = 'Toque pra começar a falar';
+  document.getElementById('textoTarefaDigitada').value = '';
+  if(vozDisponivel()){
+    document.getElementById('statusVoz').textContent = 'Toque pra começar a falar';
+    document.getElementById('btnMicVoz').style.display='';
+  } else {
+    document.getElementById('statusVoz').textContent = 'Ditado por voz não disponível nesse navegador — use o campo de texto abaixo.';
+    document.getElementById('btnMicVoz').style.display='none';
+  }
   document.getElementById('btnMicVoz').textContent = '🎤';
   document.getElementById('overlayVoz').classList.add('show');
 }
@@ -1127,6 +1138,16 @@ function alternarGravacaoVoz(){
     interpretarTarefaPorVoz(transcricao);
   };
   reconhecimentoVoz.start();
+}
+
+function enviarTarefaDigitada(){
+  var texto = document.getElementById('textoTarefaDigitada').value.trim();
+  if(!texto){ return; }
+  document.getElementById('transcricaoBox').style.display='block';
+  document.getElementById('transcricaoTexto').textContent = texto;
+  document.getElementById('statusVoz').textContent = 'Entendendo o que você pediu...';
+  interpretarTarefaPorVoz(texto);
+  document.getElementById('textoTarefaDigitada').value = '';
 }
 
 function interpretarTarefaPorVoz(transcricao){
