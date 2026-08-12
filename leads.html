@@ -124,6 +124,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <button class="btn small secondary" onclick="abrirCapturaEstoque()">📦 Estoque por voz</button>
       <button class="btn small secondary" onclick="abrirCapturaEntradaEstoque()">🧾 Entrada de estoque por voz</button>
       <button class="btn small secondary" onclick="abrirCapturaGastoCartao()">💳 Gasto no cartão por voz</button>
+      <button class="btn small secondary" onclick="abrirChatDuvida()">💬 Tirar uma dúvida</button>
       <button class="btn" onclick="abrirModal()">+ Novo lead</button>
       <button class="btn small secondary" onclick="sairDaConta()">🚪 Sair</button>
     </div>
@@ -501,6 +502,23 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
         <button class="btn small secondary" onclick="reiniciarCapturaGastoCartao()">🔁 Falar de novo</button>
         <button class="btn small" onclick="confirmarGastoCartaoPorVoz()">✅ Confirmar e lançar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de chat livre / tirar dúvida -->
+<div class="overlay" id="overlayDuvida">
+  <div class="modal">
+    <button class="close-x" onclick="fecharChatDuvida()">×</button>
+    <h2>💬 Tirar uma dúvida</h2>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:10px">Pergunte qualquer coisa do seu dia a dia — como abordar um cliente, dúvida sobre o processo, ajuda pra escrever uma mensagem, etc.</p>
+
+    <div id="duvidaHistorico" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+    <div id="duvidaCarregando" style="display:none;color:var(--mut);font-size:13px;padding:6px 0">Pensando...</div>
+
+    <div class="campo" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:0">
+      <div style="flex:1"><textarea id="duvidaInput" placeholder="Digite sua pergunta..." style="min-height:44px" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarDuvida();}"></textarea></div>
+      <button class="btn small" onclick="enviarDuvida()">Enviar</button>
     </div>
   </div>
 </div>
@@ -2039,6 +2057,55 @@ function confirmarGastoCartaoPorVoz(){
     fecharCapturaGastoCartao();
   }).catch(function(err){
     alert('Não consegui lançar o gasto: '+err.message);
+  });
+}
+
+/* ============================================================
+   14) TIRAR UMA DÚVIDA — chat livre com a IA (não fica salvo, só na sessão)
+   ============================================================ */
+var historicoDuvida = [];
+
+function abrirChatDuvida(){
+  document.getElementById('overlayDuvida').classList.add('show');
+  document.getElementById('duvidaInput').focus();
+}
+
+function fecharChatDuvida(){
+  document.getElementById('overlayDuvida').classList.remove('show');
+}
+
+function renderHistoricoDuvida(){
+  var box = document.getElementById('duvidaHistorico');
+  box.innerHTML = historicoDuvida.map(function(m){
+    var ehUsuario = m.role==='user';
+    return '<div style="align-self:'+(ehUsuario?'flex-end':'flex-start')+';max-width:85%;background:'+(ehUsuario?'var(--ac)':'var(--card2)')+';color:'+(ehUsuario?'#1a1206':'var(--tx)')+';border-radius:10px;padding:8px 12px;font-size:13px;white-space:pre-wrap">'+esc(m.texto)+'</div>';
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function enviarDuvida(){
+  var texto = document.getElementById('duvidaInput').value.trim();
+  if(!texto) return;
+  historicoDuvida.push({role:'user', texto:texto});
+  renderHistoricoDuvida();
+  document.getElementById('duvidaInput').value = '';
+  document.getElementById('duvidaCarregando').style.display = 'block';
+
+  fetch(ANALISE_IA_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({modo:'duvida_livre', mensagens:historicoDuvida})
+  }).then(function(r){
+    if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||('Resposta '+r.status)); });
+    return r.json();
+  }).then(function(obj){
+    historicoDuvida.push({role:'assistant', texto:obj.text||'Sem resposta.'});
+    renderHistoricoDuvida();
+  }).catch(function(err){
+    historicoDuvida.push({role:'assistant', texto:'⚠️ Não consegui responder: '+err.message});
+    renderHistoricoDuvida();
+  }).finally(function(){
+    document.getElementById('duvidaCarregando').style.display = 'none';
   });
 }
 

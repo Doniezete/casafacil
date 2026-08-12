@@ -151,6 +151,61 @@ Regras:
 - "quantidade" deve ser um número (não string).`;
 }
 
+var CATEGORIAS_ESTOQUE = ['Estrutural','Hidráulico','Elétrico','Acabamento','Esquadrias','Cobertura','Outro'];
+var UNIDADES_ESTOQUE = ['sc','m³','m²','m','un','kg','L','cx','pç'];
+
+function montarPromptInterpretarEntradaEstoque(transcricao, itensExistentes, cartoes, dataHoje) {
+  var listaItens = (itensExistentes||[]).map(function(i){ return i.nome+' | categoria: '+i.cat+' | unidade: '+i.un; }).join('\n');
+  var listaCartoes = (cartoes||[]).map(function(c){ return c.nome; }).join(', ') || '(nenhum cartão cadastrado)';
+  return `Hoje é ${dataHoje || 'data não informada'}.
+
+Uma pessoa gravou por voz ou digitou o seguinte pedido de registro de COMPRA/ENTRADA de material no estoque:
+"""
+${transcricao}
+"""
+
+Itens que JÁ EXISTEM no estoque (nome | categoria | unidade):
+${listaItens}
+
+Categorias possíveis (só essas 7, exatamente escritas assim): Estrutural, Hidráulico, Elétrico, Acabamento, Esquadrias, Cobertura, Outro
+Unidades possíveis (só essas, exatamente escritas assim): sc, m³, m², m, un, kg, L, cx, pç
+Cartões cadastrados: ${listaCartoes}
+
+Para cada item mencionado na fala, decida se ele corresponde a um item JÁ EXISTENTE na lista acima (mesmo que o nome falado não seja idêntico — ex: "cimento" pode ser "Cimento CP-II 50kg" se só existir esse na lista) ou se é um item NOVO que não está na lista.
+
+Também identifique a forma de pagamento mencionada (à vista, boleto, ou cartão — e se for cartão, qual, combinando com a lista de cartões acima). Se a fala não mencionar forma de pagamento, use "vista".
+
+Responda SOMENTE com um JSON válido, sem texto antes ou depois, sem markdown, exatamente neste formato:
+
+{"itens": [{"itemExistenteNome": "nome EXATO do item já existente (copie exatamente como está na lista) ou null se for novo", "nomeNovoItem": "nome sugerido pro item, só se for novo, senão null", "categoria": "uma das 7 categorias acima, só se for item novo", "unidade": "uma das unidades acima, só se for item novo", "quantidade": numero, "custoUnitario": numero ou null se não foi dito, "fornecedor": "texto ou null se não foi dito", "formaPagamento": "vista", "boleto" ou "cartao", "cartaoNome": "nome exato do cartão da lista, só se formaPagamento for cartao, senão null"}]}
+
+Regras:
+- Se o item falado corresponder claramente a um já existente, use "itemExistenteNome" com o nome EXATO da lista (cópia idêntica) e deixe nomeNovoItem/categoria/unidade como null.
+- Se não houver correspondência razoável na lista, trate como item novo: preencha nomeNovoItem, categoria (a mais apropriada dentre as 7) e unidade (a mais apropriada dentre as opções).
+- Nunca invente um nome de item existente ou de cartão que não esteja nas listas.
+- Extraia TODOS os itens mencionados na fala.`;
+}
+
+function montarPromptInterpretarGastoCartao(transcricao, cartoes, dataHoje) {
+  var listaCartoes = (cartoes||[]).map(function(c){ return c.nome; }).join(', ') || '(nenhum cartão cadastrado)';
+  return `Hoje é ${dataHoje || 'data não informada'}.
+
+Uma pessoa gravou por voz ou digitou o seguinte pedido de lançamento de um gasto avulso no cartão de crédito:
+"""
+${transcricao}
+"""
+
+Cartões cadastrados: ${listaCartoes}
+
+Responda SOMENTE com um JSON válido, sem texto antes ou depois, sem markdown, exatamente neste formato:
+
+{"cartaoNome": "nome exato do cartão da lista acima, ou null se não identificar", "descricao": "descrição curta do que foi comprado", "valor": numero ou null se não foi dito, "fornecedor": "texto ou null se não foi dito", "data": "AAAA-MM-DD, com base na data de hoje informada, ou a data de hoje se não mencionar"}
+
+Regras:
+- Combine o cartão mencionado com o nome mais parecido da lista (ex: "nubank" corresponde a "Nubank").
+- Nunca invente um nome de cartão que não esteja na lista.`;
+}
+
 http('analisarLead', async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') {
@@ -161,11 +216,44 @@ http('analisarLead', async (req, res) => {
   }
 
   try {
-    const { resumo, lead, historico, modo, stats, transcricao, dataHoje, itens, obras } = req.body || {};
+    const { resumo, lead, historico, modo, stats, transcricao, dataHoje, itens, obras, cartoes, mensagens } = req.body || {};
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       res.status(500).json({ error: 'ANTHROPIC_API_KEY nao configurada nesta funcao.' });
+      return;
+    }
+
+    if (modo === 'duvida_livre') {
+      if (!Array.isArray(mensagens) || mensagens.length === 0) {
+        res.status(400).json({ error: 'Mensagens obrigatorias.' });
+        return;
+      }
+      const systemPrompt = 'Você é um assistente que ajuda um corretor de imóveis (financiamento MCMV, construção de casas em cidades pequenas do interior de SP) a tirar dúvidas do dia a dia — como abordar clientes, como lidar com objeções, dúvidas sobre o processo MCMV, redação de mensagens, ou qualquer outra dúvida prática do trabalho dele. Responda em português, de forma direta e prática, sem rodeios. Pode fazer perguntas de volta se precisar de mais contexto pra ajudar melhor.';
+      const anthropicMsgs = mensagens.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.texto || '') }));
+
+      const responseChat = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 700,
+          system: systemPrompt,
+          messages: anthropicMsgs
+        })
+      });
+      const dataChat = await responseChat.json();
+      if (!responseChat.ok) {
+        const msg = (dataChat && dataChat.error && dataChat.error.message) || 'Erro na API da IA.';
+        res.status(500).json({ error: msg });
+        return;
+      }
+      const textoChat = (dataChat.content && dataChat.content[0] && dataChat.content[0].text) || 'Sem resposta.';
+      res.json({ text: textoChat });
       return;
     }
 
@@ -184,6 +272,18 @@ http('analisarLead', async (req, res) => {
         return;
       }
       prompt = montarPromptInterpretarEstoque(transcricao, itens, obras, dataHoje);
+    } else if (modo === 'interpretar_entrada_estoque') {
+      if (!transcricao) {
+        res.status(400).json({ error: 'Transcricao obrigatoria.' });
+        return;
+      }
+      prompt = montarPromptInterpretarEntradaEstoque(transcricao, itens, cartoes, dataHoje);
+    } else if (modo === 'interpretar_gasto_cartao') {
+      if (!transcricao) {
+        res.status(400).json({ error: 'Transcricao obrigatoria.' });
+        return;
+      }
+      prompt = montarPromptInterpretarGastoCartao(transcricao, cartoes, dataHoje);
     } else {
       if (!resumo) {
         res.status(400).json({ error: 'Resumo obrigatorio.' });
@@ -201,7 +301,7 @@ http('analisarLead', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: modo === 'perfil_global' ? 900 : (modo === 'interpretar_tarefa' ? 300 : (modo === 'interpretar_estoque' ? 700 : 600)),
+        max_tokens: modo === 'perfil_global' ? 900 : (modo === 'interpretar_tarefa' ? 300 : (modo === 'interpretar_estoque' || modo === 'interpretar_entrada_estoque' ? 700 : (modo === 'interpretar_gasto_cartao' ? 300 : 600))),
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -233,6 +333,28 @@ http('analisarLead', async (req, res) => {
         res.json({ obraId: obj.obraId || null, itens: Array.isArray(obj.itens) ? obj.itens : [] });
       } catch (e) {
         res.status(500).json({ error: 'Nao consegui entender os itens a partir da fala. Tente falar de novo com mais clareza.' });
+      }
+      return;
+    }
+
+    if (modo === 'interpretar_entrada_estoque') {
+      try {
+        const limpo = texto.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '');
+        const obj = JSON.parse(limpo);
+        res.json({ itens: Array.isArray(obj.itens) ? obj.itens : [] });
+      } catch (e) {
+        res.status(500).json({ error: 'Nao consegui entender os itens a partir da fala. Tente falar de novo com mais clareza.' });
+      }
+      return;
+    }
+
+    if (modo === 'interpretar_gasto_cartao') {
+      try {
+        const limpo = texto.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '');
+        const obj = JSON.parse(limpo);
+        res.json({ cartaoNome: obj.cartaoNome || null, descricao: obj.descricao || '', valor: obj.valor || null, fornecedor: obj.fornecedor || null, data: obj.data || null });
+      } catch (e) {
+        res.status(500).json({ error: 'Nao consegui entender o gasto a partir da fala. Tente falar de novo com mais clareza.' });
       }
       return;
     }
