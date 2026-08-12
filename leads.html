@@ -122,6 +122,8 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <button class="btn small secondary" onclick="analisarPerfilGlobal()">📊 Análise de perfil (todos os leads)</button>
       <button class="btn small secondary" onclick="abrirCapturaVoz()">🎤 Falar uma tarefa</button>
       <button class="btn small secondary" onclick="abrirCapturaEstoque()">📦 Estoque por voz</button>
+      <button class="btn small secondary" onclick="abrirCapturaEntradaEstoque()">🧾 Entrada de estoque por voz</button>
+      <button class="btn small secondary" onclick="abrirCapturaGastoCartao()">💳 Gasto no cartão por voz</button>
       <button class="btn" onclick="abrirModal()">+ Novo lead</button>
       <button class="btn small secondary" onclick="sairDaConta()">🚪 Sair</button>
     </div>
@@ -408,6 +410,88 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
         <button class="btn small secondary" onclick="fecharCapturaEstoque()">Cancelar</button>
         <button class="btn small secondary" onclick="reiniciarCapturaEstoque()">🔁 Falar de novo</button>
         <button class="btn small" onclick="confirmarEstoquePorVoz()">✅ Confirmar e dar baixa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de entrada/compra de estoque por voz/texto -->
+<div class="overlay" id="overlayEntradaEstoque">
+  <div class="modal">
+    <button class="close-x" onclick="fecharCapturaEntradaEstoque()">×</button>
+    <h2>🧾 Entrada de estoque por voz</h2>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:14px">Fale ou digite a compra, tipo "comprei 20 sacos de cimento a 35 reais cada, no cartão Nubank" ou "cadastra um item novo: parafuso autoperfurante, comprei 500, a 0,15 cada, à vista".</p>
+
+    <div style="text-align:center;padding:10px 0">
+      <button id="btnMicEntrada" onclick="alternarGravacaoEntradaEstoque()" style="width:80px;height:80px;border-radius:50%;border:none;background:var(--ac);font-size:32px;cursor:pointer">🎤</button>
+      <div id="statusEntrada" style="margin-top:10px;color:var(--mut);font-size:13px">Carregando catálogo do estoque...</div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--mut);font-size:12px">
+      <div style="flex:1;height:1px;background:var(--bd2)"></div>ou digite<div style="flex:1;height:1px;background:var(--bd2)"></div>
+    </div>
+    <div class="campo" style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1"><textarea id="textoEntradaDigitado" placeholder="Ex: comprei 20 sacos de cimento a 35 reais cada" style="min-height:44px"></textarea></div>
+      <button class="btn small" onclick="enviarEntradaDigitada()">Enviar</button>
+    </div>
+
+    <div class="campo" id="transcricaoEntradaBox" style="display:none">
+      <label>O que foi entendido (fala)</label>
+      <div class="msg-box" id="transcricaoEntradaTexto"></div>
+    </div>
+
+    <div id="previaEntradaBox" style="display:none;margin-top:10px;background:rgba(245,158,11,.08);border:1px dashed var(--ac);border-radius:10px;padding:12px">
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">📋 Confira antes de lançar — corrija qualquer campo se a IA errar:</div>
+      <div class="campo"><label>Data da compra</label><input type="date" id="entrada_data"/></div>
+      <div id="entradaItensLista"></div>
+      <button class="btn small secondary" style="margin-top:8px" onclick="adicionarLinhaEntrada()">➕ Adicionar item</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn small secondary" onclick="fecharCapturaEntradaEstoque()">Cancelar</button>
+        <button class="btn small secondary" onclick="reiniciarCapturaEntradaEstoque()">🔁 Falar de novo</button>
+        <button class="btn small" onclick="confirmarEntradaEstoquePorVoz()">✅ Confirmar e lançar entrada</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de gasto avulso no cartão por voz/texto -->
+<div class="overlay" id="overlayGastoCartao">
+  <div class="modal">
+    <button class="close-x" onclick="fecharCapturaGastoCartao()">×</button>
+    <h2>💳 Gasto no cartão por voz</h2>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:14px">Fale ou digite, tipo "comprei uma furadeira no cartão Nubank, 150 reais".</p>
+
+    <div style="text-align:center;padding:10px 0">
+      <button id="btnMicCartao" onclick="alternarGravacaoGastoCartao()" style="width:80px;height:80px;border-radius:50%;border:none;background:var(--ac);font-size:32px;cursor:pointer">🎤</button>
+      <div id="statusCartao" style="margin-top:10px;color:var(--mut);font-size:13px">Carregando cartões...</div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--mut);font-size:12px">
+      <div style="flex:1;height:1px;background:var(--bd2)"></div>ou digite<div style="flex:1;height:1px;background:var(--bd2)"></div>
+    </div>
+    <div class="campo" style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1"><textarea id="textoCartaoDigitado" placeholder="Ex: comprei uma furadeira no cartão Nubank, 150 reais" style="min-height:44px"></textarea></div>
+      <button class="btn small" onclick="enviarGastoCartaoDigitado()">Enviar</button>
+    </div>
+
+    <div class="campo" id="transcricaoCartaoBox" style="display:none">
+      <label>O que foi entendido (fala)</label>
+      <div class="msg-box" id="transcricaoCartaoTexto"></div>
+    </div>
+
+    <div id="previaCartaoBox" style="display:none;margin-top:10px;background:rgba(245,158,11,.08);border:1px dashed var(--ac);border-radius:10px;padding:12px">
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">📋 Confira antes de lançar:</div>
+      <div class="campo"><label>Cartão</label><select id="cartao_id"></select></div>
+      <div class="campo"><label>Descrição</label><input type="text" id="cartao_desc"/></div>
+      <div class="linha2">
+        <div class="campo" style="margin-bottom:0"><label>Valor (R$)</label><input type="number" id="cartao_valor" min="0" step="0.01"/></div>
+        <div class="campo" style="margin-bottom:0"><label>Data</label><input type="date" id="cartao_data"/></div>
+      </div>
+      <div class="campo"><label>Fornecedor (opcional)</label><input type="text" id="cartao_forn"/></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn small secondary" onclick="fecharCapturaGastoCartao()">Cancelar</button>
+        <button class="btn small secondary" onclick="reiniciarCapturaGastoCartao()">🔁 Falar de novo</button>
+        <button class="btn small" onclick="confirmarGastoCartaoPorVoz()">✅ Confirmar e lançar</button>
       </div>
     </div>
   </div>
@@ -1156,29 +1240,41 @@ function alternarGravacaoVoz(){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   reconhecimentoVoz = new SR();
   reconhecimentoVoz.lang = 'pt-BR';
-  reconhecimentoVoz.interimResults = false;
+  reconhecimentoVoz.continuous = true;   // não corta na primeira pausa — só para quando você apertar de novo
+  reconhecimentoVoz.interimResults = true;
   reconhecimentoVoz.maxAlternatives = 1;
+  var transcricaoAcumuladaVoz = '';
 
   reconhecimentoVoz.onstart = function(){
     gravandoVoz = true;
+    transcricaoAcumuladaVoz = '';
     document.getElementById('btnMicVoz').textContent = '⏹️';
-    document.getElementById('statusVoz').textContent = 'Ouvindo... toque de novo pra parar';
+    document.getElementById('statusVoz').textContent = 'Ouvindo... pode falar vários itens, toque no botão quando terminar';
   };
   reconhecimentoVoz.onerror = function(e){
     gravandoVoz = false;
     document.getElementById('btnMicVoz').textContent = '🎤';
-    document.getElementById('statusVoz').textContent = 'Não consegui ouvir (erro: '+e.error+'). Tente de novo.';
+    if(e.error!=='no-speech') document.getElementById('statusVoz').textContent = 'Não consegui ouvir (erro: '+e.error+'). Tente de novo.';
   };
   reconhecimentoVoz.onend = function(){
     gravandoVoz = false;
     document.getElementById('btnMicVoz').textContent = '🎤';
+    if(transcricaoAcumuladaVoz.trim()){
+      document.getElementById('transcricaoBox').style.display='block';
+      document.getElementById('transcricaoTexto').textContent = transcricaoAcumuladaVoz.trim();
+      document.getElementById('statusVoz').textContent = 'Entendendo o que você pediu...';
+      interpretarTarefaPorVoz(transcricaoAcumuladaVoz.trim());
+    }
   };
   reconhecimentoVoz.onresult = function(event){
-    var transcricao = event.results[0][0].transcript;
+    var textoFinal = '', textoParcial = '';
+    for(var i=0;i<event.results.length;i++){
+      if(event.results[i].isFinal) textoFinal += event.results[i][0].transcript + ' ';
+      else textoParcial += event.results[i][0].transcript;
+    }
+    transcricaoAcumuladaVoz = textoFinal;
     document.getElementById('transcricaoBox').style.display='block';
-    document.getElementById('transcricaoTexto').textContent = transcricao;
-    document.getElementById('statusVoz').textContent = 'Entendendo o que você pediu...';
-    interpretarTarefaPorVoz(transcricao);
+    document.getElementById('transcricaoTexto').textContent = (textoFinal+textoParcial).trim();
   };
   reconhecimentoVoz.start();
 }
@@ -1289,29 +1385,41 @@ function alternarGravacaoEstoque(){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   reconhecimentoEstoque = new SR();
   reconhecimentoEstoque.lang = 'pt-BR';
-  reconhecimentoEstoque.interimResults = false;
+  reconhecimentoEstoque.continuous = true;   // não corta na primeira pausa — só para quando você apertar de novo
+  reconhecimentoEstoque.interimResults = true;
   reconhecimentoEstoque.maxAlternatives = 1;
+  var transcricaoAcumuladaEst = '';
 
   reconhecimentoEstoque.onstart = function(){
     gravandoEstoque = true;
+    transcricaoAcumuladaEst = '';
     document.getElementById('btnMicEstoque').textContent = '⏹️';
-    document.getElementById('statusEstoque').textContent = 'Ouvindo... toque de novo pra parar';
+    document.getElementById('statusEstoque').textContent = 'Ouvindo... pode falar vários itens, toque no botão quando terminar';
   };
   reconhecimentoEstoque.onerror = function(e){
     gravandoEstoque = false;
     document.getElementById('btnMicEstoque').textContent = '🎤';
-    document.getElementById('statusEstoque').textContent = 'Não consegui ouvir (erro: '+e.error+'). Tente de novo.';
+    if(e.error!=='no-speech') document.getElementById('statusEstoque').textContent = 'Não consegui ouvir (erro: '+e.error+'). Tente de novo.';
   };
   reconhecimentoEstoque.onend = function(){
     gravandoEstoque = false;
     document.getElementById('btnMicEstoque').textContent = '🎤';
+    if(transcricaoAcumuladaEst.trim()){
+      document.getElementById('transcricaoEstoqueBox').style.display='block';
+      document.getElementById('transcricaoEstoqueTexto').textContent = transcricaoAcumuladaEst.trim();
+      document.getElementById('statusEstoque').textContent = 'Entendendo os itens...';
+      interpretarEstoquePorFala(transcricaoAcumuladaEst.trim());
+    }
   };
   reconhecimentoEstoque.onresult = function(event){
-    var transcricao = event.results[0][0].transcript;
+    var textoFinal = '', textoParcial = '';
+    for(var i=0;i<event.results.length;i++){
+      if(event.results[i].isFinal) textoFinal += event.results[i][0].transcript + ' ';
+      else textoParcial += event.results[i][0].transcript;
+    }
+    transcricaoAcumuladaEst = textoFinal;
     document.getElementById('transcricaoEstoqueBox').style.display='block';
-    document.getElementById('transcricaoEstoqueTexto').textContent = transcricao;
-    document.getElementById('statusEstoque').textContent = 'Entendendo os itens...';
-    interpretarEstoquePorFala(transcricao);
+    document.getElementById('transcricaoEstoqueTexto').textContent = (textoFinal+textoParcial).trim();
   };
   reconhecimentoEstoque.start();
 }
@@ -1444,6 +1552,448 @@ function confirmarEstoquePorVoz(){
     fecharCapturaEstoque();
   }).catch(function(err){
     alert('Não consegui dar baixa no estoque: '+err.message);
+  });
+}
+
+/* ============================================================
+   12) ENTRADA/COMPRA DE ESTOQUE POR VOZ/TEXTO — soma existente ou cria novo item
+   ============================================================ */
+var reconhecimentoEntrada = null;
+var gravandoEntrada = false;
+var catalogoEstoqueEntrada = []; // [{nome, cat, un}]
+var catalogoCartoesEntrada = []; // [{id, nome}]
+
+function abrirCapturaEntradaEstoque(){
+  document.getElementById('transcricaoEntradaBox').style.display='none';
+  document.getElementById('previaEntradaBox').style.display='none';
+  document.getElementById('textoEntradaDigitado').value = '';
+  document.getElementById('entrada_data').value = hojeISO();
+  document.getElementById('statusEntrada').textContent = 'Carregando catálogo do estoque...';
+  document.getElementById('btnMicEntrada').style.display = vozDisponivel() ? '' : 'none';
+  document.getElementById('btnMicEntrada').textContent = '🎤';
+  document.getElementById('overlayEntradaEstoque').classList.add('show');
+
+  if(!db){ document.getElementById('statusEntrada').textContent = 'Banco de dados não configurado.'; return; }
+  db.collection('dados').doc('principal').get().then(function(doc){
+    if(!doc.exists){ throw new Error('Documento principal do Casa Fácil não encontrado.'); }
+    var S = JSON.parse(doc.data().dados);
+    catalogoEstoqueEntrada = (S.estoque||[]).map(function(i){ return {nome:i.nome, cat:i.cat, un:i.un}; });
+    catalogoCartoesEntrada = (S.cartoes||[]).map(function(c){ return {id:c.id, nome:c.nome}; });
+    document.getElementById('statusEntrada').textContent = catalogoEstoqueEntrada.length+' itens carregados. Toque pra falar.';
+  }).catch(function(err){
+    document.getElementById('statusEntrada').textContent = 'Erro ao carregar catálogo: '+err.message;
+  });
+}
+
+function fecharCapturaEntradaEstoque(){
+  if(reconhecimentoEntrada && gravandoEntrada){ try{ reconhecimentoEntrada.stop(); }catch(e){} }
+  document.getElementById('overlayEntradaEstoque').classList.remove('show');
+}
+
+function reiniciarCapturaEntradaEstoque(){
+  document.getElementById('transcricaoEntradaBox').style.display='none';
+  document.getElementById('previaEntradaBox').style.display='none';
+  document.getElementById('statusEntrada').textContent = 'Toque pra falar de novo.';
+}
+
+function alternarGravacaoEntradaEstoque(){
+  if(gravandoEntrada){
+    if(reconhecimentoEntrada){ try{ reconhecimentoEntrada.stop(); }catch(e){} }
+    return;
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  reconhecimentoEntrada = new SR();
+  reconhecimentoEntrada.lang = 'pt-BR';
+  reconhecimentoEntrada.continuous = true;
+  reconhecimentoEntrada.interimResults = true;
+  reconhecimentoEntrada.maxAlternatives = 1;
+  var transcricaoAcumuladaEnt = '';
+
+  reconhecimentoEntrada.onstart = function(){
+    gravandoEntrada = true;
+    transcricaoAcumuladaEnt = '';
+    document.getElementById('btnMicEntrada').textContent = '⏹️';
+    document.getElementById('statusEntrada').textContent = 'Ouvindo... toque no botão quando terminar';
+  };
+  reconhecimentoEntrada.onerror = function(e){
+    gravandoEntrada = false;
+    document.getElementById('btnMicEntrada').textContent = '🎤';
+    if(e.error!=='no-speech') document.getElementById('statusEntrada').textContent = 'Não consegui ouvir (erro: '+e.error+'). Tente de novo.';
+  };
+  reconhecimentoEntrada.onend = function(){
+    gravandoEntrada = false;
+    document.getElementById('btnMicEntrada').textContent = '🎤';
+    if(transcricaoAcumuladaEnt.trim()){
+      document.getElementById('transcricaoEntradaBox').style.display='block';
+      document.getElementById('transcricaoEntradaTexto').textContent = transcricaoAcumuladaEnt.trim();
+      document.getElementById('statusEntrada').textContent = 'Entendendo os itens...';
+      interpretarEntradaPorFala(transcricaoAcumuladaEnt.trim());
+    }
+  };
+  reconhecimentoEntrada.onresult = function(event){
+    var textoFinal = '', textoParcial = '';
+    for(var i=0;i<event.results.length;i++){
+      if(event.results[i].isFinal) textoFinal += event.results[i][0].transcript + ' ';
+      else textoParcial += event.results[i][0].transcript;
+    }
+    transcricaoAcumuladaEnt = textoFinal;
+    document.getElementById('transcricaoEntradaBox').style.display='block';
+    document.getElementById('transcricaoEntradaTexto').textContent = (textoFinal+textoParcial).trim();
+  };
+  reconhecimentoEntrada.start();
+}
+
+function enviarEntradaDigitada(){
+  var texto = document.getElementById('textoEntradaDigitado').value.trim();
+  if(!texto) return;
+  document.getElementById('transcricaoEntradaBox').style.display='block';
+  document.getElementById('transcricaoEntradaTexto').textContent = texto;
+  document.getElementById('statusEntrada').textContent = 'Entendendo os itens...';
+  interpretarEntradaPorFala(texto);
+  document.getElementById('textoEntradaDigitado').value = '';
+}
+
+function interpretarEntradaPorFala(transcricao){
+  fetch(ANALISE_IA_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      modo:'interpretar_entrada_estoque',
+      transcricao:transcricao,
+      dataHoje:hojeISO(),
+      itens: catalogoEstoqueEntrada,
+      cartoes: catalogoCartoesEntrada
+    })
+  }).then(function(r){
+    if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||('Resposta '+r.status)); });
+    return r.json();
+  }).then(function(obj){
+    var lista = document.getElementById('entradaItensLista');
+    lista.innerHTML = '';
+    var itensParaMostrar = (obj.itens && obj.itens.length>0) ? obj.itens : [{}];
+    itensParaMostrar.forEach(function(it){ adicionarLinhaEntrada(it); });
+    document.getElementById('statusEntrada').textContent = '';
+    document.getElementById('previaEntradaBox').style.display='block';
+  }).catch(function(err){
+    document.getElementById('statusEntrada').textContent = 'Não consegui entender: '+err.message+'. Toque no microfone pra tentar de novo.';
+  });
+}
+
+function adicionarLinhaEntrada(itPre){
+  itPre = itPre || {};
+  var lista = document.getElementById('entradaItensLista');
+  var linhaId = 'linhaEnt_'+uidCasaFacil();
+  var ehExistente = !!itPre.itemExistenteNome;
+  var pgtoPre = itPre.formaPagamento || 'vista';
+  var opcoesItens = '<option value="">➕ Item novo (não está na lista)</option>' + catalogoEstoqueEntrada.map(function(i){
+    return '<option value="'+esc(i.nome)+'"'+(i.nome===itPre.itemExistenteNome?' selected':'')+'>'+esc(i.nome)+' ('+esc(i.cat)+' · '+esc(i.un)+')</option>';
+  }).join('');
+  var opcoesCat = CATEGORIAS_ESTOQUE_JS.map(function(c){ return '<option value="'+c+'"'+(c===itPre.categoria?' selected':'')+'>'+c+'</option>'; }).join('');
+  var opcoesUn = UNIDADES_ESTOQUE_JS.map(function(u){ return '<option value="'+u+'"'+(u===itPre.unidade?' selected':'')+'>'+u+'</option>'; }).join('');
+  var cartaoIdPre = '';
+  if(pgtoPre==='cartao' && itPre.cartaoNome){
+    var cMatch = catalogoCartoesEntrada.find(function(c){ return c.nome===itPre.cartaoNome; });
+    if(cMatch) cartaoIdPre = cMatch.id;
+  }
+  var opcoesCartao = '<option value="">— selecione —</option>' + catalogoCartoesEntrada.map(function(c){
+    return '<option value="'+c.id+'"'+(c.id===cartaoIdPre?' selected':'')+'>'+esc(c.nome)+'</option>';
+  }).join('');
+
+  var div = document.createElement('div');
+  div.id = linhaId;
+  div.className = 'msg-box';
+  div.style.marginTop = '8px';
+  div.innerHTML =
+    '<div class="campo" style="margin-bottom:8px"><label>Item</label><select class="entrada-item-sel" onchange="alternarCamposItemNovo(\''+linhaId+'\')">'+opcoesItens+'</select></div>'
+    + '<div class="campos-item-novo" style="display:'+(ehExistente?'none':'flex')+';gap:8px;margin-bottom:8px">'
+    +   '<div class="campo" style="margin-bottom:0;flex:1"><label>Nome do item novo</label><input type="text" class="entrada-nome-novo" value="'+esc(itPre.nomeNovoItem||'')+'"/></div>'
+    +   '<div class="campo" style="margin-bottom:0"><label>Categoria</label><select class="entrada-cat">'+opcoesCat+'</select></div>'
+    +   '<div class="campo" style="margin-bottom:0"><label>Unidade</label><select class="entrada-un">'+opcoesUn+'</select></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
+    +   '<div class="campo" style="margin-bottom:0;flex:1"><label>Quantidade</label><input type="number" class="entrada-qtd" value="'+(itPre.quantidade||1)+'" min="0" step="any"/></div>'
+    +   '<div class="campo" style="margin-bottom:0;flex:1"><label>Custo unitário (R$)</label><input type="number" class="entrada-custo" value="'+(itPre.custoUnitario||'')+'" min="0" step="0.01"/></div>'
+    +   '<div class="campo" style="margin-bottom:0;flex:1"><label>Fornecedor (opcional)</label><input type="text" class="entrada-forn" value="'+esc(itPre.fornecedor||'')+'"/></div>'
+    +   '<button class="btn small secondary" onclick="document.getElementById(\''+linhaId+'\').remove()">🗑️</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px">'
+    +   '<div class="campo" style="margin-bottom:0;flex:1"><label>Forma de pagamento</label><select class="entrada-pgto" onchange="alternarCampoCartaoEntrada(\''+linhaId+'\')">'
+    +     '<option value="vista"'+(pgtoPre==='vista'?' selected':'')+'>À vista</option>'
+    +     '<option value="boleto"'+(pgtoPre==='boleto'?' selected':'')+'>Boleto</option>'
+    +     '<option value="cartao"'+(pgtoPre==='cartao'?' selected':'')+'>Cartão</option>'
+    +   '</select></div>'
+    +   '<div class="campo entrada-campo-cartao" style="margin-bottom:0;flex:1;display:'+(pgtoPre==='cartao'?'block':'none')+'"><label>Cartão</label><select class="entrada-cartao">'+opcoesCartao+'</select></div>'
+    + '</div>';
+  lista.appendChild(div);
+}
+
+function alternarCampoCartaoEntrada(linhaId){
+  var div = document.getElementById(linhaId);
+  var pgto = div.querySelector('.entrada-pgto').value;
+  div.querySelector('.entrada-campo-cartao').style.display = pgto==='cartao' ? 'block' : 'none';
+}
+
+function alternarCamposItemNovo(linhaId){
+  var div = document.getElementById(linhaId);
+  var sel = div.querySelector('.entrada-item-sel');
+  div.querySelector('.campos-item-novo').style.display = sel.value ? 'none' : 'flex';
+}
+
+var CATEGORIAS_ESTOQUE_JS = ['Estrutural','Hidráulico','Elétrico','Acabamento','Esquadrias','Cobertura','Outro'];
+var UNIDADES_ESTOQUE_JS = ['sc','m³','m²','m','un','kg','L','cx','pç'];
+
+/* Confirma a entrada: replica a lógica do saveEstAdd do Casa Fácil —
+   soma no item existente (comparando por NOME) ou cria um item novo,
+   sempre criando um lote novo pra manter o PEPS funcionando certinho. */
+function confirmarEntradaEstoquePorVoz(){
+  var dataCompra = document.getElementById('entrada_data').value || hojeISO();
+  var linhas = [];
+  var erro = null;
+  document.querySelectorAll('#entradaItensLista > div').forEach(function(div){
+    var sel = div.querySelector('.entrada-item-sel');
+    var qtd = parseFloat(div.querySelector('.entrada-qtd').value);
+    var custo = parseFloat(div.querySelector('.entrada-custo').value);
+    var forn = div.querySelector('.entrada-forn').value.trim();
+    var pgto = div.querySelector('.entrada-pgto').value;
+    var cartaoId = pgto==='cartao' ? div.querySelector('.entrada-cartao').value : '';
+    if(!qtd || qtd<=0 || isNaN(custo)){ erro = 'Preencha quantidade e custo em todos os itens.'; return; }
+    if(pgto==='cartao' && !cartaoId){ erro = 'Selecione o cartão em todos os itens pagos no cartão.'; return; }
+    if(sel.value){
+      linhas.push({existente:true, nome:sel.value, quantidade:qtd, custo:custo, fornecedor:forn, pgto:pgto, cartaoId:cartaoId});
+    } else {
+      var nomeNovo = div.querySelector('.entrada-nome-novo').value.trim();
+      var cat = div.querySelector('.entrada-cat').value;
+      var un = div.querySelector('.entrada-un').value;
+      if(!nomeNovo){ erro = 'Preencha o nome do item novo.'; return; }
+      linhas.push({existente:false, nome:nomeNovo, categoria:cat, unidade:un, quantidade:qtd, custo:custo, fornecedor:forn, pgto:pgto, cartaoId:cartaoId});
+    }
+  });
+  if(erro){ alert(erro); return; }
+  if(linhas.length===0){ alert('Adicione ao menos um item.'); return; }
+  if(!db){ alert('Banco de dados não configurado.'); return; }
+
+  var ref = db.collection('dados').doc('principal');
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      if(!doc.exists) throw new Error('Documento principal do Casa Fácil não encontrado.');
+      var S = JSON.parse(doc.data().dados);
+      S.estoque = S.estoque || [];
+      S.estLotes = S.estLotes || [];
+      S.estEntradas = S.estEntradas || [];
+
+      linhas.forEach(function(l){
+        var nomeBusca = l.nome.toLowerCase();
+        var it = S.estoque.find(function(e){ return e.nome.toLowerCase()===nomeBusca; });
+        if(it){
+          it.qtd += l.quantidade;
+          if(l.fornecedor) it.forn = l.fornecedor;
+        } else {
+          it = { id: uidCasaFacil(), nome: l.nome, cat: l.categoria, qtd: l.quantidade, un: l.unidade, custo: l.custo, minQtd: 0, forn: l.fornecedor||'' };
+          S.estoque.push(it);
+        }
+
+        var entId = uidCasaFacil();
+        var loteId = uidCasaFacil();
+        S.estLotes.push({
+          id: loteId, entId: entId, nome: it.nome, cat: it.cat, un: it.un,
+          forn: l.fornecedor||it.forn||'', qtdOriginal: l.quantidade, qtdDisp: l.quantidade,
+          custo: l.custo, data: dataCompra
+        });
+
+        var lotesDoItem = S.estLotes
+          .filter(function(lo){ return lo.nome.toLowerCase()===it.nome.toLowerCase() && lo.qtdDisp>0; })
+          .sort(function(a,b){ return (a.data||'').localeCompare(b.data||''); });
+        if(lotesDoItem.length>0) it.custo = lotesDoItem[0].custo;
+
+        S.estEntradas.push({
+          id: entId, nome: it.nome, cat: it.cat, qtd: l.quantidade, un: it.un,
+          custo: l.custo, total: l.quantidade*l.custo, forn: l.fornecedor||'',
+          pgto: l.pgto, data: dataCompra, cartaoId: l.cartaoId||'', loteId: loteId, notaFiscalUrl: ''
+        });
+
+        if(l.cartaoId){
+          var kEnt = S.cartoes.find(function(x){ return x.id===l.cartaoId; });
+          if(kEnt){
+            if(!kEnt.faturas) kEnt.faturas = [];
+            kEnt.faturas.push({
+              id: uidCasaFacil(), matId: entId, obraId: '',
+              desc: '📦 Estoque: '+it.nome, forn: l.fornecedor||'', val: l.quantidade*l.custo,
+              data: dataCompra, status: 'Pendente'
+            });
+          }
+        }
+      });
+
+      tx.update(ref, {dados: JSON.stringify(S)});
+    });
+  }).then(function(){
+    alert('✅ Entrada de estoque registrada com sucesso!');
+    fecharCapturaEntradaEstoque();
+  }).catch(function(err){
+    alert('Não consegui registrar a entrada: '+err.message);
+  });
+}
+
+/* ============================================================
+   13) GASTO AVULSO NO CARTÃO POR VOZ/TEXTO
+   ============================================================ */
+var reconhecimentoCartao = null;
+var gravandoCartao = false;
+var catalogoCartoesGasto = []; // [{id, nome}]
+
+function abrirCapturaGastoCartao(){
+  document.getElementById('transcricaoCartaoBox').style.display='none';
+  document.getElementById('previaCartaoBox').style.display='none';
+  document.getElementById('textoCartaoDigitado').value = '';
+  document.getElementById('statusCartao').textContent = 'Carregando cartões...';
+  document.getElementById('btnMicCartao').style.display = vozDisponivel() ? '' : 'none';
+  document.getElementById('btnMicCartao').textContent = '🎤';
+  document.getElementById('overlayGastoCartao').classList.add('show');
+
+  if(!db){ document.getElementById('statusCartao').textContent = 'Banco de dados não configurado.'; return; }
+  db.collection('dados').doc('principal').get().then(function(doc){
+    if(!doc.exists){ throw new Error('Documento principal do Casa Fácil não encontrado.'); }
+    var S = JSON.parse(doc.data().dados);
+    catalogoCartoesGasto = (S.cartoes||[]).map(function(c){ return {id:c.id, nome:c.nome}; });
+    if(catalogoCartoesGasto.length===0){
+      document.getElementById('statusCartao').textContent = 'Nenhum cartão cadastrado no Casa Fácil ainda.';
+    } else {
+      document.getElementById('statusCartao').textContent = catalogoCartoesGasto.length+' cartão(ões) carregado(s). Toque pra falar.';
+    }
+  }).catch(function(err){
+    document.getElementById('statusCartao').textContent = 'Erro ao carregar cartões: '+err.message;
+  });
+}
+
+function fecharCapturaGastoCartao(){
+  if(reconhecimentoCartao && gravandoCartao){ try{ reconhecimentoCartao.stop(); }catch(e){} }
+  document.getElementById('overlayGastoCartao').classList.remove('show');
+}
+
+function reiniciarCapturaGastoCartao(){
+  document.getElementById('transcricaoCartaoBox').style.display='none';
+  document.getElementById('previaCartaoBox').style.display='none';
+  document.getElementById('statusCartao').textContent = 'Toque pra falar de novo.';
+}
+
+function alternarGravacaoGastoCartao(){
+  if(gravandoCartao){
+    if(reconhecimentoCartao){ try{ reconhecimentoCartao.stop(); }catch(e){} }
+    return;
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  reconhecimentoCartao = new SR();
+  reconhecimentoCartao.lang = 'pt-BR';
+  reconhecimentoCartao.continuous = true;
+  reconhecimentoCartao.interimResults = true;
+  reconhecimentoCartao.maxAlternatives = 1;
+  var transcricaoAcumuladaCartao = '';
+
+  reconhecimentoCartao.onstart = function(){
+    gravandoCartao = true;
+    transcricaoAcumuladaCartao = '';
+    document.getElementById('btnMicCartao').textContent = '⏹️';
+    document.getElementById('statusCartao').textContent = 'Ouvindo... toque no botão quando terminar';
+  };
+  reconhecimentoCartao.onerror = function(e){
+    gravandoCartao = false;
+    document.getElementById('btnMicCartao').textContent = '🎤';
+    if(e.error!=='no-speech') document.getElementById('statusCartao').textContent = 'Não consegui ouvir (erro: '+e.error+'). Tente de novo.';
+  };
+  reconhecimentoCartao.onend = function(){
+    gravandoCartao = false;
+    document.getElementById('btnMicCartao').textContent = '🎤';
+    if(transcricaoAcumuladaCartao.trim()){
+      document.getElementById('transcricaoCartaoBox').style.display='block';
+      document.getElementById('transcricaoCartaoTexto').textContent = transcricaoAcumuladaCartao.trim();
+      document.getElementById('statusCartao').textContent = 'Entendendo o gasto...';
+      interpretarGastoCartaoPorFala(transcricaoAcumuladaCartao.trim());
+    }
+  };
+  reconhecimentoCartao.onresult = function(event){
+    var textoFinal = '', textoParcial = '';
+    for(var i=0;i<event.results.length;i++){
+      if(event.results[i].isFinal) textoFinal += event.results[i][0].transcript + ' ';
+      else textoParcial += event.results[i][0].transcript;
+    }
+    transcricaoAcumuladaCartao = textoFinal;
+    document.getElementById('transcricaoCartaoBox').style.display='block';
+    document.getElementById('transcricaoCartaoTexto').textContent = (textoFinal+textoParcial).trim();
+  };
+  reconhecimentoCartao.start();
+}
+
+function enviarGastoCartaoDigitado(){
+  var texto = document.getElementById('textoCartaoDigitado').value.trim();
+  if(!texto) return;
+  document.getElementById('transcricaoCartaoBox').style.display='block';
+  document.getElementById('transcricaoCartaoTexto').textContent = texto;
+  document.getElementById('statusCartao').textContent = 'Entendendo o gasto...';
+  interpretarGastoCartaoPorFala(texto);
+  document.getElementById('textoCartaoDigitado').value = '';
+}
+
+function interpretarGastoCartaoPorFala(transcricao){
+  fetch(ANALISE_IA_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      modo:'interpretar_gasto_cartao',
+      transcricao:transcricao,
+      dataHoje:hojeISO(),
+      cartoes: catalogoCartoesGasto
+    })
+  }).then(function(r){
+    if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||('Resposta '+r.status)); });
+    return r.json();
+  }).then(function(obj){
+    var sel = document.getElementById('cartao_id');
+    sel.innerHTML = '<option value="">— selecione —</option>' + catalogoCartoesGasto.map(function(c){
+      return '<option value="'+c.id+'">'+esc(c.nome)+'</option>';
+    }).join('');
+    var matched = catalogoCartoesGasto.find(function(c){ return c.nome===obj.cartaoNome; });
+    sel.value = matched ? matched.id : '';
+    document.getElementById('cartao_desc').value = obj.descricao || '';
+    document.getElementById('cartao_valor').value = obj.valor || '';
+    document.getElementById('cartao_data').value = obj.data || hojeISO();
+    document.getElementById('cartao_forn').value = obj.fornecedor || '';
+    document.getElementById('statusCartao').textContent = '';
+    document.getElementById('previaCartaoBox').style.display='block';
+  }).catch(function(err){
+    document.getElementById('statusCartao').textContent = 'Não consegui entender: '+err.message+'. Toque no microfone pra tentar de novo.';
+  });
+}
+
+function confirmarGastoCartaoPorVoz(){
+  var cartaoId = document.getElementById('cartao_id').value;
+  var desc = document.getElementById('cartao_desc').value.trim();
+  var valor = parseFloat(document.getElementById('cartao_valor').value);
+  var data = document.getElementById('cartao_data').value || hojeISO();
+  var forn = document.getElementById('cartao_forn').value.trim();
+  if(!cartaoId){ alert('Selecione o cartão.'); return; }
+  if(!desc){ alert('Preencha a descrição.'); return; }
+  if(!valor || valor<=0){ alert('Preencha o valor.'); return; }
+  if(!db){ alert('Banco de dados não configurado.'); return; }
+
+  var ref = db.collection('dados').doc('principal');
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      if(!doc.exists) throw new Error('Documento principal do Casa Fácil não encontrado.');
+      var S = JSON.parse(doc.data().dados);
+      var k = S.cartoes.find(function(x){ return x.id===cartaoId; });
+      if(!k) throw new Error('Cartão não encontrado.');
+      if(!k.faturas) k.faturas = [];
+      k.faturas.push({
+        id: uidCasaFacil(), matId: uidCasaFacil(), obraId: '',
+        desc: desc, forn: forn||'', val: valor, data: data, status: 'Pendente'
+      });
+      tx.update(ref, {dados: JSON.stringify(S)});
+    });
+  }).then(function(){
+    alert('✅ Gasto lançado no cartão com sucesso!');
+    fecharCapturaGastoCartao();
+  }).catch(function(err){
+    alert('Não consegui lançar o gasto: '+err.message);
   });
 }
 
