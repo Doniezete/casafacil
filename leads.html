@@ -131,6 +131,14 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
 
   <div id="avisoAtrasados" style="display:none;background:#3a1414;border:1px solid #7a2020;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#fca5a5;cursor:pointer" onclick="mudarView('agenda')"></div>
 
+  <div id="avisoDesfazer" style="display:none;background:#132a1e;border:1px solid #1f5c3a;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#86efac;display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <span id="avisoDesfazerTexto"></span>
+    <div style="display:flex;gap:8px">
+      <button class="btn small secondary" onclick="desfazerUltimaAcaoCasaFacil()">↩️ Desfazer</button>
+      <button class="btn small secondary" onclick="document.getElementById('avisoDesfazer').style.display='none'">Dispensar</button>
+    </div>
+  </div>
+
   <div id="configAlerta" class="config-alerta" style="display:none">
     ⚠️ <strong>Configuração pendente:</strong> este arquivo ainda não está ligado ao banco de dados.
     Peça pra quem configurou o sistema colar o <code>firebaseConfig</code> no topo do arquivo
@@ -1345,6 +1353,34 @@ var catalogoObras = [];    // [{id, nome, obra}]
 
 function uidCasaFacil(){ return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
+/* ============================================================
+   "DESFAZER" — guarda uma cópia do documento do Casa Fácil ANTES de
+   cada ação por voz (estoque, entrada, cartão), e permite reverter
+   pro estado exato de antes com 1 clique. Vale só pra ação mais recente,
+   e melhor usado logo em seguida (se algo mais mudar nesse meio-tempo
+   no Casa Fácil grande, essa mudança também seria desfeita).
+   ============================================================ */
+window._ultimoSnapshotCasaFacil = null;
+
+function registrarSnapshotAntesDaAcao(dadosStringAntes, descricaoAcao){
+  window._ultimoSnapshotCasaFacil = dadosStringAntes;
+  document.getElementById('avisoDesfazerTexto').textContent = '✅ '+descricaoAcao+' registrada.';
+  document.getElementById('avisoDesfazer').style.display = 'flex';
+}
+
+function desfazerUltimaAcaoCasaFacil(){
+  if(!window._ultimoSnapshotCasaFacil){ alert('Não há nenhuma ação recente pra desfazer.'); return; }
+  if(!confirm('Isso vai reverter a última ação (estoque/entrada/cartão) pro estado de antes dela. Confirma?')) return;
+  if(!db){ alert('Banco de dados não configurado.'); return; }
+  var snapshot = window._ultimoSnapshotCasaFacil;
+  var ref = db.collection('dados').doc('principal');
+  ref.set({dados: snapshot}, {merge:true}).then(function(){
+    alert('↩️ Ação desfeita com sucesso.');
+    window._ultimoSnapshotCasaFacil = null;
+    document.getElementById('avisoDesfazer').style.display = 'none';
+  }).catch(function(err){ alert('Não consegui desfazer: '+err.message); });
+}
+
 function abrirCapturaEstoque(){
   document.getElementById('transcricaoEstoqueBox').style.display='none';
   document.getElementById('previaEstoqueBox').style.display='none';
@@ -1508,9 +1544,11 @@ function confirmarEstoquePorVoz(){
   if(!db){ alert('Banco de dados não configurado.'); return; }
 
   var ref = db.collection('dados').doc('principal');
+  var snapshotAntes = null;
   db.runTransaction(function(tx){
     return tx.get(ref).then(function(doc){
       if(!doc.exists) throw new Error('Documento principal do Casa Fácil não encontrado.');
+      snapshotAntes = doc.data().dados;
       var S = JSON.parse(doc.data().dados);
       S.estUsos = S.estUsos || [];
       S.estLotes = S.estLotes || [];
@@ -1548,6 +1586,7 @@ function confirmarEstoquePorVoz(){
       tx.update(ref, {dados: JSON.stringify(S)});
     });
   }).then(function(){
+    registrarSnapshotAntesDaAcao(snapshotAntes, 'Baixa no estoque');
     alert('✅ Baixa no estoque registrada com sucesso!');
     fecharCapturaEstoque();
   }).catch(function(err){
@@ -1773,9 +1812,11 @@ function confirmarEntradaEstoquePorVoz(){
   if(!db){ alert('Banco de dados não configurado.'); return; }
 
   var ref = db.collection('dados').doc('principal');
+  var snapshotAntesEntrada = null;
   db.runTransaction(function(tx){
     return tx.get(ref).then(function(doc){
       if(!doc.exists) throw new Error('Documento principal do Casa Fácil não encontrado.');
+      snapshotAntesEntrada = doc.data().dados;
       var S = JSON.parse(doc.data().dados);
       S.estoque = S.estoque || [];
       S.estLotes = S.estLotes || [];
@@ -1827,6 +1868,7 @@ function confirmarEntradaEstoquePorVoz(){
       tx.update(ref, {dados: JSON.stringify(S)});
     });
   }).then(function(){
+    registrarSnapshotAntesDaAcao(snapshotAntesEntrada, 'Entrada de estoque');
     alert('✅ Entrada de estoque registrada com sucesso!');
     fecharCapturaEntradaEstoque();
   }).catch(function(err){
@@ -1976,9 +2018,11 @@ function confirmarGastoCartaoPorVoz(){
   if(!db){ alert('Banco de dados não configurado.'); return; }
 
   var ref = db.collection('dados').doc('principal');
+  var snapshotAntesCartao = null;
   db.runTransaction(function(tx){
     return tx.get(ref).then(function(doc){
       if(!doc.exists) throw new Error('Documento principal do Casa Fácil não encontrado.');
+      snapshotAntesCartao = doc.data().dados;
       var S = JSON.parse(doc.data().dados);
       var k = S.cartoes.find(function(x){ return x.id===cartaoId; });
       if(!k) throw new Error('Cartão não encontrado.');
@@ -1990,6 +2034,7 @@ function confirmarGastoCartaoPorVoz(){
       tx.update(ref, {dados: JSON.stringify(S)});
     });
   }).then(function(){
+    registrarSnapshotAntesDaAcao(snapshotAntesCartao, 'Gasto no cartão');
     alert('✅ Gasto lançado no cartão com sucesso!');
     fecharCapturaGastoCartao();
   }).catch(function(err){
