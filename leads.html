@@ -2091,6 +2091,7 @@ function abrirChatDuvida(){
   duvidaDocId = idDocDuvida();
   historicoDuvida = [];
   document.getElementById('duvidaHistorico').innerHTML = '<div style="color:var(--mut);font-size:12px">Carregando conversa anterior...</div>';
+  carregarContextoCasaFacilGrande();
   if(db){
     db.collection('duvidas_chat').doc(duvidaDocId).get().then(function(doc){
       if(doc.exists && Array.isArray(doc.data().mensagens)){
@@ -2128,6 +2129,10 @@ function salvarHistoricoDuvida(){
   }, {merge:true}).catch(function(err){ console.warn('Nao foi possivel salvar a conversa:', err.message); });
 }
 
+function linkificarTexto(texto){
+  return esc(texto).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#60a5fa;text-decoration:underline">$1</a>');
+}
+
 function renderHistoricoDuvida(){
   var box = document.getElementById('duvidaHistorico');
   if(historicoDuvida.length===0){
@@ -2136,13 +2141,58 @@ function renderHistoricoDuvida(){
   }
   box.innerHTML = historicoDuvida.map(function(m){
     var ehUsuario = m.role==='user';
-    return '<div style="align-self:'+(ehUsuario?'flex-end':'flex-start')+';max-width:85%;background:'+(ehUsuario?'var(--ac)':'var(--card2)')+';color:'+(ehUsuario?'#1a1206':'var(--tx)')+';border-radius:10px;padding:8px 12px;font-size:13px;white-space:pre-wrap">'+esc(m.texto)+'</div>';
-  }).join('');
+    return '<div style="align-self:'+(ehUsuario?'flex-end':'flex-start')+';max-width:85%;background:'+(ehUsuario?'var(--ac)':'var(--card2)')+';color:'+(ehUsuario?'#1a1206':'var(--tx)')+';border-radius:10px;padding:8px 12px;font-size:13px;white-space:pre-wrap">'+linkificarTexto(m.texto)+'</div>';
+  }).join('') + renderCardAcaoDuvida();
   box.scrollTop = box.scrollHeight;
 }
 
 /* Monta um resumo dos leads/agenda + o cadastro completo de qualquer cliente
    cujo nome apareça na pergunta, pra IA responder com dado real do sistema. */
+/* Dados do Casa Fácil grande (obras, etapas do portal, comprovantes de bônus),
+   carregados uma vez quando o chat abre, pra não ficar buscando a cada mensagem. */
+var casaFacilSCache = null;
+var casaFacilMarcosCache = {};
+var casaFacilComprovantesCache = [];
+
+function carregarContextoCasaFacilGrande(){
+  if(!db) return;
+  db.collection('dados').doc('principal').get().then(function(doc){
+    if(doc.exists){
+      try{ casaFacilSCache = JSON.parse(doc.data().dados); }catch(e){ console.warn('Nao foi possivel ler dados do Casa Facil:', e.message); }
+    }
+  }).catch(function(){});
+  db.collection('portal_marcos').get().then(function(snap){
+    var mapa = {};
+    snap.forEach(function(d){ mapa[d.id] = d.data(); });
+    casaFacilMarcosCache = mapa;
+  }).catch(function(){});
+  db.collection('comprovantes_pendentes').get().then(function(snap){
+    var arr = [];
+    snap.forEach(function(d){ arr.push(d.data()); });
+    casaFacilComprovantesCache = arr;
+  }).catch(function(){});
+}
+
+/* Tenta adivinhar o "login" do cliente a partir do nome (não temos a fórmula exata
+   do Casa Fácil grande, então tenta as variações mais comuns). */
+function gerarCandidatosLogin(nome){
+  var norm = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').trim();
+  var partes = norm.split(/\s+/).filter(Boolean);
+  var candidatos = [norm.replace(/\s+/g,'')];
+  if(partes.length>0) candidatos.push(partes[0]);
+  if(partes.length>1) candidatos.push(partes[0]+partes[partes.length-1]);
+  return candidatos;
+}
+
+function buscarObraCasaFacil(pergunta){
+  if(!casaFacilSCache || !Array.isArray(casaFacilSCache.obras)) return null;
+  var perguntaLower = pergunta.toLowerCase();
+  return casaFacilSCache.obras.find(function(o){
+    if(!o.nome) return false;
+    return o.nome.split(' ').some(function(p){ return p.length>=3 && perguntaLower.indexOf(p.toLowerCase())!==-1; });
+  });
+}
+
 function montarContextoDuvida(pergunta){
   var perguntaLower = pergunta.toLowerCase();
   var partes = [];
@@ -2156,7 +2206,7 @@ function montarContextoDuvida(pergunta){
   var proximosAg = (agendamentos||[]).filter(function(a){ return !a.concluido && a.data>=hoje; })
     .sort(function(a,b){ return (a.data||'').localeCompare(b.data||''); }).slice(0,40)
     .map(function(a){
-      return '- '+a.data+' '+(a.hora||'')+' | '+labelTipo(a.tipo)+' | '+(a.leadNome||'tarefa avulsa')+' | '+(a.obs?a.obs.slice(0,80):'');
+      return '- id:'+a.id+' | '+a.data+' '+(a.hora||'')+' | '+labelTipo(a.tipo)+' | '+(a.leadNome||'tarefa avulsa')+' | '+(a.obs?a.obs.slice(0,80):'');
     }).join('\n');
   if(proximosAg) partes.push('PRÓXIMOS COMPROMISSOS NA AGENDA:\n'+proximosAg);
 
@@ -2185,12 +2235,55 @@ function montarContextoDuvida(pergunta){
       + '- Histórico de atendimentos:\n'+(hist||'  (nenhum ainda)'));
   }
 
+  // Dados da obra no Casa Fácil grande (status, etapas do portal, comprovantes de bônus)
+  var obraEncontrada = buscarObraCasaFacil(pergunta);
+  if(obraEncontrada){
+    var linhasObra = [
+      '- Cliente: '+obraEncontrada.nome,
+      '- Obra: '+(obraEncontrada.obra||'-'),
+      '- Status da obra: '+(obraEncontrada.status||'-'),
+      '- Orçamento: R$ '+(obraEncontrada.orc||0),
+      '- Endereço: '+(obraEncontrada.end||'-')
+    ];
+
+    var candidatosLogin = gerarCandidatosLogin(obraEncontrada.nome);
+    var docMarcos = null;
+    candidatosLogin.forEach(function(cand){ if(!docMarcos && casaFacilMarcosCache[cand]) docMarcos = casaFacilMarcosCache[cand]; });
+    if(docMarcos && Array.isArray(docMarcos.marcosConfig)){
+      var progressoPorId = {};
+      (docMarcos.progresso||[]).forEach(function(p){ progressoPorId[p.marcoId] = p; });
+      var etapasTexto = docMarcos.marcosConfig.slice().sort(function(a,b){ return (a.ordem||0)-(b.ordem||0); }).map(function(m){
+        var p = progressoPorId[m.id];
+        var liberado = p && p.desbloqueadoEm;
+        return '  '+(liberado?'✅ liberada':'🔒 bloqueada')+': '+m.nome;
+      }).join('\n');
+      linhasObra.push('- Etapas do portal do cliente:\n'+etapasTexto);
+    } else {
+      linhasObra.push('- Etapas do portal: não foi possível identificar com certeza pra esse cliente.');
+    }
+
+    partes.push('DADOS DA OBRA NO CASA FÁCIL ('+obraEncontrada.nome+'):\n'+linhasObra.join('\n'));
+
+    var primeiroNome = obraEncontrada.nome.toLowerCase().split(' ')[0];
+    var comprov = (casaFacilComprovantesCache||[]).filter(function(c){
+      return c.nomeCliente && c.nomeCliente.toLowerCase().indexOf(primeiroNome)!==-1;
+    });
+    if(comprov.length>0){
+      partes.push('COMPROVANTES DE BÔNUS ENVIADOS PELO CLIENTE:\n'+comprov.map(function(c){
+        return '- '+(c.formaNome||'')+' ('+(c.pontos||0)+' pts) — status: '+(c.status||'-')+' — enviado em '+fmtData(c.data)+(c.imagemUrl?' — link: '+c.imagemUrl:'');
+      }).join('\n'));
+    }
+  }
+
   return partes.join('\n\n');
 }
+
+var acaoPendenteDuvida = null;
 
 function enviarDuvida(){
   var texto = document.getElementById('duvidaInput').value.trim();
   if(!texto) return;
+  acaoPendenteDuvida = null;
   historicoDuvida.push({role:'user', texto:texto});
   renderHistoricoDuvida();
   document.getElementById('duvidaInput').value = '';
@@ -2207,6 +2300,7 @@ function enviarDuvida(){
     return r.json();
   }).then(function(obj){
     historicoDuvida.push({role:'assistant', texto:obj.text||'Sem resposta.'});
+    if(obj.acao) acaoPendenteDuvida = obj.acao;
     renderHistoricoDuvida();
     salvarHistoricoDuvida();
   }).catch(function(err){
@@ -2215,6 +2309,84 @@ function enviarDuvida(){
   }).finally(function(){
     document.getElementById('duvidaCarregando').style.display = 'none';
   });
+}
+
+function labelAcaoDuvida(acao){
+  return {criar:'Criar compromisso', editar:'Editar compromisso', concluir:'Marcar como concluído', excluir:'Excluir compromisso'}[acao.acao] || acao.acao;
+}
+
+function renderCardAcaoDuvida(){
+  if(!acaoPendenteDuvida) return '';
+  var a = acaoPendenteDuvida;
+  var detalhes = [];
+  if(a.titulo) detalhes.push('📝 '+esc(a.titulo));
+  if(a.data) detalhes.push('📅 '+fmtData(a.data)+(a.hora?' às '+a.hora:''));
+  if(a.tipo) detalhes.push(labelTipo(a.tipo));
+  if(a.leadNome) detalhes.push('👤 '+esc(a.leadNome));
+  return '<div style="align-self:flex-start;max-width:90%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
+    + '<div style="font-weight:600;margin-bottom:4px">'+labelAcaoDuvida(a)+'</div>'
+    + (detalhes.length ? '<div style="color:var(--tx2);margin-bottom:8px">'+detalhes.join(' · ')+'</div>' : '')
+    + '<div style="display:flex;gap:8px">'
+    +   '<button class="btn small" onclick="confirmarAcaoDuvida()">✅ Confirmar</button>'
+    +   '<button class="btn small secondary" onclick="cancelarAcaoDuvida()">Cancelar</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function cancelarAcaoDuvida(){
+  acaoPendenteDuvida = null;
+  historicoDuvida.push({role:'assistant', texto:'(ação cancelada)'});
+  renderHistoricoDuvida();
+  salvarHistoricoDuvida();
+}
+
+function confirmarAcaoDuvida(){
+  if(!acaoPendenteDuvida || !db) return;
+  var a = acaoPendenteDuvida;
+  acaoPendenteDuvida = null;
+
+  function concluirComMensagem(msg){
+    historicoDuvida.push({role:'assistant', texto:msg});
+    renderHistoricoDuvida();
+    salvarHistoricoDuvida();
+    carregarAgendamentos();
+  }
+
+  if(a.acao==='excluir'){
+    if(!a.id){ concluirComMensagem('⚠️ Não recebi qual compromisso excluir.'); return; }
+    db.collection('agenda').doc(a.id).delete().then(function(){ concluirComMensagem('🗑️ Compromisso excluído.'); })
+      .catch(function(err){ concluirComMensagem('⚠️ Erro ao excluir: '+err.message); });
+  } else if(a.acao==='concluir'){
+    if(!a.id){ concluirComMensagem('⚠️ Não recebi qual compromisso concluir.'); return; }
+    db.collection('agenda').doc(a.id).update({concluido:true}).then(function(){ concluirComMensagem('✅ Marcado como concluído.'); })
+      .catch(function(err){ concluirComMensagem('⚠️ Erro: '+err.message); });
+  } else if(a.acao==='editar'){
+    if(!a.id){ concluirComMensagem('⚠️ Não recebi qual compromisso editar.'); return; }
+    var dadosEdit = {};
+    if(a.titulo) dadosEdit.obs = a.titulo;
+    if(a.data) dadosEdit.data = a.data;
+    if(a.hora) dadosEdit.hora = a.hora;
+    if(a.tipo) dadosEdit.tipo = a.tipo;
+    db.collection('agenda').doc(a.id).update(dadosEdit).then(function(){ concluirComMensagem('✏️ Compromisso atualizado.'); })
+      .catch(function(err){ concluirComMensagem('⚠️ Erro: '+err.message); });
+  } else { // criar
+    var leadEncontrado = a.leadNome ? leads.find(function(l){ return l.nome && l.nome.toLowerCase().indexOf(a.leadNome.toLowerCase())!==-1; }) : null;
+    var dados = {
+      leadId: leadEncontrado ? leadEncontrado.id : null,
+      leadNome: leadEncontrado ? leadEncontrado.nome : (a.leadNome||''),
+      data: a.data || hojeISO(),
+      hora: a.hora || null,
+      tipo: a.tipo || 'tarefa',
+      obs: a.titulo || '',
+      concluido: false,
+      vezesRemanejada: 0,
+      prioridade: false,
+      ultimaVerificacaoAdiamento: null,
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    db.collection('agenda').doc().set(dados).then(function(){ concluirComMensagem('✅ Compromisso criado com sucesso.'); })
+      .catch(function(err){ concluirComMensagem('⚠️ Erro ao criar: '+err.message); });
+  }
 }
 
 function copiarDadosCasaFacil(){
