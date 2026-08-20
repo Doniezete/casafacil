@@ -511,7 +511,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
   <div class="modal">
     <button class="close-x" onclick="fecharChatDuvida()">×</button>
     <h2>💬 Tirar uma dúvida</h2>
-    <p style="color:var(--mut);font-size:12px;margin-bottom:10px">Pergunte qualquer coisa do seu dia a dia — como abordar um cliente, dúvida sobre o processo, ajuda pra escrever uma mensagem, etc.</p>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:10px">Pergunte qualquer coisa do seu dia a dia — como abordar um cliente, dúvida sobre o processo, ajuda pra escrever uma mensagem, etc. A conversa fica salva pra você continuar depois. <span style="text-decoration:underline;cursor:pointer" onclick="limparConversaDuvida()">Limpar conversa</span></p>
 
     <div id="duvidaHistorico" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
     <div id="duvidaCarregando" style="display:none;color:var(--mut);font-size:13px;padding:6px 0">Pensando...</div>
@@ -879,7 +879,21 @@ function excluirAgendamento(){
 
 function marcarAgConcluido(id, valor){
   if(!db) return;
-  db.collection('agenda').doc(id).update({concluido:valor}).then(carregarAgendamentos);
+  db.collection('agenda').doc(id).update({concluido:valor}).then(function(){
+    carregarAgendamentos();
+    // Ao concluir um compromisso vinculado a um cliente, oferece já continuar
+    // o atendimento (registrar resumo) sem precisar procurar o lead manualmente.
+    if(valor===true){
+      var item = agendamentos.find(function(a){ return a.id===id; });
+      if(item && item.leadId){
+        var lead = leads.find(function(l){ return l.id===item.leadId; });
+        if(lead && confirm('✅ Compromisso concluído! Quer registrar agora como foi esse atendimento com '+lead.nome+'?')){
+          abrirModal(lead);
+          document.getElementById('f_resumo').focus();
+        }
+      }
+    }
+  });
 }
 
 function salvarLead(){
@@ -2064,23 +2078,114 @@ function confirmarGastoCartaoPorVoz(){
    14) TIRAR UMA DÚVIDA — chat livre com a IA (não fica salvo, só na sessão)
    ============================================================ */
 var historicoDuvida = [];
+var duvidaDocId = null;
+
+function idDocDuvida(){
+  var user = firebase.auth().currentUser;
+  var email = user ? user.email : 'anonimo';
+  return email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+}
 
 function abrirChatDuvida(){
   document.getElementById('overlayDuvida').classList.add('show');
-  document.getElementById('duvidaInput').focus();
+  duvidaDocId = idDocDuvida();
+  historicoDuvida = [];
+  document.getElementById('duvidaHistorico').innerHTML = '<div style="color:var(--mut);font-size:12px">Carregando conversa anterior...</div>';
+  if(db){
+    db.collection('duvidas_chat').doc(duvidaDocId).get().then(function(doc){
+      if(doc.exists && Array.isArray(doc.data().mensagens)){
+        historicoDuvida = doc.data().mensagens;
+      }
+      renderHistoricoDuvida();
+      document.getElementById('duvidaInput').focus();
+    }).catch(function(){
+      renderHistoricoDuvida();
+    });
+  } else {
+    renderHistoricoDuvida();
+  }
 }
 
 function fecharChatDuvida(){
   document.getElementById('overlayDuvida').classList.remove('show');
 }
 
+function limparConversaDuvida(){
+  if(!confirm('Apagar todo o histórico dessa conversa?')) return;
+  historicoDuvida = [];
+  renderHistoricoDuvida();
+  if(db && duvidaDocId){
+    db.collection('duvidas_chat').doc(duvidaDocId).set({mensagens:[]}, {merge:true});
+  }
+}
+
+function salvarHistoricoDuvida(){
+  if(!db || !duvidaDocId) return;
+  var paraSalvar = historicoDuvida.slice(-40); // guarda só as últimas 40 mensagens
+  db.collection('duvidas_chat').doc(duvidaDocId).set({
+    mensagens: paraSalvar,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }, {merge:true}).catch(function(err){ console.warn('Nao foi possivel salvar a conversa:', err.message); });
+}
+
 function renderHistoricoDuvida(){
   var box = document.getElementById('duvidaHistorico');
+  if(historicoDuvida.length===0){
+    box.innerHTML = '<div style="color:var(--mut);font-size:12px">Pergunte qualquer coisa pra começar. Se mencionar o nome de um cliente seu, eu já busco os dados dele.</div>';
+    return;
+  }
   box.innerHTML = historicoDuvida.map(function(m){
     var ehUsuario = m.role==='user';
     return '<div style="align-self:'+(ehUsuario?'flex-end':'flex-start')+';max-width:85%;background:'+(ehUsuario?'var(--ac)':'var(--card2)')+';color:'+(ehUsuario?'#1a1206':'var(--tx)')+';border-radius:10px;padding:8px 12px;font-size:13px;white-space:pre-wrap">'+esc(m.texto)+'</div>';
   }).join('');
   box.scrollTop = box.scrollHeight;
+}
+
+/* Monta um resumo dos leads/agenda + o cadastro completo de qualquer cliente
+   cujo nome apareça na pergunta, pra IA responder com dado real do sistema. */
+function montarContextoDuvida(pergunta){
+  var perguntaLower = pergunta.toLowerCase();
+  var partes = [];
+
+  var resumoLeads = (leads||[]).slice(0,150).map(function(l){
+    return '- '+(l.nome||'sem nome')+' | status: '+(l.status||'-')+' | tel: '+(l.telefone||'-')+' | faixa: '+(l.faixa||'-')+' | etapa: '+(l.etapa?labelEtapa(l.etapa):'-')+' | próximo contato: '+(l.proximoContato||'-');
+  }).join('\n');
+  if(resumoLeads) partes.push('LISTA DE LEADS/CLIENTES:\n'+resumoLeads);
+
+  var hoje = hojeISO();
+  var proximosAg = (agendamentos||[]).filter(function(a){ return !a.concluido && a.data>=hoje; })
+    .sort(function(a,b){ return (a.data||'').localeCompare(b.data||''); }).slice(0,40)
+    .map(function(a){
+      return '- '+a.data+' '+(a.hora||'')+' | '+labelTipo(a.tipo)+' | '+(a.leadNome||'tarefa avulsa')+' | '+(a.obs?a.obs.slice(0,80):'');
+    }).join('\n');
+  if(proximosAg) partes.push('PRÓXIMOS COMPROMISSOS NA AGENDA:\n'+proximosAg);
+
+  // Se a pergunta mencionar o nome de algum cliente, manda o cadastro completo dele
+  var leadEncontrado = (leads||[]).find(function(l){
+    if(!l.nome) return false;
+    return l.nome.split(' ').some(function(palavra){
+      return palavra.length>=3 && perguntaLower.indexOf(palavra.toLowerCase())!==-1;
+    });
+  });
+  if(leadEncontrado){
+    var hist = (leadEncontrado.historico||[]).map(function(h){
+      return '  - '+fmtData(h.data)+': '+(h.resumo||'')+(h.sugestaoIA?' | Sugestão da IA na época: '+h.sugestaoIA.slice(0,200):'');
+    }).join('\n');
+    partes.push('CADASTRO COMPLETO DO CLIENTE MENCIONADO ('+leadEncontrado.nome+'):\n'
+      + '- Telefone: '+(leadEncontrado.telefone||'-')+'\n'
+      + '- Status: '+(leadEncontrado.status||'-')+'\n'
+      + '- Faixa MCMV: '+(leadEncontrado.faixa||'-')+'\n'
+      + '- Renda: R$ '+(leadEncontrado.renda||0)+'\n'
+      + '- Financiamento: R$ '+(leadEncontrado.financiamento||0)+'\n'
+      + '- Parcela: R$ '+(leadEncontrado.parcela||0)+'\n'
+      + '- Etapa: '+(leadEncontrado.etapa?labelEtapa(leadEncontrado.etapa):'-')+'\n'
+      + '- Objeção: '+(leadEncontrado.objecao||'-')+'\n'
+      + '- Notas: '+(leadEncontrado.notas||'-')+'\n'
+      + '- Resumo do atendimento mais recente: '+(leadEncontrado.resumoAtendimento||'-')+'\n'
+      + '- Histórico de atendimentos:\n'+(hist||'  (nenhum ainda)'));
+  }
+
+  return partes.join('\n\n');
 }
 
 function enviarDuvida(){
@@ -2091,16 +2196,19 @@ function enviarDuvida(){
   document.getElementById('duvidaInput').value = '';
   document.getElementById('duvidaCarregando').style.display = 'block';
 
+  var contexto = montarContextoDuvida(texto);
+
   fetch(ANALISE_IA_URL,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({modo:'duvida_livre', mensagens:historicoDuvida})
+    body:JSON.stringify({modo:'duvida_livre', mensagens:historicoDuvida, contexto:contexto})
   }).then(function(r){
     if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||('Resposta '+r.status)); });
     return r.json();
   }).then(function(obj){
     historicoDuvida.push({role:'assistant', texto:obj.text||'Sem resposta.'});
     renderHistoricoDuvida();
+    salvarHistoricoDuvida();
   }).catch(function(err){
     historicoDuvida.push({role:'assistant', texto:'⚠️ Não consegui responder: '+err.message});
     renderHistoricoDuvida();
