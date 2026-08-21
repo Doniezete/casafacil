@@ -2168,6 +2168,9 @@ function carregarContextoCasaFacilGrande(){
     try{
       casaFacilSCache = JSON.parse(raw);
       console.info('[Casa Fácil] Carregado com sucesso. Obras encontradas:', (casaFacilSCache.obras||[]).length);
+      console.info('[Casa Fácil] Chaves disponíveis no objeto S:', Object.keys(casaFacilSCache));
+      console.info('[Casa Fácil] documentos existe?', Array.isArray(casaFacilSCache.documentos), '— quantidade:', (casaFacilSCache.documentos||[]).length);
+      console.info('[Casa Fácil] etapas existe?', Array.isArray(casaFacilSCache.etapas), '— quantidade:', (casaFacilSCache.etapas||[]).length);
     }catch(e){
       console.warn('[Casa Fácil] Erro ao interpretar o JSON de dados/principal:', e.message);
     }
