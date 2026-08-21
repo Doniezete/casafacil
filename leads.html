@@ -2159,20 +2159,31 @@ var casaFacilContextoPromise = null;
 function carregarContextoCasaFacilGrande(){
   if(!db){ casaFacilContextoPromise = Promise.resolve(); return; }
   var p1 = db.collection('dados').doc('principal').get().then(function(doc){
-    if(doc.exists){
-      try{ casaFacilSCache = JSON.parse(doc.data().dados); }catch(e){ console.warn('Nao foi possivel ler dados do Casa Facil:', e.message); }
+    if(!doc.exists){
+      console.warn('[Casa Fácil] Documento dados/principal não existe.');
+      return;
     }
-  }).catch(function(){});
+    var raw = doc.data().dados;
+    if(!raw){ console.warn('[Casa Fácil] Documento existe mas o campo "dados" está vazio/ausente.'); return; }
+    try{
+      casaFacilSCache = JSON.parse(raw);
+      console.info('[Casa Fácil] Carregado com sucesso. Obras encontradas:', (casaFacilSCache.obras||[]).length);
+    }catch(e){
+      console.warn('[Casa Fácil] Erro ao interpretar o JSON de dados/principal:', e.message);
+    }
+  }).catch(function(err){
+    console.warn('[Casa Fácil] Erro ao buscar dados/principal:', err.message);
+  });
   var p2 = db.collection('portal_marcos').get().then(function(snap){
     var mapa = {};
     snap.forEach(function(d){ mapa[d.id] = d.data(); });
     casaFacilMarcosCache = mapa;
-  }).catch(function(){});
+  }).catch(function(err){ console.warn('[Casa Fácil] Erro ao buscar portal_marcos:', err.message); });
   var p3 = db.collection('comprovantes_pendentes').get().then(function(snap){
     var arr = [];
     snap.forEach(function(d){ arr.push(d.data()); });
     casaFacilComprovantesCache = arr;
-  }).catch(function(){});
+  }).catch(function(err){ console.warn('[Casa Fácil] Erro ao buscar comprovantes_pendentes:', err.message); });
   casaFacilContextoPromise = Promise.all([p1,p2,p3]);
 }
 
