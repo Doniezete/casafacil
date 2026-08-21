@@ -2291,6 +2291,40 @@ function montarContextoDuvida(pergunta){
         return '- '+(c.formaNome||'')+' ('+(c.pontos||0)+' pts) — status: '+(c.status||'-')+' — enviado em '+fmtData(c.data)+(c.imagemUrl?' — link: '+c.imagemUrl:'');
       }).join('\n'));
     }
+
+    // Documentos administrativos anexados pra essa obra (contrato, PCI, etc.)
+    if(Array.isArray(casaFacilSCache.documentos)){
+      var docsObra = casaFacilSCache.documentos.filter(function(d){ return d.obraId===obraEncontrada.id; });
+      if(docsObra.length>0){
+        partes.push('DOCUMENTOS ADMINISTRATIVOS DESSA OBRA:\n'+docsObra.map(function(d){
+          var arquivos = Array.isArray(d.arquivos) ? d.arquivos : [];
+          var linhaArquivos = arquivos.length>0
+            ? arquivos.map(function(a){ return '    · '+(a.nome||'arquivo')+' — link: '+a.url; }).join('\n')
+            : '    (nenhum arquivo anexado ainda)';
+          return '- '+(d.nome||'documento')+(d.status?' — status: '+d.status:'')+'\n'+linhaArquivos;
+        }).join('\n'));
+      } else {
+        partes.push('DOCUMENTOS ADMINISTRATIVOS DESSA OBRA: nenhum documento cadastrado pra essa obra ainda.');
+      }
+    }
+
+    // Etapas construtivas físicas (fundação, alvenaria, etc.) — nomes livres, cada obra tem os seus
+    if(Array.isArray(casaFacilSCache.etapas)){
+      var etapasObra = casaFacilSCache.etapas.filter(function(e){ return e.obraId===obraEncontrada.id; })
+        .sort(function(a,b){ return (a.ordem||0)-(b.ordem||0); });
+      if(etapasObra.length>0){
+        var etapaAtual = etapasObra.find(function(e){ return e.status!=='concluida'; });
+        var linhasEtapas = etapasObra.map(function(e){
+          var icone = e.status==='concluida' ? '✅' : (e.status==='em-andamento' ? '🚧' : (e.status==='aguardando' ? '⏳' : '⬜'));
+          return '  '+icone+' '+(e.nome||'etapa')+' — status: '+(e.status||'-')+(e.prev?' — previsão: '+e.prev:'');
+        }).join('\n');
+        partes.push('ETAPAS CONSTRUTIVAS FÍSICAS DA OBRA (fase real da construção, diferente das etapas do portal do cliente):\n'
+          + 'Fase atual: '+(etapaAtual ? etapaAtual.nome+' (status: '+etapaAtual.status+')' : 'todas as etapas concluídas')+'\n'
+          + 'Lista completa, na ordem:\n'+linhasEtapas);
+      } else {
+        partes.push('ETAPAS CONSTRUTIVAS FÍSICAS DA OBRA: nenhuma etapa cadastrada ainda pra essa obra.');
+      }
+    }
   }
 
   // Sempre manda a lista de nomes de clientes cadastrados no Casa Fácil grande,
