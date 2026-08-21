@@ -2154,23 +2154,26 @@ var casaFacilSCache = null;
 var casaFacilMarcosCache = {};
 var casaFacilComprovantesCache = [];
 
+var casaFacilContextoPromise = null;
+
 function carregarContextoCasaFacilGrande(){
-  if(!db) return;
-  db.collection('dados').doc('principal').get().then(function(doc){
+  if(!db){ casaFacilContextoPromise = Promise.resolve(); return; }
+  var p1 = db.collection('dados').doc('principal').get().then(function(doc){
     if(doc.exists){
       try{ casaFacilSCache = JSON.parse(doc.data().dados); }catch(e){ console.warn('Nao foi possivel ler dados do Casa Facil:', e.message); }
     }
   }).catch(function(){});
-  db.collection('portal_marcos').get().then(function(snap){
+  var p2 = db.collection('portal_marcos').get().then(function(snap){
     var mapa = {};
     snap.forEach(function(d){ mapa[d.id] = d.data(); });
     casaFacilMarcosCache = mapa;
   }).catch(function(){});
-  db.collection('comprovantes_pendentes').get().then(function(snap){
+  var p3 = db.collection('comprovantes_pendentes').get().then(function(snap){
     var arr = [];
     snap.forEach(function(d){ arr.push(d.data()); });
     casaFacilComprovantesCache = arr;
   }).catch(function(){});
+  casaFacilContextoPromise = Promise.all([p1,p2,p3]);
 }
 
 /* Tenta adivinhar o "login" do cliente a partir do nome (não temos a fórmula exata
@@ -2289,12 +2292,16 @@ function enviarDuvida(){
   document.getElementById('duvidaInput').value = '';
   document.getElementById('duvidaCarregando').style.display = 'block';
 
-  var contexto = montarContextoDuvida(texto);
+  // Espera terminar de carregar os dados do Casa Fácil grande (obras/etapas/comprovantes)
+  // antes de montar o contexto — evita responder sem esses dados só por causa de timing.
+  Promise.resolve(casaFacilContextoPromise).then(function(){
+    var contexto = montarContextoDuvida(texto);
 
-  fetch(ANALISE_IA_URL,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({modo:'duvida_livre', mensagens:historicoDuvida, contexto:contexto})
+    return fetch(ANALISE_IA_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({modo:'duvida_livre', mensagens:historicoDuvida, contexto:contexto})
+    });
   }).then(function(r){
     if(!r.ok) return r.json().then(function(e){ throw new Error(e.error||('Resposta '+r.status)); });
     return r.json();
