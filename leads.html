@@ -2178,8 +2178,12 @@ function carregarContextoCasaFacilGrande(){
 
 /* Tenta adivinhar o "login" do cliente a partir do nome (não temos a fórmula exata
    do Casa Fácil grande, então tenta as variações mais comuns). */
+function removerAcentos(str){
+  return (str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
 function gerarCandidatosLogin(nome){
-  var norm = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').trim();
+  var norm = removerAcentos(nome).toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
   var partes = norm.split(/\s+/).filter(Boolean);
   var candidatos = [norm.replace(/\s+/g,'')];
   if(partes.length>0) candidatos.push(partes[0]);
@@ -2189,15 +2193,15 @@ function gerarCandidatosLogin(nome){
 
 function buscarObraCasaFacil(pergunta){
   if(!casaFacilSCache || !Array.isArray(casaFacilSCache.obras)) return null;
-  var perguntaLower = pergunta.toLowerCase();
+  var perguntaLower = removerAcentos(pergunta).toLowerCase();
   return casaFacilSCache.obras.find(function(o){
     if(!o.nome) return false;
-    return o.nome.split(' ').some(function(p){ return p.length>=3 && perguntaLower.indexOf(p.toLowerCase())!==-1; });
+    return o.nome.split(' ').some(function(p){ return p.length>=3 && perguntaLower.indexOf(removerAcentos(p).toLowerCase())!==-1; });
   });
 }
 
 function montarContextoDuvida(pergunta){
-  var perguntaLower = pergunta.toLowerCase();
+  var perguntaLower = removerAcentos(pergunta).toLowerCase();
   var partes = [];
 
   var resumoLeads = (leads||[]).slice(0,150).map(function(l){
@@ -2217,7 +2221,7 @@ function montarContextoDuvida(pergunta){
   var leadEncontrado = (leads||[]).find(function(l){
     if(!l.nome) return false;
     return l.nome.split(' ').some(function(palavra){
-      return palavra.length>=3 && perguntaLower.indexOf(palavra.toLowerCase())!==-1;
+      return palavra.length>=3 && perguntaLower.indexOf(removerAcentos(palavra).toLowerCase())!==-1;
     });
   });
   if(leadEncontrado){
@@ -2276,6 +2280,14 @@ function montarContextoDuvida(pergunta){
         return '- '+(c.formaNome||'')+' ('+(c.pontos||0)+' pts) — status: '+(c.status||'-')+' — enviado em '+fmtData(c.data)+(c.imagemUrl?' — link: '+c.imagemUrl:'');
       }).join('\n'));
     }
+  }
+
+  // Sempre manda a lista de nomes de clientes cadastrados no Casa Fácil grande,
+  // mesmo sem match — ajuda a IA a diferenciar "não encontrei esse nome" de
+  // "não tenho acesso ao sistema" (que são coisas bem diferentes).
+  if(casaFacilSCache && Array.isArray(casaFacilSCache.obras)){
+    var nomesObras = casaFacilSCache.obras.map(function(o){ return o.nome; }).filter(Boolean);
+    partes.push('VOCÊ TEM ACESSO AO SISTEMA CASA FÁCIL (obras/clientes). Nomes de clientes cadastrados lá: '+(nomesObras.join(', ')||'(nenhum)')+'. Se o nome mencionado na pergunta não estiver nessa lista, diga que não achou esse cliente cadastrado (pode ser erro de digitação) — nunca diga que não tem acesso ao sistema, porque você tem.');
   }
 
   return partes.join('\n\n');
