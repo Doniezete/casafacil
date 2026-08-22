@@ -2168,9 +2168,6 @@ function carregarContextoCasaFacilGrande(){
     try{
       casaFacilSCache = JSON.parse(raw);
       console.info('[Casa Fácil] Carregado com sucesso. Obras encontradas:', (casaFacilSCache.obras||[]).length);
-      console.info('[Casa Fácil] Chaves disponíveis no objeto S:', Object.keys(casaFacilSCache));
-      console.info('[Casa Fácil] documentos existe?', Array.isArray(casaFacilSCache.documentos), '— quantidade:', (casaFacilSCache.documentos||[]).length);
-      console.info('[Casa Fácil] etapas existe?', Array.isArray(casaFacilSCache.etapas), '— quantidade:', (casaFacilSCache.etapas||[]).length);
     }catch(e){
       console.warn('[Casa Fácil] Erro ao interpretar o JSON de dados/principal:', e.message);
     }
@@ -2300,11 +2297,14 @@ function montarContextoDuvida(pergunta){
       var docsObra = casaFacilSCache.documentos.filter(function(d){ return d.obraId===obraEncontrada.id; });
       if(docsObra.length>0){
         partes.push('DOCUMENTOS ADMINISTRATIVOS DESSA OBRA:\n'+docsObra.map(function(d){
-          var arquivos = Array.isArray(d.arquivos) ? d.arquivos : [];
+          // Suporta o formato novo (arquivos: []) e o formato antigo (arquivoURL/arquivoNome, um só)
+          var arquivos = Array.isArray(d.arquivos) ? d.arquivos.slice() : [];
+          if(arquivos.length===0 && d.arquivoURL){ arquivos.push({nome: d.arquivoNome || 'arquivo', url: d.arquivoURL}); }
+          var statusLabel = d.status==='feito' ? 'anexado/concluído' : 'pendente';
           var linhaArquivos = arquivos.length>0
             ? arquivos.map(function(a){ return '    · '+(a.nome||'arquivo')+' — link: '+a.url; }).join('\n')
             : '    (nenhum arquivo anexado ainda)';
-          return '- '+(d.nome||'documento')+(d.status?' — status: '+d.status:'')+'\n'+linhaArquivos;
+          return '- '+(d.tipo||'documento sem tipo definido')+' — status: '+statusLabel+(d.prazo?' — prazo: '+fmtData(d.prazo):'')+'\n'+linhaArquivos;
         }).join('\n'));
       } else {
         partes.push('DOCUMENTOS ADMINISTRATIVOS DESSA OBRA: nenhum documento cadastrado pra essa obra ainda.');
