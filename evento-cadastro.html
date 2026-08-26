@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Casa Fácil — Cadastro do Evento</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#0f1420;--card:#161d2e;--bd:#2a3454;--ac:#f59e0b;--ac2:#f97316;
+  --tx:#eef1f8;--tx2:#e2e8f2;--mut:#8b94ad;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);padding:16px;min-height:100vh}
+.wrap{max-width:480px;margin:0 auto}
+.logo{font-size:24px;font-weight:800;color:var(--ac);margin-bottom:2px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--tx2);margin-bottom:6px;font-weight:600}
+input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:#0c111c;color:var(--tx);font-size:16px;margin-bottom:14px}
+input:focus,select:focus{outline:none;border-color:var(--ac)}
+.linha2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toggle{display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;font-size:14px;color:var(--tx2)}
+.toggle input{width:auto;margin:0}
+.total-box{background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:12px;margin-bottom:14px;text-align:center}
+.total-box .valor{font-size:22px;font-weight:800;color:var(--ac)}
+.btn{width:100%;padding:16px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#1a1206;font-weight:700;font-size:16px;cursor:pointer}
+.btn:active{opacity:.85}
+.status{text-align:center;padding:14px;border-radius:10px;margin-bottom:14px;font-size:14px;display:none}
+.status.ok{background:rgba(34,197,94,.15);color:#4ade80;display:block}
+.status.erro{background:rgba(239,68,68,.15);color:#f87171;display:block}
+.contador{text-align:center;color:var(--mut);font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">CASA FÁCIL</div>
+  <div class="sub">Cadastro rápido — Evento [Nome do Loteamento]</div>
+
+  <div id="status" class="status"></div>
+
+  <div class="card">
+    <label>Nome completo *</label>
+    <input type="text" id="f_nome" placeholder="Nome da pessoa"/>
+
+    <label>Telefone (WhatsApp) *</label>
+    <input type="tel" id="f_telefone" placeholder="(19) 99999-9999" oninput="fmtTelefone(this)"/>
+
+    <label>CPF</label>
+    <input type="text" id="f_cpf" placeholder="000.000.000-00" oninput="fmtCPF(this)"/>
+
+    <label>Endereço</label>
+    <input type="text" id="f_endereco" placeholder="Rua, número, bairro, cidade"/>
+
+    <label class="toggle">
+      <input type="checkbox" id="f_temConjuge" onchange="alternarConjuge()"/>
+      Tem renda do cônjuge/companheiro(a) pra somar?
+    </label>
+
+    <label>Renda do titular (R$) *</label>
+    <input type="number" id="f_renda1" placeholder="0,00" oninput="atualizarTotal()"/>
+
+    <div id="boxConjuge" style="display:none">
+      <label>Renda do cônjuge (R$)</label>
+      <input type="number" id="f_renda2" placeholder="0,00" oninput="atualizarTotal()"/>
+    </div>
+
+    <div class="total-box">
+      <div style="font-size:12px;color:var(--mut);margin-bottom:4px">Renda familiar total</div>
+      <div class="valor" id="totalRenda">R$ 0,00</div>
+    </div>
+
+    <label>Nome de quem está atendendo (opcional)</label>
+    <input type="text" id="f_atendente" placeholder="Seu nome"/>
+
+    <button class="btn" onclick="salvarCadastro()">✅ Salvar e cadastrar próxima pessoa</button>
+  </div>
+
+  <div class="contador" id="contador"></div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBZGILaMIHssrQaQz_ZTLH0ilWV1_kkMi0",
+  authDomain: "casa-facil-4aef8.firebaseapp.com",
+  projectId: "casa-facil-4aef8",
+  storageBucket: "casa-facil-4aef8.firebasestorage.app",
+  messagingSenderId: "244246614237",
+  appId: "1:244246614237:web:45cc6e0db81559aed7cb34"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let totalSalvos = 0;
+
+function fmtTelefone(el){
+  var v = el.value.replace(/\D/g,'').substring(0,11);
+  if(v.length<=2) el.value = v;
+  else if(v.length<=7) el.value = '('+v.slice(0,2)+') '+v.slice(2);
+  else el.value = '('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);
+}
+function fmtCPF(el){
+  var v = el.value.replace(/\D/g,'').substring(0,11);
+  if(v.length<=3) el.value = v;
+  else if(v.length<=6) el.value = v.slice(0,3)+'.'+v.slice(3);
+  else if(v.length<=9) el.value = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);
+  else el.value = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9);
+}
+function alternarConjuge(){
+  var marcado = document.getElementById('f_temConjuge').checked;
+  document.getElementById('boxConjuge').style.display = marcado ? 'block' : 'none';
+  if(!marcado){ document.getElementById('f_renda2').value=''; }
+  atualizarTotal();
+}
+function atualizarTotal(){
+  var r1 = parseFloat(document.getElementById('f_renda1').value)||0;
+  var r2 = document.getElementById('f_temConjuge').checked ? (parseFloat(document.getElementById('f_renda2').value)||0) : 0;
+  var total = r1+r2;
+  document.getElementById('totalRenda').textContent = 'R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+
+function mostrarStatus(msg, tipo){
+  var el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status '+tipo;
+  setTimeout(function(){ el.className='status'; }, 4000);
+}
+
+function salvarCadastro(){
+  var nome = document.getElementById('f_nome').value.trim();
+  var telefone = document.getElementById('f_telefone').value.trim();
+  var renda1 = parseFloat(document.getElementById('f_renda1').value)||0;
+  if(!nome || !telefone){ mostrarStatus('⚠️ Preencha ao menos nome e telefone.', 'erro'); return; }
+  if(!renda1){ mostrarStatus('⚠️ Preencha a renda do titular.', 'erro'); return; }
+
+  var renda2 = document.getElementById('f_temConjuge').checked ? (parseFloat(document.getElementById('f_renda2').value)||0) : 0;
+
+  var dados = {
+    nome: nome,
+    telefone: telefone,
+    cpf: document.getElementById('f_cpf').value.trim(),
+    endereco: document.getElementById('f_endereco').value.trim(),
+    rendaTitular: renda1,
+    rendaConjuge: renda2,
+    rendaTotal: renda1+renda2,
+    atendente: document.getElementById('f_atendente').value.trim(),
+    status: 'pendente',
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  db.collection('evento_precadastros').doc().set(dados).then(function(){
+    totalSalvos++;
+    document.getElementById('contador').textContent = totalSalvos+' cadastro(s) enviado(s) nessa sessão';
+    mostrarStatus('✅ '+nome+' cadastrado(a)! Pode atender a próxima pessoa.', 'ok');
+    // limpa o formulário, mantém o nome do atendente preenchido
+    document.getElementById('f_nome').value='';
+    document.getElementById('f_telefone').value='';
+    document.getElementById('f_cpf').value='';
+    document.getElementById('f_endereco').value='';
+    document.getElementById('f_temConjuge').checked=false;
+    document.getElementById('f_renda1').value='';
+    document.getElementById('f_renda2').value='';
+    document.getElementById('boxConjuge').style.display='none';
+    atualizarTotal();
+    document.getElementById('f_nome').focus();
+  }).catch(function(err){
+    mostrarStatus('❌ Erro ao salvar: '+err.message, 'erro');
+  });
+}
+</script>
+</body>
+</html>
