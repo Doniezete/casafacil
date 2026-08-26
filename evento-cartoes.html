@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Casa Fácil — Cartões do Evento</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
@@ -13,9 +14,9 @@
   --tx:#eef1f8;--tx2:#e2e8f2;--mut:#8b94ad;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);padding:16px}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);padding:16px}
 .wrap{max-width:640px;margin:0 auto}
-.logo{font-size:22px;font-weight:800;color:var(--ac);margin-bottom:2px}
+.logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--ac);margin-bottom:2px}
 .sub{color:var(--mut);font-size:13px;margin-bottom:18px}
 .btn{padding:9px 14px;border-radius:9px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:13px;font-weight:600;cursor:pointer}
 .btn.ac{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#1a1206;border:none}
@@ -24,26 +25,34 @@ body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg)
 .lista-item .info{color:var(--mut);font-size:12px;margin-top:2px}
 .tag-usado{font-size:11px;color:#4ade80;border:1px solid #1f5c3a;border-radius:999px;padding:2px 8px}
 
-/* CARTÃO — visível só quando um cadastro é selecionado */
-#overlayCartao{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+#overlayCartao{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 #overlayCartao.show{display:flex}
-.cartao{width:340px;background:linear-gradient(135deg,#1a2340,#0f1420);border:2px solid var(--ac);border-radius:18px;padding:22px;position:relative}
-.cartao .logoCard{font-size:20px;font-weight:800;color:var(--ac)}
-.cartao .tagline{font-size:10px;color:var(--mut);margin-bottom:14px}
-.cartao .nomeCliente{font-size:17px;font-weight:700;margin:10px 0 4px}
-.cartao .pontos{background:rgba(245,158,11,.15);border:1px dashed var(--ac);border-radius:10px;padding:10px;text-align:center;margin:12px 0}
-.cartao .pontos b{font-size:22px;color:var(--ac)}
-.cartao p{font-size:12px;color:var(--tx2);line-height:1.5;margin-bottom:8px}
-.cartao .qr{text-align:center;margin-top:14px}
-.cartao .validade{font-size:10px;color:var(--mut);text-align:center;margin-top:8px}
-.fechar-cartao{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--mut);font-size:20px;cursor:pointer}
-.acoes-cartao{display:flex;gap:8px;margin-top:16px;justify-content:center}
+
+/* CARTÃO — visual no mesmo espírito do mini-site */
+.cartao{width:340px;background:linear-gradient(160deg,#1a2340,#0c0f1a);border:2px solid var(--ac);border-radius:20px;padding:0;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.cartao-topo{padding:20px 20px 14px}
+.cartao .logoCard{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;color:var(--ac)}
+.cartao .tagline{font-size:10px;color:var(--mut);margin-bottom:10px}
+.cartao .ribbon-lote{display:inline-block;background:linear-gradient(90deg,var(--ac),var(--ac2));color:#1a1206;font-family:'Syne',sans-serif;font-weight:800;font-size:11px;padding:5px 12px;border-radius:999px;margin-bottom:10px}
+.cartao .nomeCliente{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin:6px 0 4px}
+.cartao .pontos{background:rgba(245,158,11,.15);border:1px dashed var(--ac);border-radius:12px;padding:12px;text-align:center;margin:12px 20px}
+.cartao .pontos b{font-family:'Syne',sans-serif;font-size:24px;color:var(--ac);display:block;margin-top:2px}
+.cartao p{font-size:12px;color:var(--tx2);line-height:1.5}
+.cartao-meio{padding:0 20px}
+.cartao .qr-box{background:#fff;border-radius:12px;padding:12px;text-align:center;margin:14px 20px 6px}
+.cartao .qr-legenda{font-size:11px;color:var(--ac);font-weight:700;text-align:center;margin-top:2px}
+.cartao .validade{font-size:10px;color:var(--mut);text-align:center;margin:8px 20px 0}
+.cartao .indicacao-box{background:rgba(34,197,94,.1);border-top:1px solid #1f5c3a;padding:14px 20px;margin-top:16px}
+.cartao .indicacao-box .titulo{font-family:'Syne',sans-serif;font-size:12.5px;font-weight:800;color:#4ade80;margin-bottom:4px}
+.cartao-rodape{background:#0c0f1a;padding:10px 20px;text-align:center;font-size:10px;color:var(--mut)}
+.fechar-cartao{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--mut);font-size:22px;cursor:pointer;z-index:2}
+.acoes-cartao{display:flex;gap:8px;margin:16px 20px 20px;justify-content:center}
 
 @media print{
   body *{visibility:hidden}
   #overlayCartao, #overlayCartao *{visibility:visible}
   #overlayCartao{position:absolute;top:0;left:0;background:#fff}
-  .cartao{background:#0f1420 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cartao{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .fechar-cartao,.acoes-cartao{display:none}
 }
 </style>
@@ -51,7 +60,7 @@ body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg)
 <body>
 <div class="wrap">
   <div class="logo">CASA FÁCIL</div>
-  <div class="sub">Cartões de bônus — Evento [Nome do Loteamento]</div>
+  <div class="sub">Cartões de bônus — Evento Jardim Ranzani</div>
   <button class="btn" onclick="carregarLista()" style="margin-bottom:14px">🔁 Atualizar lista</button>
   <div id="lista"></div>
 </div>
@@ -59,14 +68,30 @@ body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg)
 <div id="overlayCartao">
   <div class="cartao" id="cartaoConteudo">
     <button class="fechar-cartao" onclick="fecharCartao()">×</button>
-    <div class="logoCard">CASA FÁCIL</div>
-    <div class="tagline">Construção + Financiamento, do jeito mais fácil</div>
-    <div class="nomeCliente" id="cartaoNome">Nome</div>
-    <p>Você acaba de conhecer o <b>[Nome do Loteamento]</b> e a Casa Fácil. A partir de agora, você já tem acesso ao nosso <b>Portal de Bônus</b>: acumule pontos em cada etapa da sua jornada até a casa própria, e troque por porta de alumínio, piso, gabinete e muito mais.</p>
-    <div class="pontos">Ao fechar o terreno ou a construção com a gente, você já garante <b>+50 pontos</b> de bônus</div>
-    <div class="qr" id="cartaoQR"></div>
-    <div style="text-align:center;font-size:11px;color:var(--ac);font-weight:700;margin-top:6px">📲 Escaneie e conheça a Casa Fácil</div>
-    <div class="validade">Válido por 30 dias a partir de hoje</div>
+
+    <div class="cartao-topo">
+      <div class="logoCard">CASA FÁCIL</div>
+      <div class="tagline">Construção + Financiamento, do jeito mais fácil</div>
+      <div class="ribbon-lote">🏆 JARDIM RANZANI</div>
+      <div class="nomeCliente" id="cartaoNome">Nome</div>
+      <p>Você acaba de conhecer a Casa Fácil no maior loteamento da cidade. A partir de agora, você já tem acesso ao nosso <b>Portal de Bônus</b>: acumule pontos em cada etapa da sua jornada até a casa própria.</p>
+    </div>
+
+    <div class="pontos">Ao fechar o terreno ou a construção com a gente, você já garante<b>+50 pontos de bônus</b></div>
+
+    <div class="cartao-meio">
+      <div class="qr-box" id="cartaoQR"></div>
+      <div class="qr-legenda">📲 Escaneie e conheça a Casa Fácil</div>
+      <div class="validade">Bônus válido por 1 mês a partir de hoje</div>
+    </div>
+
+    <div class="indicacao-box">
+      <div class="titulo">🎁 Conhece alguém que também sonha com a casa própria?</div>
+      <p>Mostre esse mesmo QR code pra essa pessoa. Se ela mencionar seu nome ao fechar com a gente, <b>vocês dois ganham bônus</b> — o seu e o dela.</p>
+    </div>
+
+    <div class="cartao-rodape">(19) 99594-8982 · @casafacilprojetoseconstrucao</div>
+
     <div class="acoes-cartao">
       <button class="btn ac" onclick="window.print()">🖨️ Imprimir</button>
     </div>
@@ -85,8 +110,10 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// TROQUE pelo link real do portal do cliente (ou seu WhatsApp) antes do evento
-const LINK_QR = "https://doniezete.github.io/casafacil/evento-site.html";
+// URL base do mini-site do evento — cada cartão ganha um link personalizado
+// (?ref=nome), pra que, se essa pessoa mostrar o cartão pra um amigo, o amigo
+// já chegue no site sabendo quem indicou.
+const SITE_BASE = "https://doniezete.github.io/casafacil/evento-site.html";
 
 function carregarLista(){
   document.getElementById('lista').innerHTML = '<div style="color:var(--mut);font-size:13px">Carregando...</div>';
@@ -113,10 +140,16 @@ function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').repla
 function abrirCartao(id, nome){
   document.getElementById('cartaoNome').textContent = nome || 'Cliente';
   document.getElementById('overlayCartao').classList.add('show');
-  document.getElementById('cartaoQR').innerHTML='';
-  QRCode.toCanvas(document.createElement('canvas'), LINK_QR, {width:120, margin:1}, function(err, canvas){
-    if(!err) document.getElementById('cartaoQR').appendChild(canvas);
+
+  var linkPersonalizado = SITE_BASE + '?ref=' + encodeURIComponent(nome || '');
+  var qrBox = document.getElementById('cartaoQR');
+  qrBox.innerHTML = '';
+  var canvas = document.createElement('canvas');
+  QRCode.toCanvas(canvas, linkPersonalizado, {width:150, margin:1}, function(err){
+    if(!err){ qrBox.appendChild(canvas); }
+    else{ qrBox.innerHTML = '<div style="color:#c00;font-size:11px">Erro ao gerar QR: '+err.message+'</div>'; }
   });
+
   // marca como cartão já gerado, pra facilitar controle de quem já recebeu
   db.collection('evento_precadastros').doc(id).set({cartaoImpresso:true}, {merge:true}).then(carregarLista);
 }
