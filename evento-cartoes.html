@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root{
   --bg:#0f1420;--card:#161d2e;--bd:#2a3454;--ac:#f59e0b;--ac2:#f97316;
@@ -143,12 +142,10 @@ function abrirCartao(id, nome){
 
   var linkPersonalizado = SITE_BASE + '?ref=' + encodeURIComponent(nome || '');
   var qrBox = document.getElementById('cartaoQR');
-  qrBox.innerHTML = '';
-  var canvas = document.createElement('canvas');
-  QRCode.toCanvas(canvas, linkPersonalizado, {width:150, margin:1}, function(err){
-    if(!err){ qrBox.appendChild(canvas); }
-    else{ qrBox.innerHTML = '<div style="color:#c00;font-size:11px">Erro ao gerar QR: '+err.message+'</div>'; }
-  });
+  // Gera o QR direto como imagem pronta (sem depender de nenhuma biblioteca de JS
+  // que possa ser bloqueada pela proteção de rastreamento de alguns navegadores).
+  var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=8&data=' + encodeURIComponent(linkPersonalizado);
+  qrBox.innerHTML = '<img src="'+qrUrl+'" width="150" height="150" alt="QR code" style="display:block;margin:0 auto;border-radius:6px"/>';
 
   // marca como cartão já gerado, pra facilitar controle de quem já recebeu
   db.collection('evento_precadastros').doc(id).set({cartaoImpresso:true}, {merge:true}).then(carregarLista);
