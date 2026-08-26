@@ -639,25 +639,59 @@ function abrirPreCadastrosEvento(){
   });
 }
 
+function preencherSeExiste(id, valor){
+  if(valor===undefined || valor===null || valor==='') return;
+  var el = document.getElementById(id);
+  if(el) el.value = valor;
+}
+
 function selecionarPreCadastroEvento(id){
   leadsDb.collection('evento_precadastros').doc(id).get().then(function(doc){
     if(!doc.exists) return;
     var d = doc.data();
-    if(d.nome) document.getElementById('nome').value = d.nome;
-    if(d.telefone){ document.getElementById('telefone').value = d.telefone; }
-    if(d.cpf){ document.getElementById('cpf').value = d.cpf; }
+
+    // Dados pessoais
+    preencherSeExiste('nome', d.nome);
+    preencherSeExiste('telefone', d.telefone);
+    preencherSeExiste('cpf', d.cpf);
+    preencherSeExiste('nascimento', d.nascimento);
+    if(typeof calcIdade==='function') calcIdade();
+    preencherSeExiste('profissao', d.profissao);
+    preencherSeExiste('civil', d.civil);
+
+    // Endereço
+    preencherSeExiste('rua', d.rua);
+    preencherSeExiste('bairro', d.bairro);
+    preencherSeExiste('cep', d.cep);
+    preencherSeExiste('cidade_cliente', d.cidade);
+    preencherSeExiste('uf_cliente', d.uf);
+
+    // Financiamento
+    if(d.imovel){ preencherSeExiste('imovel', d.imovel); if(typeof checkImovel==='function') checkImovel(); }
+    if(d.dependente){ preencherSeExiste('dep', d.dependente); if(typeof toggleDep==='function') toggleDep(); }
+    preencherSeExiste('dep_renda', d.dependenteRenda);
+    preencherSeExiste('fgts', d.fgts);
     if(d.rendaTotal){
-      var el = document.getElementById('renda');
-      el.value = Math.round(d.rendaTotal*100).toString();
-      fmtM(el);
-      if(typeof atualizarFinanciamento==='function') atualizarFinanciamento();
+      var elRenda = document.getElementById('renda');
+      elRenda.value = Math.round(d.rendaTotal*100).toString();
+      fmtM(elRenda);
     }
+
+    // Terreno
+    if(d.temTerreno){ preencherSeExiste('tem_terreno', d.temTerreno); if(typeof toggleTerreno==='function') toggleTerreno(); }
+    preencherSeExiste('t_lote', d.tLote);
+    preencherSeExiste('t_quadra', d.tQuadra);
+    preencherSeExiste('t_area', d.tArea);
+    preencherSeExiste('t_rua', d.tRua);
+    preencherSeExiste('t_bairro', d.tBairro);
+    preencherSeExiste('t_cep_terreno', d.tCep);
+    preencherSeExiste('t_cidade', d.tCidade);
+
+    if(typeof atualizarFinanciamento==='function') atualizarFinanciamento();
+
     document.getElementById('overlayPreCadastros').style.display='none';
     // marca como usado, pra não aparecer de novo na lista pra outra pessoa
     leadsDb.collection('evento_precadastros').doc(id).set({status:'usado'}, {merge:true});
-    if(d.endereco){
-      setTimeout(function(){ alert('📍 Endereço informado no evento:\n'+d.endereco+'\n\nDigite nos campos de endereço mais abaixo, se for relevante pra esse financiamento.'); }, 300);
-    }
   });
 }
 function parseM(el){var v=el.value.replace(/\./g,'').replace(',','.');return parseFloat(v)||0;}

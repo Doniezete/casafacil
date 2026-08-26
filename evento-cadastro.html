@@ -15,8 +15,10 @@
 body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);padding:16px;min-height:100vh}
 .wrap{max-width:480px;margin:0 auto}
 .logo{font-size:24px;font-weight:800;color:var(--ac);margin-bottom:2px}
-.sub{color:var(--mut);font-size:13px;margin-bottom:20px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:18px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:14px}
+.sec-title{color:var(--ac);font-weight:700;font-size:13px;margin:4px 0 12px;padding-top:10px;border-top:1px solid var(--bd)}
+.sec-title:first-child{padding-top:0;border-top:none}
 label{display:block;font-size:13px;color:var(--tx2);margin-bottom:6px;font-weight:600}
 input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:#0c111c;color:var(--tx);font-size:16px;margin-bottom:14px}
 input:focus,select:focus{outline:none;border-color:var(--ac)}
@@ -31,27 +33,110 @@ input:focus,select:focus{outline:none;border-color:var(--ac)}
 .status.ok{background:rgba(34,197,94,.15);color:#4ade80;display:block}
 .status.erro{background:rgba(239,68,68,.15);color:#f87171;display:block}
 .contador{text-align:center;color:var(--mut);font-size:12px;margin-top:10px}
+.terreno-box{display:none;background:#0c111c;border:1px dashed var(--bd);border-radius:10px;padding:12px;margin-bottom:14px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="logo">CASA FÁCIL</div>
-  <div class="sub">Cadastro rápido — Evento [Nome do Loteamento]</div>
+  <div class="sub">Cadastro rápido — Evento Jardim Ranzani</div>
 
   <div id="status" class="status"></div>
 
   <div class="card">
+    <div class="sec-title">👤 Dados Pessoais</div>
     <label>Nome completo *</label>
     <input type="text" id="f_nome" placeholder="Nome da pessoa"/>
 
-    <label>Telefone (WhatsApp) *</label>
-    <input type="tel" id="f_telefone" placeholder="(19) 99999-9999" oninput="fmtTelefone(this)"/>
+    <div class="linha2">
+      <div>
+        <label>Telefone (WhatsApp) *</label>
+        <input type="tel" id="f_telefone" placeholder="(19) 99999-9999" oninput="fmtTelefone(this)"/>
+      </div>
+      <div>
+        <label>CPF</label>
+        <input type="text" id="f_cpf" placeholder="000.000.000-00" oninput="fmtCPF(this)"/>
+      </div>
+    </div>
 
-    <label>CPF</label>
-    <input type="text" id="f_cpf" placeholder="000.000.000-00" oninput="fmtCPF(this)"/>
+    <div class="linha2">
+      <div>
+        <label>Data de nascimento</label>
+        <input type="date" id="f_nascimento"/>
+      </div>
+      <div>
+        <label>Profissão</label>
+        <input type="text" id="f_profissao" placeholder="Ex: Professora"/>
+      </div>
+    </div>
 
-    <label>Endereço</label>
-    <input type="text" id="f_endereco" placeholder="Rua, número, bairro, cidade"/>
+    <label>Estado civil</label>
+    <select id="f_civil">
+      <option value="">Selecione...</option>
+      <option value="solteiro">Solteiro(a)</option>
+      <option value="casado">Casado(a)</option>
+      <option value="uniao">União Estável</option>
+      <option value="divorciado">Divorciado(a)</option>
+      <option value="viuvo">Viúvo(a)</option>
+    </select>
+
+    <div class="sec-title">📍 Endereço</div>
+    <label>Rua e número</label>
+    <input type="text" id="f_rua" placeholder="Ex: Rua das Flores, 123"/>
+
+    <div class="linha2">
+      <div>
+        <label>Bairro</label>
+        <input type="text" id="f_bairro" placeholder="Ex: Centro"/>
+      </div>
+      <div>
+        <label>CEP</label>
+        <input type="text" id="f_cep" placeholder="00000-000" oninput="fmtCEP(this)"/>
+      </div>
+    </div>
+
+    <div class="linha2">
+      <div>
+        <label>Cidade</label>
+        <input type="text" id="f_cidade" placeholder="Ex: Vargem Grande do Sul"/>
+      </div>
+      <div>
+        <label>UF</label>
+        <select id="f_uf">
+          <option value="SP">SP</option><option value="MG">MG</option><option value="RJ">RJ</option>
+          <option value="PR">PR</option><option value="SC">SC</option><option value="RS">RS</option>
+          <option value="MS">MS</option><option value="MT">MT</option><option value="GO">GO</option>
+          <option value="BA">BA</option><option value="outro">Outro</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sec-title">📋 Informações pro Financiamento</div>
+
+    <label>Já possui imóvel registrado no nome dela?</label>
+    <select id="f_imovel">
+      <option value="nao">Não</option>
+      <option value="sim">Sim</option>
+    </select>
+
+    <label>Possui dependente na proposta? (cônjuge ou filho menor de 18)</label>
+    <select id="f_dependente" onchange="alternarDependenteRenda()">
+      <option value="nao">Não</option>
+      <option value="sim">Sim</option>
+    </select>
+    <div id="boxDependenteRenda" style="display:none">
+      <label>O dependente tem renda registrada em carteira?</label>
+      <select id="f_dependenteRenda">
+        <option value="nao">Não</option>
+        <option value="sim">Sim</option>
+      </select>
+    </div>
+
+    <label>Tem 3 anos de trabalho com carteira assinada (FGTS)?</label>
+    <select id="f_fgts">
+      <option value="sim">Sim</option>
+      <option value="nao">Não</option>
+    </select>
 
     <label class="toggle">
       <input type="checkbox" id="f_temConjuge" onchange="alternarConjuge()"/>
@@ -71,6 +156,43 @@ input:focus,select:focus{outline:none;border-color:var(--ac)}
       <div class="valor" id="totalRenda">R$ 0,00</div>
     </div>
 
+    <div class="sec-title">🏠 Terreno</div>
+    <label>Já possui terreno?</label>
+    <select id="f_temTerreno" onchange="alternarTerreno()">
+      <option value="nao">Não — precisa adquirir</option>
+      <option value="sim">Sim — já possui (ex: aqui no Jardim Ranzani)</option>
+    </select>
+
+    <div class="terreno-box" id="boxTerreno">
+      <div class="linha2">
+        <div>
+          <label>Lote</label>
+          <input type="text" id="f_tLote" placeholder="Ex: 14"/>
+        </div>
+        <div>
+          <label>Quadra</label>
+          <input type="text" id="f_tQuadra" placeholder="Ex: 7"/>
+        </div>
+      </div>
+      <label>Área do terreno (m²)</label>
+      <input type="number" id="f_tArea" placeholder="Ex: 200"/>
+      <label>Endereço do terreno (rua e número)</label>
+      <input type="text" id="f_tRua" placeholder="Ex: Rua das Palmeiras, 45"/>
+      <div class="linha2">
+        <div>
+          <label>Bairro do terreno</label>
+          <input type="text" id="f_tBairro" placeholder="Ex: Jardim Ranzani"/>
+        </div>
+        <div>
+          <label>CEP do terreno</label>
+          <input type="text" id="f_tCep" placeholder="00000-000" oninput="fmtCEP(this)"/>
+        </div>
+      </div>
+      <label>Cidade do terreno</label>
+      <input type="text" id="f_tCidade" placeholder="Ex: Vargem Grande do Sul"/>
+    </div>
+
+    <div class="sec-title">✍️ Atendimento</div>
     <label>Nome de quem está atendendo (opcional)</label>
     <input type="text" id="f_atendente" placeholder="Seu nome"/>
 
@@ -107,11 +229,21 @@ function fmtCPF(el){
   else if(v.length<=9) el.value = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);
   else el.value = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9);
 }
+function fmtCEP(el){
+  var v = el.value.replace(/\D/g,'').substring(0,8);
+  el.value = v.length<=5 ? v : v.slice(0,5)+'-'+v.slice(5);
+}
 function alternarConjuge(){
   var marcado = document.getElementById('f_temConjuge').checked;
   document.getElementById('boxConjuge').style.display = marcado ? 'block' : 'none';
   if(!marcado){ document.getElementById('f_renda2').value=''; }
   atualizarTotal();
+}
+function alternarDependenteRenda(){
+  document.getElementById('boxDependenteRenda').style.display = document.getElementById('f_dependente').value==='sim' ? 'block' : 'none';
+}
+function alternarTerreno(){
+  document.getElementById('boxTerreno').style.display = document.getElementById('f_temTerreno').value==='sim' ? 'block' : 'none';
 }
 function atualizarTotal(){
   var r1 = parseFloat(document.getElementById('f_renda1').value)||0;
@@ -127,6 +259,8 @@ function mostrarStatus(msg, tipo){
   setTimeout(function(){ el.className='status'; }, 4000);
 }
 
+function limparCampo(id){ document.getElementById(id).value=''; }
+
 function salvarCadastro(){
   var nome = document.getElementById('f_nome').value.trim();
   var telefone = document.getElementById('f_telefone').value.trim();
@@ -140,10 +274,29 @@ function salvarCadastro(){
     nome: nome,
     telefone: telefone,
     cpf: document.getElementById('f_cpf').value.trim(),
-    endereco: document.getElementById('f_endereco').value.trim(),
+    nascimento: document.getElementById('f_nascimento').value,
+    profissao: document.getElementById('f_profissao').value.trim(),
+    civil: document.getElementById('f_civil').value,
+    rua: document.getElementById('f_rua').value.trim(),
+    bairro: document.getElementById('f_bairro').value.trim(),
+    cep: document.getElementById('f_cep').value.trim(),
+    cidade: document.getElementById('f_cidade').value.trim(),
+    uf: document.getElementById('f_uf').value,
+    imovel: document.getElementById('f_imovel').value,
+    dependente: document.getElementById('f_dependente').value,
+    dependenteRenda: document.getElementById('f_dependenteRenda').value,
+    fgts: document.getElementById('f_fgts').value,
     rendaTitular: renda1,
     rendaConjuge: renda2,
     rendaTotal: renda1+renda2,
+    temTerreno: document.getElementById('f_temTerreno').value,
+    tLote: document.getElementById('f_tLote').value.trim(),
+    tQuadra: document.getElementById('f_tQuadra').value.trim(),
+    tArea: document.getElementById('f_tArea').value,
+    tRua: document.getElementById('f_tRua').value.trim(),
+    tBairro: document.getElementById('f_tBairro').value.trim(),
+    tCep: document.getElementById('f_tCep').value.trim(),
+    tCidade: document.getElementById('f_tCidade').value.trim(),
     atendente: document.getElementById('f_atendente').value.trim(),
     status: 'pendente',
     criadoEm: firebase.firestore.FieldValue.serverTimestamp()
@@ -153,15 +306,18 @@ function salvarCadastro(){
     totalSalvos++;
     document.getElementById('contador').textContent = totalSalvos+' cadastro(s) enviado(s) nessa sessão';
     mostrarStatus('✅ '+nome+' cadastrado(a)! Pode atender a próxima pessoa.', 'ok');
-    // limpa o formulário, mantém o nome do atendente preenchido
-    document.getElementById('f_nome').value='';
-    document.getElementById('f_telefone').value='';
-    document.getElementById('f_cpf').value='';
-    document.getElementById('f_endereco').value='';
+    // limpa o formulário, mantém o nome do atendente e a cidade (repetem bastante)
+    ['f_nome','f_telefone','f_cpf','f_nascimento','f_profissao','f_rua','f_bairro','f_cep',
+     'f_renda1','f_renda2','f_tLote','f_tQuadra','f_tArea','f_tRua','f_tBairro','f_tCep'].forEach(limparCampo);
+    document.getElementById('f_civil').value='';
+    document.getElementById('f_imovel').value='nao';
+    document.getElementById('f_dependente').value='nao';
+    document.getElementById('f_fgts').value='sim';
     document.getElementById('f_temConjuge').checked=false;
-    document.getElementById('f_renda1').value='';
-    document.getElementById('f_renda2').value='';
+    document.getElementById('f_temTerreno').value='nao';
     document.getElementById('boxConjuge').style.display='none';
+    document.getElementById('boxDependenteRenda').style.display='none';
+    document.getElementById('boxTerreno').style.display='none';
     atualizarTotal();
     document.getElementById('f_nome').focus();
   }).catch(function(err){
