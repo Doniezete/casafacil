@@ -34,6 +34,8 @@
   <div class="cs">Informações do proponente</div>
   <div class="info-box">🏗️ Este simulador é para <strong>Aquisição de Terreno + Construção</strong> pelo Programa Minha Casa, Minha Vida — Recursos FGTS.</div>
 
+  <button type="button" onclick="abrirPreCadastrosEvento()" style="width:100%;padding:12px;border-radius:10px;border:1px dashed #f59e0b;background:rgba(245,158,11,.08);color:#c2740a;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px">📋 Carregar pré-cadastro do evento</button>
+
   <label>Nome completo *</label>
   <input type="text" id="nome" placeholder="Ex: Maria da Silva"/>
 
@@ -603,6 +605,61 @@ function fmtTel(el){
   else el.value=v.replace(/(\d{2})(\d{5})(\d{0,4})/,'($1) $2-$3').replace(/-$/,'');
 }
 function fmtM(el){var v=el.value.replace(/\D/g,'');if(!v){el.value='';return;}el.value=(parseInt(v,10)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+/* ============================================================
+   PRÉ-CADASTROS DO EVENTO — puxa o que os atendentes já coletaram
+   e preenche o começo do simulador sozinho.
+   ============================================================ */
+function abrirPreCadastrosEvento(){
+  document.getElementById('overlayPreCadastros').style.display='flex';
+  if(!leadsDb){
+    document.getElementById('listaPreCadastrosEvento').innerHTML = '<div>Sistema de leads não configurado.</div>';
+    return;
+  }
+  leadsDb.collection('evento_precadastros').where('status','==','pendente').get().then(function(snap){
+    var itens = [];
+    snap.forEach(function(doc){ itens.push(Object.assign({id:doc.id}, doc.data())); });
+    itens.sort(function(a,b){
+      var ta = a.criadoEm && a.criadoEm.toMillis ? a.criadoEm.toMillis() : 0;
+      var tb = b.criadoEm && b.criadoEm.toMillis ? b.criadoEm.toMillis() : 0;
+      return tb-ta;
+    });
+    if(itens.length===0){
+      document.getElementById('listaPreCadastrosEvento').innerHTML = '<div>Nenhum pré-cadastro pendente no momento.</div>';
+      return;
+    }
+    document.getElementById('listaPreCadastrosEvento').innerHTML = itens.map(function(it){
+      return '<div onclick="selecionarPreCadastroEvento(\''+it.id+'\')" style="background:#0c111c;border:1px solid #2a3454;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer">'
+        + '<div style="font-weight:700;color:#eef1f8">'+(it.nome||'sem nome')+'</div>'
+        + '<div style="color:#8b94ad;font-size:12px;margin-top:2px">'+(it.telefone||'')+' · renda total: R$ '+(it.rendaTotal||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div>'
+        + '</div>';
+    }).join('');
+  }).catch(function(err){
+    document.getElementById('listaPreCadastrosEvento').innerHTML = '<div>Erro ao carregar: '+err.message+'</div>';
+  });
+}
+
+function selecionarPreCadastroEvento(id){
+  leadsDb.collection('evento_precadastros').doc(id).get().then(function(doc){
+    if(!doc.exists) return;
+    var d = doc.data();
+    if(d.nome) document.getElementById('nome').value = d.nome;
+    if(d.telefone){ document.getElementById('telefone').value = d.telefone; }
+    if(d.cpf){ document.getElementById('cpf').value = d.cpf; }
+    if(d.rendaTotal){
+      var el = document.getElementById('renda');
+      el.value = Math.round(d.rendaTotal*100).toString();
+      fmtM(el);
+      if(typeof atualizarFinanciamento==='function') atualizarFinanciamento();
+    }
+    document.getElementById('overlayPreCadastros').style.display='none';
+    // marca como usado, pra não aparecer de novo na lista pra outra pessoa
+    leadsDb.collection('evento_precadastros').doc(id).set({status:'usado'}, {merge:true});
+    if(d.endereco){
+      setTimeout(function(){ alert('📍 Endereço informado no evento:\n'+d.endereco+'\n\nDigite nos campos de endereço mais abaixo, se for relevante pra esse financiamento.'); }, 300);
+    }
+  });
+}
 function parseM(el){var v=el.value.replace(/\./g,'').replace(',','.');return parseFloat(v)||0;}
 function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function lerp(a,b,t){return a+t*(b-a);}
@@ -2034,6 +2091,16 @@ window.addEventListener('DOMContentLoaded',function(){
       </div>
       <div class="saved-msg" id="savedMsg">✅ Configurações salvas com sucesso!</div>
     </div>
+  </div>
+</div>
+
+<div id="overlayPreCadastros" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#161d2e;border:1px solid #2a3454;border-radius:16px;padding:20px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;color:#eef1f8">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:800;color:#f59e0b;font-size:16px">📋 Pré-cadastros do evento</div>
+      <button onclick="document.getElementById(\'overlayPreCadastros\').style.display=\'none\'" style="background:none;border:none;color:#8b94ad;font-size:22px;cursor:pointer">×</button>
+    </div>
+    <div id="listaPreCadastrosEvento" style="font-size:13px;color:#8b94ad">Carregando...</div>
   </div>
 </div>
 
