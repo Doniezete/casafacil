@@ -629,14 +629,22 @@ function abrirPreCadastrosEvento(){
       return;
     }
     document.getElementById('listaPreCadastrosEvento').innerHTML = itens.map(function(it){
-      return '<div onclick="selecionarPreCadastroEvento(\''+it.id+'\')" style="background:#0c111c;border:1px solid #2a3454;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer">'
-        + '<div style="font-weight:700;color:#eef1f8">'+(it.nome||'sem nome')+'</div>'
-        + '<div style="color:#8b94ad;font-size:12px;margin-top:2px">'+(it.telefone||'')+' · renda total: R$ '+(it.rendaTotal||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div>'
+      return '<div style="background:#0c111c;border:1px solid #2a3454;border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px">'
+        + '<div onclick="selecionarPreCadastroEvento(\''+it.id+'\')" style="cursor:pointer;flex:1">'
+        +   '<div style="font-weight:700;color:#eef1f8">'+(it.nome||'sem nome')+'</div>'
+        +   '<div style="color:#8b94ad;font-size:12px;margin-top:2px">'+(it.telefone||'')+' · renda total: R$ '+(it.rendaTotal||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div>'
+        + '</div>'
+        + '<button onclick="apagarPreCadastroEvento(\''+it.id+'\')" title="Apagar" style="background:none;border:none;color:#f87171;font-size:16px;cursor:pointer;padding:6px">🗑️</button>'
         + '</div>';
     }).join('');
   }).catch(function(err){
     document.getElementById('listaPreCadastrosEvento').innerHTML = '<div>Erro ao carregar: '+err.message+'</div>';
   });
+}
+
+function apagarPreCadastroEvento(id){
+  if(!confirm('Apagar esse pré-cadastro? Essa ação não pode ser desfeita.')) return;
+  leadsDb.collection('evento_precadastros').doc(id).delete().then(abrirPreCadastrosEvento);
 }
 
 function preencherSeExiste(id, valor){
@@ -2132,7 +2140,7 @@ window.addEventListener('DOMContentLoaded',function(){
   <div style="background:#161d2e;border:1px solid #2a3454;border-radius:16px;padding:20px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;color:#eef1f8">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div style="font-weight:800;color:#f59e0b;font-size:16px">📋 Pré-cadastros do evento</div>
-      <button onclick="document.getElementById(\'overlayPreCadastros\').style.display=\'none\'" style="background:none;border:none;color:#8b94ad;font-size:22px;cursor:pointer">×</button>
+      <button onclick="document.getElementById('overlayPreCadastros').style.display='none'" style="background:none;border:none;color:#8b94ad;font-size:22px;cursor:pointer">×</button>
     </div>
     <div id="listaPreCadastrosEvento" style="font-size:13px;color:#8b94ad">Carregando...</div>
   </div>
