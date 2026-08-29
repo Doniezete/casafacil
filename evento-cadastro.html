@@ -285,12 +285,21 @@ function proximoNumeroEvento(){
   });
 }
 
+var salvandoAgora = false;
+
 function salvarCadastro(){
+  if(salvandoAgora){ return; } // trava contra clique duplo/duplo-toque
   var nome = document.getElementById('f_nome').value.trim();
   var telefone = document.getElementById('f_telefone').value.trim();
   var renda1 = valorRenda('f_renda1');
   if(!nome || !telefone){ mostrarStatus('⚠️ Preencha ao menos nome e telefone.', 'erro'); return; }
   if(!renda1){ mostrarStatus('⚠️ Preencha a renda do titular.', 'erro'); return; }
+
+  salvandoAgora = true;
+  var botao = document.querySelector('.btn');
+  botao.disabled = true;
+  botao.style.opacity = '0.6';
+  botao.textContent = 'Salvando...';
 
   var renda2 = document.getElementById('f_temConjuge').checked ? valorRenda('f_renda2') : 0;
 
@@ -349,6 +358,11 @@ function salvarCadastro(){
     document.getElementById('f_nome').focus();
   }).catch(function(err){
     mostrarStatus('❌ Erro ao salvar: '+err.message, 'erro');
+  }).finally(function(){
+    salvandoAgora = false;
+    botao.disabled = false;
+    botao.style.opacity = '1';
+    botao.textContent = '✅ Salvar e cadastrar próxima pessoa';
   });
 }
 </script>

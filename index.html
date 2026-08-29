@@ -1545,6 +1545,14 @@ function abrirCartaoDoEvento(){
 }
 
 function gerarPDF(){
+  // Assim que clica em "Salvar/Baixar PDF", já abre o cartão de bônus dessa
+  // pessoa numa aba nova (só quando ela veio de um pré-cadastro do evento).
+  // Chamado logo no início, ainda dentro do clique, pra o navegador não
+  // bloquear como pop-up.
+  if(window._ultimoPreCadastroId){
+    var urlCartao = 'evento-cartoes.html?abrir=' + encodeURIComponent(window._ultimoPreCadastroId) + '&nome=' + encodeURIComponent(window._ultimoPreCadastroNome||'');
+    window.open(urlCartao, '_blank');
+  }
   // Proteção: se D estiver vazio/incompleto, tenta reconstruir dos campos
   if(!D.nome || !D.est){
     if(!qSel){alert('Por favor, preencha os dados e clique em "Gerar Resultado" antes de gerar o PDF.');return;}
