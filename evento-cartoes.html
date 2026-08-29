@@ -127,6 +127,7 @@ function carregarLista(){
         +   (d.status==='usado' ? '<span class="tag-usado">📋 atendido no simulador</span>' : '<span style="font-size:11px;color:var(--mut);border:1px solid var(--bd);border-radius:999px;padding:2px 8px">⏳ pendente</span>')
         +   (d.cartaoImpresso ? '<span class="tag-usado">🎁 cartão gerado</span>' : '')
         +   '<button class="btn ac" onclick="abrirCartao(\''+doc.id+'\',\''+esc(d.nome||'').replace(/'/g,"\\'")+'\')">🎁 Gerar cartão</button>'
+        +   '<button onclick="apagarCliente(\''+doc.id+'\',\''+esc(d.nome||'').replace(/'/g,"\\'")+'\')" title="Apagar" style="background:none;border:none;color:#f87171;font-size:16px;cursor:pointer;padding:4px">🗑️</button>'
         + '</div>'
         + '</div>';
     });
@@ -154,6 +155,13 @@ function abrirCartao(id, nome){
 }
 function fecharCartao(){
   document.getElementById('overlayCartao').classList.remove('show');
+}
+
+function apagarCliente(id, nome){
+  if(!confirm('Apagar o cadastro de "'+nome+'"? Essa ação não pode ser desfeita.')) return;
+  db.collection('evento_precadastros').doc(id).delete().then(carregarLista).catch(function(err){
+    alert('Erro ao apagar: '+err.message);
+  });
 }
 
 carregarLista();
