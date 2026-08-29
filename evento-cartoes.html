@@ -114,12 +114,15 @@ const SITE_BASE = "https://doniezete.github.io/casafacil/evento-site.html";
 
 function carregarLista(){
   document.getElementById('lista').innerHTML = '<div style="color:var(--mut);font-size:13px">Carregando...</div>';
-  db.collection('evento_precadastros').orderBy('criadoEm','desc').limit(100).get().then(function(snap){
+  db.collection('evento_precadastros').orderBy('criadoEm','asc').limit(100).get().then(function(snap){
     var html = '';
     snap.forEach(function(doc){
       var d = doc.data();
       html += '<div class="lista-item">'
-        + '<div><div class="nome">'+esc(d.nome||'sem nome')+'</div><div class="info">'+esc(d.telefone||'')+'</div></div>'
+        + '<div style="display:flex;gap:10px;align-items:center">'
+        +   (d.numero ? '<div style="background:var(--ac);color:#1a1206;font-weight:800;font-size:13px;border-radius:50%;width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center">'+d.numero+'</div>' : '')
+        +   '<div><div class="nome">'+esc(d.nome||'sem nome')+'</div><div class="info">'+esc(d.telefone||'')+'</div></div>'
+        + '</div>'
         + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
         +   (d.status==='usado' ? '<span class="tag-usado">📋 atendido no simulador</span>' : '<span style="font-size:11px;color:var(--mut);border:1px solid var(--bd);border-radius:999px;padding:2px 8px">⏳ pendente</span>')
         +   (d.cartaoImpresso ? '<span class="tag-usado">🎁 cartão gerado</span>' : '')

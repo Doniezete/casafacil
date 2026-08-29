@@ -271,6 +271,20 @@ function mostrarStatus(msg, tipo){
 
 function limparCampo(id){ document.getElementById(id).value=''; }
 
+/* Gera um número de senha sequencial, garantido mesmo se dois atendentes
+   salvarem ao mesmo tempo (usa uma transação — sempre soma 1 no último número). */
+function proximoNumeroEvento(){
+  var ref = db.collection('evento_contador').doc('contador');
+  return db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      var atual = doc.exists ? (doc.data().ultimo||0) : 0;
+      var novo = atual + 1;
+      tx.set(ref, {ultimo: novo}, {merge:true});
+      return novo;
+    });
+  });
+}
+
 function salvarCadastro(){
   var nome = document.getElementById('f_nome').value.trim();
   var telefone = document.getElementById('f_telefone').value.trim();
@@ -280,7 +294,7 @@ function salvarCadastro(){
 
   var renda2 = document.getElementById('f_temConjuge').checked ? valorRenda('f_renda2') : 0;
 
-  var dados = {
+  var dadosBase = {
     nome: nome,
     telefone: telefone,
     cpf: document.getElementById('f_cpf').value.trim(),
@@ -312,10 +326,13 @@ function salvarCadastro(){
     criadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
 
-  db.collection('evento_precadastros').doc().set(dados).then(function(){
+  proximoNumeroEvento().then(function(numero){
+    var dados = Object.assign({numero: numero}, dadosBase);
+    return db.collection('evento_precadastros').doc().set(dados).then(function(){ return numero; });
+  }).then(function(numero){
     totalSalvos++;
     document.getElementById('contador').textContent = totalSalvos+' cadastro(s) enviado(s) nessa sessão';
-    mostrarStatus('✅ '+nome+' cadastrado(a)! Pode atender a próxima pessoa.', 'ok');
+    mostrarStatus('✅ '+nome+' cadastrado(a)! Senha nº '+numero+' — avise a pessoa desse número.', 'ok');
     // limpa o formulário, mantém o nome do atendente e a cidade (repetem bastante)
     ['f_nome','f_telefone','f_cpf','f_nascimento','f_profissao','f_rua','f_bairro','f_cep',
      'f_renda1','f_renda2','f_tLote','f_tQuadra','f_tArea','f_tRua','f_tBairro','f_tCep'].forEach(limparCampo);
