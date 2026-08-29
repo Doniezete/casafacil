@@ -165,6 +165,17 @@ function apagarCliente(id, nome){
 }
 
 carregarLista();
+
+// Se a página foi aberta com ?abrir=ID&nome=Nome (vindo do simulador, logo
+// depois de terminar uma simulação), já abre o cartão dessa pessoa direto.
+(function abrirCartaoAutomaticoSeVeioDoSimulador(){
+  var params = new URLSearchParams(window.location.search);
+  var id = params.get('abrir');
+  var nome = params.get('nome');
+  if(id){
+    setTimeout(function(){ abrirCartao(id, nome || ''); }, 400);
+  }
+})();
 </script>
 </body>
 </html>

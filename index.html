@@ -379,6 +379,7 @@
   <div id="comlist" style="margin-bottom:14px"></div>
   <div class="av">⚠️ Simulação estimativa. Planta ilustrativa. Projeto definitivo elaborado por profissional habilitado. Modalidade: <strong>Aquisição de Terreno + Construção — MCMV Recursos FGTS</strong>.<br/><br/>ℹ️ Esta análise contempla apenas os valores do <strong>financiamento</strong>. Custos com documentação, cartório e registros não estão incluídos.</div>
   <button class="btn bpdf" onclick="gerarPDF()">📄 Baixar Simulação + Contrato (PDF)</button>
+  <button class="btn" id="btnCartaoEvento" onclick="abrirCartaoDoEvento()" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#1a1206;margin-top:9px;display:none">🎁 Imprimir cartão de bônus</button>
   <button class="btn" id="btnCopiar" onclick="copiarDados()" style="background:linear-gradient(135deg,#276749,#38a169);color:#fff;margin-top:9px">📋 Copiar dados para próximo contrato</button>
   <button class="btn bs" onclick="go(2)" style="margin-top:9px">← Voltar ao modelo</button>
   <div id="copiadoMsg" style="display:none;background:#f0fdf4;border:1px solid #68d391;border-radius:10px;padding:10px 13px;font-size:12px;color:#276749;margin-top:8px;line-height:1.6;text-align:center">
@@ -663,6 +664,10 @@ function selecionarPreCadastroEvento(id){
   leadsDb.collection('evento_precadastros').doc(id).get().then(function(doc){
     if(!doc.exists) return;
     var d = doc.data();
+
+    // Guarda qual pré-cadastro foi usado, pra depois abrir o cartão certo direto
+    window._ultimoPreCadastroId = id;
+    window._ultimoPreCadastroNome = d.nome || '';
 
     // Dados pessoais
     preencherSeExiste('nome', d.nome);
@@ -1525,7 +1530,18 @@ function gerar(){
   var plantasWrap = document.querySelector('.pw');
   if(fachadaWrap) fachadaWrap.style.display = isSRV ? 'none' : '';
   if(plantasWrap) plantasWrap.style.display = isSRV ? 'none' : '';
+  var btnCartaoEl = document.getElementById('btnCartaoEvento');
+  if(btnCartaoEl) btnCartaoEl.style.display = window._ultimoPreCadastroId ? '' : 'none';
   go(3);
+}
+
+/* Abre a tela de cartões do evento numa aba nova, já com o cartão dessa
+   pessoa pronto pra imprimir — sem precisar procurar na lista. */
+function abrirCartaoDoEvento(){
+  var id = window._ultimoPreCadastroId || '';
+  var nome = window._ultimoPreCadastroNome || '';
+  var url = 'evento-cartoes.html?abrir=' + encodeURIComponent(id) + '&nome=' + encodeURIComponent(nome);
+  window.open(url, '_blank');
 }
 
 function gerarPDF(){
