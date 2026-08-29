@@ -144,11 +144,11 @@ input:focus,select:focus{outline:none;border-color:var(--ac)}
     </label>
 
     <label>Renda do titular (R$) *</label>
-    <input type="number" id="f_renda1" placeholder="0,00" oninput="atualizarTotal()"/>
+    <input type="text" inputmode="decimal" id="f_renda1" placeholder="0,00" oninput="fmtRenda(this);atualizarTotal()"/>
 
     <div id="boxConjuge" style="display:none">
       <label>Renda do cônjuge (R$)</label>
-      <input type="number" id="f_renda2" placeholder="0,00" oninput="atualizarTotal()"/>
+      <input type="text" inputmode="decimal" id="f_renda2" placeholder="0,00" oninput="fmtRenda(this);atualizarTotal()"/>
     </div>
 
     <div class="total-box">
@@ -233,6 +233,16 @@ function fmtCEP(el){
   var v = el.value.replace(/\D/g,'').substring(0,8);
   el.value = v.length<=5 ? v : v.slice(0,5)+'-'+v.slice(5);
 }
+function fmtRenda(el){
+  var v = el.value.replace(/\D/g,'');
+  if(!v){ el.value=''; return; }
+  el.value = (parseInt(v,10)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function valorRenda(id){
+  var v = document.getElementById(id).value;
+  if(!v) return 0;
+  return parseFloat(v.replace(/\./g,'').replace(',','.'))||0;
+}
 function alternarConjuge(){
   var marcado = document.getElementById('f_temConjuge').checked;
   document.getElementById('boxConjuge').style.display = marcado ? 'block' : 'none';
@@ -246,8 +256,8 @@ function alternarTerreno(){
   document.getElementById('boxTerreno').style.display = document.getElementById('f_temTerreno').value==='sim' ? 'block' : 'none';
 }
 function atualizarTotal(){
-  var r1 = parseFloat(document.getElementById('f_renda1').value)||0;
-  var r2 = document.getElementById('f_temConjuge').checked ? (parseFloat(document.getElementById('f_renda2').value)||0) : 0;
+  var r1 = valorRenda('f_renda1');
+  var r2 = document.getElementById('f_temConjuge').checked ? valorRenda('f_renda2') : 0;
   var total = r1+r2;
   document.getElementById('totalRenda').textContent = 'R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
@@ -264,11 +274,11 @@ function limparCampo(id){ document.getElementById(id).value=''; }
 function salvarCadastro(){
   var nome = document.getElementById('f_nome').value.trim();
   var telefone = document.getElementById('f_telefone').value.trim();
-  var renda1 = parseFloat(document.getElementById('f_renda1').value)||0;
+  var renda1 = valorRenda('f_renda1');
   if(!nome || !telefone){ mostrarStatus('⚠️ Preencha ao menos nome e telefone.', 'erro'); return; }
   if(!renda1){ mostrarStatus('⚠️ Preencha a renda do titular.', 'erro'); return; }
 
-  var renda2 = document.getElementById('f_temConjuge').checked ? (parseFloat(document.getElementById('f_renda2').value)||0) : 0;
+  var renda2 = document.getElementById('f_temConjuge').checked ? valorRenda('f_renda2') : 0;
 
   var dados = {
     nome: nome,
