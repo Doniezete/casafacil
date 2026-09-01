@@ -1307,14 +1307,13 @@ function alternarGravacaoVoz(){
     }
   };
   reconhecimentoVoz.onresult = function(event){
-    var textoFinal = '', textoParcial = '';
-    for(var i=0;i<event.results.length;i++){
-      if(event.results[i].isFinal) textoFinal += event.results[i][0].transcript + ' ';
+    var textoParcial = '';
+    for(var i=event.resultIndex; i<event.results.length; i++){
+      if(event.results[i].isFinal) transcricaoAcumuladaVoz += event.results[i][0].transcript + ' ';
       else textoParcial += event.results[i][0].transcript;
     }
-    transcricaoAcumuladaVoz = textoFinal;
     document.getElementById('transcricaoBox').style.display='block';
-    document.getElementById('transcricaoTexto').textContent = (textoFinal+textoParcial).trim();
+    document.getElementById('transcricaoTexto').textContent = (transcricaoAcumuladaVoz+textoParcial).trim();
   };
   reconhecimentoVoz.start();
 }
@@ -1480,14 +1479,13 @@ function alternarGravacaoEstoque(){
     }
   };
   reconhecimentoEstoque.onresult = function(event){
-    var textoFinal = '', textoParcial = '';
-    for(var i=0;i<event.results.length;i++){
-      if(event.results[i].isFinal) textoFinal += event.results[i][0].transcript + ' ';
+    var textoParcial = '';
+    for(var i=event.resultIndex; i<event.results.length; i++){
+      if(event.results[i].isFinal) transcricaoAcumuladaEst += event.results[i][0].transcript + ' ';
       else textoParcial += event.results[i][0].transcript;
     }
-    transcricaoAcumuladaEst = textoFinal;
     document.getElementById('transcricaoEstoqueBox').style.display='block';
-    document.getElementById('transcricaoEstoqueTexto').textContent = (textoFinal+textoParcial).trim();
+    document.getElementById('transcricaoEstoqueTexto').textContent = (transcricaoAcumuladaEst+textoParcial).trim();
   };
   reconhecimentoEstoque.start();
 }
@@ -1702,14 +1700,13 @@ function alternarGravacaoEntradaEstoque(){
     }
   };
   reconhecimentoEntrada.onresult = function(event){
-    var textoFinal = '', textoParcial = '';
-    for(var i=0;i<event.results.length;i++){
-      if(event.results[i].isFinal) textoFinal += event.results[i][0].transcript + ' ';
+    var textoParcial = '';
+    for(var i=event.resultIndex; i<event.results.length; i++){
+      if(event.results[i].isFinal) transcricaoAcumuladaEnt += event.results[i][0].transcript + ' ';
       else textoParcial += event.results[i][0].transcript;
     }
-    transcricaoAcumuladaEnt = textoFinal;
     document.getElementById('transcricaoEntradaBox').style.display='block';
-    document.getElementById('transcricaoEntradaTexto').textContent = (textoFinal+textoParcial).trim();
+    document.getElementById('transcricaoEntradaTexto').textContent = (transcricaoAcumuladaEnt+textoParcial).trim();
   };
   reconhecimentoEntrada.start();
 }
@@ -1985,14 +1982,13 @@ function alternarGravacaoGastoCartao(){
     }
   };
   reconhecimentoCartao.onresult = function(event){
-    var textoFinal = '', textoParcial = '';
-    for(var i=0;i<event.results.length;i++){
-      if(event.results[i].isFinal) textoFinal += event.results[i][0].transcript + ' ';
+    var textoParcial = '';
+    for(var i=event.resultIndex; i<event.results.length; i++){
+      if(event.results[i].isFinal) transcricaoAcumuladaCartao += event.results[i][0].transcript + ' ';
       else textoParcial += event.results[i][0].transcript;
     }
-    transcricaoAcumuladaCartao = textoFinal;
     document.getElementById('transcricaoCartaoBox').style.display='block';
-    document.getElementById('transcricaoCartaoTexto').textContent = (textoFinal+textoParcial).trim();
+    document.getElementById('transcricaoCartaoTexto').textContent = (transcricaoAcumuladaCartao+textoParcial).trim();
   };
   reconhecimentoCartao.start();
 }
