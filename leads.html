@@ -2616,7 +2616,6 @@ function render(){
     if(busca && !((l.nome||'').toLowerCase().includes(busca) || (l.telefone||'').includes(busca))) return false;
     return true;
   });
-  lista.sort(function(a,b){ return calcPrioridade(b)-calcPrioridade(a); });
 
   // estatisticas (sobre a base toda, nao so o filtro)
   var st={quente:0,'aguardando renda':0,esfriando:0,convertido:0};
@@ -2632,13 +2631,59 @@ function render(){
   var html='';
   if(lista.length===0){
     html='<div class="vazio">Nenhum lead encontrado aqui.<br>Clique em "+ Novo lead" pra cadastrar o primeiro.</div>';
+  } else {
+    // Agrupa por semana de cadastro (semana começa na segunda-feira),
+    // pra ficar mais fácil achar alguém em meio a muitos leads.
+    var grupos = {};
+    lista.forEach(function(l){
+      var data = (l.criadoEm && l.criadoEm.toDate) ? l.criadoEm.toDate() : null;
+      var chave = data ? chaveSemana(data) : 'sem-data';
+      if(!grupos[chave]) grupos[chave] = [];
+      grupos[chave].push(l);
+    });
+    var chaves = Object.keys(grupos).filter(function(k){ return k!=='sem-data'; }).sort().reverse();
+    if(grupos['sem-data']) chaves.push('sem-data');
+
+    chaves.forEach(function(chave){
+      var itensGrupo = grupos[chave];
+      itensGrupo.sort(function(a,b){ return calcPrioridade(b)-calcPrioridade(a); });
+      html += '<div class="semana-header" style="margin:18px 0 8px;font-size:12px;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px">'
+        + '<span>'+(chave==='sem-data' ? '📁 Sem data de cadastro' : '📅 '+labelSemana(chave))+'</span>'
+        + '<span style="color:var(--mut);font-weight:400;text-transform:none;letter-spacing:0">('+itensGrupo.length+')</span>'
+        + '<div style="flex:1;height:1px;background:var(--bd2)"></div>'
+        + '</div>';
+      itensGrupo.forEach(function(l){ html += renderLeadCard(l); });
+    });
   }
-  lista.forEach(function(l){
+  document.getElementById('lista').innerHTML = html;
+}
+
+/* Segunda-feira da semana daquela data, pra agrupar os leads por semana de cadastro. */
+function inicioDaSemana(data){
+  var d = new Date(data);
+  var dia = d.getDay();
+  var diff = (dia===0 ? -6 : 1) - dia;
+  d.setDate(d.getDate()+diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function chaveSemana(data){
+  var ini = inicioDaSemana(data);
+  return ini.getFullYear()+'-'+String(ini.getMonth()+1).padStart(2,'0')+'-'+String(ini.getDate()).padStart(2,'0');
+}
+function labelSemana(chave){
+  var ini = new Date(chave+'T00:00:00');
+  var fim = new Date(ini); fim.setDate(fim.getDate()+6);
+  var fmt = function(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); };
+  return 'Semana de '+fmt(ini)+' a '+fmt(fim);
+}
+
+function renderLeadCard(l){
     var atrasado = estaAtrasado(l);
     var dias = l.ultimoContato!=null ? diasEntre(l.ultimoContato) : null;
     var diasSemAtu = (l.tipoCliente==='cliente_ativo' && l.etapa!=='entregue') ? diasSemAtualizacao(l) : null;
     var precisaCobranca = diasSemAtu!=null && diasSemAtu>=LIMIAR_COBRANCA_DIAS;
-    html += '<div class="lead" onclick="abrirModal(leads.find(function(x){return x.id===\''+l.id+'\'}))">'
+    return '<div class="lead" onclick="abrirModal(leads.find(function(x){return x.id===\''+l.id+'\'}))">'
       + '<div class="lead-top">'
       +   '<div><div class="lead-nome">'+esc(l.nome)+(l.tipoCliente==='cliente_ativo'?' <span style="font-size:10px;color:var(--convertido);border:1px solid var(--convertido);border-radius:999px;padding:1px 7px;vertical-align:middle">CLIENTE ATIVO</span>':'')+'</div><div class="lead-info">'+esc(l.telefone||'sem telefone')+' · '+esc(l.faixa||'faixa nao informada')+(l.etapa?' · '+labelEtapa(l.etapa):'')+'</div></div>'
       +   '<span class="badge '+badgeClass(l.status)+'">'+labelStatus(l.status)+'</span>'
@@ -2659,8 +2704,6 @@ function render(){
       +   '<button class="btn small secondary" onclick="mudarView(\'agenda\');abrirAgendamento(null,null);document.getElementById(\'ag_leadId\').value=\''+l.id+'\'">📅 Agendar</button>'
       + '</div>'
       + '</div>';
-  });
-  document.getElementById('lista').innerHTML = html;
 }
 function labelEtapa(e){ return {primeiro_contato:'Primeiro contato',negociando:'Negociando valores',documentacao:'Reunindo documentação',aguardando_aprovacao:'Aguardando aprovação',aprovado:'Aprovado/assinando',obra:'Obra em andamento',entregue:'Entregue'}[e]||e; }
 
