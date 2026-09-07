@@ -213,6 +213,44 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <div class="campo"><label>Último contato</label><input type="date" id="f_ultimoContato"/></div>
       <div class="campo"><label>Retomar contato em</label><input type="date" id="f_proximoContato"/></div>
     </div>
+    <div class="campo">
+      <div onclick="var b=document.getElementById('boxDadosCompletos'); b.style.display = b.style.display==='none' ? 'block' : 'none';" style="cursor:pointer;color:var(--ac);font-size:13px;font-weight:600;margin-bottom:8px">📋 Dados completos (pra gerar contrato) — clique pra abrir/fechar</div>
+      <div id="boxDadosCompletos" style="display:none;background:var(--card2);border-radius:10px;padding:12px;margin-bottom:10px">
+        <div class="linha2">
+          <div class="campo" style="margin-bottom:8px"><label>Data de nascimento</label><input type="date" id="f_nascimento"/></div>
+          <div class="campo" style="margin-bottom:8px"><label>Profissão</label><input type="text" id="f_profissao" placeholder="Ex: Professora"/></div>
+        </div>
+        <div class="campo" style="margin-bottom:8px">
+          <label>Estado civil</label>
+          <select id="f_estadoCivil">
+            <option value="">Selecione...</option>
+            <option value="Solteiro(a)">Solteiro(a)</option>
+            <option value="Casado(a)">Casado(a)</option>
+            <option value="União Estável">União Estável</option>
+            <option value="Divorciado(a)">Divorciado(a)</option>
+            <option value="Viúvo(a)">Viúvo(a)</option>
+          </select>
+        </div>
+        <div class="campo" style="margin-bottom:8px"><label>Rua e número</label><input type="text" id="f_rua" placeholder="Ex: Rua das Flores, 123"/></div>
+        <div class="linha2">
+          <div class="campo" style="margin-bottom:8px"><label>Bairro</label><input type="text" id="f_bairro"/></div>
+          <div class="campo" style="margin-bottom:8px"><label>CEP</label><input type="text" id="f_cep"/></div>
+        </div>
+        <div class="linha2">
+          <div class="campo" style="margin-bottom:8px"><label>Cidade</label><input type="text" id="f_cidadeEndereco"/></div>
+          <div class="campo" style="margin-bottom:0"><label>UF</label><input type="text" id="f_ufEndereco" maxlength="2"/></div>
+        </div>
+        <div style="border-top:1px solid var(--bd2);margin:12px 0 10px;padding-top:10px;color:var(--tx2);font-size:12px;font-weight:600">🏠 Terreno (se já tiver)</div>
+        <div class="linha2">
+          <div class="campo" style="margin-bottom:8px"><label>Lote</label><input type="text" id="f_terrenoLote"/></div>
+          <div class="campo" style="margin-bottom:8px"><label>Quadra</label><input type="text" id="f_terrenoQuadra"/></div>
+        </div>
+        <div class="linha2">
+          <div class="campo" style="margin-bottom:0"><label>Bairro do terreno</label><input type="text" id="f_terrenoBairro"/></div>
+          <div class="campo" style="margin-bottom:0"><label>Cidade do terreno</label><input type="text" id="f_terrenoCidade"/></div>
+        </div>
+      </div>
+    </div>
     <div class="campo"><label>Minhas anotações rápidas</label><textarea id="f_notas" placeholder="Ex: disse que só teria a renda em julho. Já tem entrada guardada."></textarea></div>
 
     <div class="campo" id="historicoBox" style="display:none;border-top:1px solid var(--bd2);padding-top:14px;margin-top:6px">
@@ -920,6 +958,18 @@ function salvarLead(){
     resumoAtendimento:document.getElementById('f_resumo').value,
     sugestaoIA:document.getElementById('f_sugestaoIA').value,
     historico:historico,
+    nascimento: document.getElementById('f_nascimento').value||'',
+    profissao: document.getElementById('f_profissao').value.trim(),
+    estadoCivil: document.getElementById('f_estadoCivil').value,
+    rua: document.getElementById('f_rua').value.trim(),
+    bairro: document.getElementById('f_bairro').value.trim(),
+    cep: document.getElementById('f_cep').value.trim(),
+    cidadeEndereco: document.getElementById('f_cidadeEndereco').value.trim(),
+    ufEndereco: document.getElementById('f_ufEndereco').value.trim(),
+    terrenoLote: document.getElementById('f_terrenoLote').value.trim(),
+    terrenoQuadra: document.getElementById('f_terrenoQuadra').value.trim(),
+    terrenoBairro: document.getElementById('f_terrenoBairro').value.trim(),
+    terrenoCidade: document.getElementById('f_terrenoCidade').value.trim(),
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   if(!db){ alert('Banco de dados nao configurado ainda (veja o aviso no topo da pagina).'); return; }
@@ -2885,6 +2935,19 @@ function abrirModal(lead){
   document.getElementById('f_objecao').value = lead ? (lead.objecao||'sem_objecao') : 'sem_objecao';
   document.getElementById('f_origem').value = lead ? (lead.origem||'indicacao') : 'indicacao';
   document.getElementById('f_resumo').value = lead ? (lead.resumoAtendimento||'') : '';
+  document.getElementById('f_nascimento').value = lead ? (lead.nascimento||'') : '';
+  document.getElementById('f_profissao').value = lead ? (lead.profissao||'') : '';
+  document.getElementById('f_estadoCivil').value = lead ? (lead.estadoCivil||'') : '';
+  document.getElementById('f_rua').value = lead ? (lead.rua||'') : '';
+  document.getElementById('f_bairro').value = lead ? (lead.bairro||'') : '';
+  document.getElementById('f_cep').value = lead ? (lead.cep||'') : '';
+  document.getElementById('f_cidadeEndereco').value = lead ? (lead.cidadeEndereco||'') : '';
+  document.getElementById('f_ufEndereco').value = lead ? (lead.ufEndereco||'') : '';
+  document.getElementById('f_terrenoLote').value = lead ? (lead.terrenoLote||'') : '';
+  document.getElementById('f_terrenoQuadra').value = lead ? (lead.terrenoQuadra||'') : '';
+  document.getElementById('f_terrenoBairro').value = lead ? (lead.terrenoBairro||'') : '';
+  document.getElementById('f_terrenoCidade').value = lead ? (lead.terrenoCidade||'') : '';
+  document.getElementById('boxDadosCompletos').style.display = 'none';
   renderHistoricoBox(lead);
   document.getElementById('agendarSugestaoBox').style.display='none';
   var sBox=document.getElementById('sugestaoIABox');
