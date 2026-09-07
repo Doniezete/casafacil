@@ -249,6 +249,13 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
           <div class="campo" style="margin-bottom:0"><label>Bairro do terreno</label><input type="text" id="f_terrenoBairro"/></div>
           <div class="campo" style="margin-bottom:0"><label>Cidade do terreno</label><input type="text" id="f_terrenoCidade"/></div>
         </div>
+        <div style="border-top:1px solid var(--bd2);margin:12px 0 10px;padding-top:10px;color:var(--tx2);font-size:12px;font-weight:600">👥 Segundo contratante (opcional — cônjuge, sócio, ou qualquer outra pessoa no contrato)</div>
+        <div class="campo" style="margin-bottom:8px"><label>Nome completo</label><input type="text" id="f_contratante2Nome"/></div>
+        <div class="linha2">
+          <div class="campo" style="margin-bottom:8px"><label>CPF</label><input type="text" id="f_contratante2Cpf"/></div>
+          <div class="campo" style="margin-bottom:8px"><label>Data de nascimento</label><input type="date" id="f_contratante2Nascimento"/></div>
+        </div>
+        <div class="campo" style="margin-bottom:0"><label>Profissão</label><input type="text" id="f_contratante2Profissao"/></div>
       </div>
     </div>
     <div class="campo"><label>Minhas anotações rápidas</label><textarea id="f_notas" placeholder="Ex: disse que só teria a renda em julho. Já tem entrada guardada."></textarea></div>
@@ -970,6 +977,10 @@ function salvarLead(){
     terrenoQuadra: document.getElementById('f_terrenoQuadra').value.trim(),
     terrenoBairro: document.getElementById('f_terrenoBairro').value.trim(),
     terrenoCidade: document.getElementById('f_terrenoCidade').value.trim(),
+    contratante2Nome: document.getElementById('f_contratante2Nome').value.trim(),
+    contratante2Cpf: document.getElementById('f_contratante2Cpf').value.trim(),
+    contratante2Nascimento: document.getElementById('f_contratante2Nascimento').value||'',
+    contratante2Profissao: document.getElementById('f_contratante2Profissao').value.trim(),
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   if(!db){ alert('Banco de dados nao configurado ainda (veja o aviso no topo da pagina).'); return; }
@@ -2500,6 +2511,18 @@ function montarLocalObraLead(lead){
   return parts.join(', ');
 }
 
+/* Segundo contratante — só existe quando o lead tem esse campo preenchido
+   (cônjuge, sócio, ou qualquer outra pessoa incluída no contrato). */
+function segundoContratanteLead(lead){
+  if(!lead.contratante2Nome) return null;
+  return {
+    nome: lead.contratante2Nome,
+    cpf: lead.contratante2Cpf||'',
+    nascimento: lead.contratante2Nascimento?fmtData(lead.contratante2Nascimento):'',
+    profissao: lead.contratante2Profissao||''
+  };
+}
+
 /* Monta o HTML completo do dossiê (capa + índice + contrato) e devolve
    pronto pra abrir numa janela de impressão — não abre nada sozinho. */
 function montarContratoObraHTML(lead, c, numeroContrato){
@@ -2518,17 +2541,10 @@ function montarContratoObraHTML(lead, c, numeroContrato){
   var etapasFallback=false;
   if(!etapasList || Math.abs(somaPct-100)>0.5){
     // Cronograma padrão da Casa Fácil — 8 etapas, usado sempre que o usuário
-    // não detalhar um cronograma diferente na conversa.
-    etapasList=[
-      {d:'Documentação e liberação inicial dos recursos', p:15},
-      {d:'Fundação', p:14},
-      {d:'Estrutura e alvenaria', p:16},
-      {d:'Cobertura', p:15},
-      {d:'Instalações elétricas e hidráulicas', p:15},
-      {d:'Reboco e contrapiso', p:10},
-      {d:'Acabamento', p:10},
-      {d:'Entrega final da obra', p:5}
-    ];
+    // não detalhar um cronograma diferente na conversa. Sem descrição
+    // específica por etapa, de propósito.
+    var PERCENTUAIS_PADRAO = [15,14,16,15,15,10,10,5];
+    etapasList = PERCENTUAIS_PADRAO.map(function(p, i){ return {d:(i+1)+'ª parcela', p:p}; });
     etapasFallback=true;
   }
   var etapasRows='';
@@ -2552,6 +2568,8 @@ function montarContratoObraHTML(lead, c, numeroContrato){
   var local_=montarLocalObraLead(lead)||'___________________________';
   var foro_=foro;
   var banco_=banco,ag_=ag,cc_=cc,pix_=pix;
+  var seg2_=segundoContratanteLead(lead); // segundo contratante, se existir
+  var nomesContratantes_=nome_+(seg2_?' e '+seg2_.nome:'');
   var dataHoje=new Date().toLocaleDateString('pt-BR');
   var addr_=(rua_||'')+(bairro_?', '+bairro_:'')+(cep_?', CEP '+cep_:'')+(cidade_?' — '+cidade_:'');
   var dados_=(nasc_?'Nascimento: '+nasc_:'')+(civil_?' · '+civil_:'')+(prof_?' · '+prof_:'');
@@ -2596,7 +2614,7 @@ function montarContratoObraHTML(lead, c, numeroContrato){
     +'<div class="cv-t1">CONTRATO DE<span class="cv-ta">ADMINISTRAÇÃO</span>DE OBRA</div>'
     +'<div class="cv-cards">'
     +'<div class="cv-card"><div class="cv-cl">Imóvel / Local da Obra</div><div class="cv-cv">'+local_+'</div></div>'
-    +'<div class="cv-card"><div class="cv-cl">Contratante</div><div class="cv-cv">'+nome_+(cpf_?' <small>— CPF: '+cpf_+'</small>':'')+'</div></div>'
+    +'<div class="cv-card"><div class="cv-cl">Contratante</div><div class="cv-cv">'+nomesContratantes_+(cpf_?' <small>— CPF: '+cpf_+(seg2_&&seg2_.cpf?' / '+seg2_.cpf:'')+'</small>':'')+'</div></div>'
     +'<div class="cv-card"><div class="cv-cl">Contratada</div><div class="cv-cv">'+EMP_CTR.nome+' <small>— CNPJ: '+EMP_CTR.cnpj+'</small></div></div>'
     +'<div class="cv-card"><div class="cv-cl">Emissão &nbsp;·&nbsp; Nº do Contrato</div><div class="cv-cv">'+dataHoje+' <small>&nbsp;·&nbsp; Nº '+nc_+'</small></div></div>'
     +'</div>'
@@ -2739,8 +2757,10 @@ function montarContratoObraHTML(lead, c, numeroContrato){
     +'<div class="parties">'
     +'<div class="party"><div class="party-hdr"><div class="badge badge-ct">Contratada</div><div class="party-name">'+EMP_CTR.nome+'</div></div>'
     +'<div class="party-body">CNPJ: '+EMP_CTR.cnpj+'<br>Responsável: '+EMP_CTR.resp+' — CPF: '+EMP_CTR.cpf+'<br>CREA: '+EMP_CTR.crea+'<br>'+eo_.end+' — '+eo_.cidade+'/SP</div></div>'
-    +'<div class="party"><div class="party-hdr"><div class="badge badge-cte">Contratante</div><div class="party-name">'+nome_+'</div></div>'
-    +'<div class="party-body">'+(cpf_?'CPF: '+cpf_+'<br>':'')+(dados_?dados_+'<br>':'')+(addr_||'')+'</div></div>'
+    +'<div class="party"><div class="party-hdr"><div class="badge badge-cte">Contratante</div><div class="party-name">'+nomesContratantes_+'</div></div>'
+    +'<div class="party-body">'+(cpf_?'CPF: '+cpf_+'<br>':'')+(dados_?dados_+'<br>':'')+(addr_||'')
+    +(seg2_?'<br><br><strong>'+seg2_.nome+'</strong><br>'+(seg2_.cpf?'CPF: '+seg2_.cpf+'<br>':'')+((seg2_.nascimento||seg2_.profissao)?(seg2_.nascimento?'Nascimento: '+seg2_.nascimento:'')+(seg2_.profissao?' · '+seg2_.profissao:''):''):'')
+    +'</div></div>'
     +'</div>'
     +'<div class="sec-div"><div class="sec-div-bar"></div><div class="sec-div-txt">Cláusulas Contratuais</div></div>'
     +clauses
@@ -2748,6 +2768,7 @@ function montarContratoObraHTML(lead, c, numeroContrato){
     +'<div class="sig-local">'+foro_+'/SP, '+dataHoje+'.</div>'
     +'<div class="sig-row">'
     +'<div class="sig-box"><div class="sig-space"></div><div class="sig-line"></div><div class="sig-name">'+nome_+'</div><div class="sig-info">'+(cpf_?'CPF: '+cpf_:'')+'</div><div class="sig-tag stag-cte">Contratante</div></div>'
+    +(seg2_?'<div class="sig-box"><div class="sig-space"></div><div class="sig-line"></div><div class="sig-name">'+seg2_.nome+'</div><div class="sig-info">'+(seg2_.cpf?'CPF: '+seg2_.cpf:'')+'</div><div class="sig-tag stag-cte">Contratante</div></div>':'')
     +'<div class="sig-box"><div class="sig-space"></div><div class="sig-line"></div><div class="sig-name">'+EMP_CTR.nome+'</div><div class="sig-info">CNPJ: '+EMP_CTR.cnpj+'</div><div class="sig-tag stag-ct">Contratada</div></div>'
     +'</div>'
     +'<div class="wit-block"><div class="wit-label">Testemunhas</div>'
@@ -2957,6 +2978,10 @@ function abrirModal(lead){
   document.getElementById('f_terrenoQuadra').value = lead ? (lead.terrenoQuadra||'') : '';
   document.getElementById('f_terrenoBairro').value = lead ? (lead.terrenoBairro||'') : '';
   document.getElementById('f_terrenoCidade').value = lead ? (lead.terrenoCidade||'') : '';
+  document.getElementById('f_contratante2Nome').value = lead ? (lead.contratante2Nome||'') : '';
+  document.getElementById('f_contratante2Cpf').value = lead ? (lead.contratante2Cpf||'') : '';
+  document.getElementById('f_contratante2Nascimento').value = lead ? (lead.contratante2Nascimento||'') : '';
+  document.getElementById('f_contratante2Profissao').value = lead ? (lead.contratante2Profissao||'') : '';
   document.getElementById('boxDadosCompletos').style.display = 'none';
   renderHistoricoBox(lead);
   document.getElementById('agendarSugestaoBox').style.display='none';
