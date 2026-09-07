@@ -2517,7 +2517,18 @@ function montarContratoObraHTML(lead, c, numeroContrato){
   var somaPct=etapasList ? etapasList.reduce(function(s,e){return s+(e.p||0);},0) : 0;
   var etapasFallback=false;
   if(!etapasList || Math.abs(somaPct-100)>0.5){
-    etapasList=[{d:'Parcela única, conforme liberação do financiamento', p:100}];
+    // Cronograma padrão da Casa Fácil — 8 etapas, usado sempre que o usuário
+    // não detalhar um cronograma diferente na conversa.
+    etapasList=[
+      {d:'Documentação e liberação inicial dos recursos', p:15},
+      {d:'Fundação', p:14},
+      {d:'Estrutura e alvenaria', p:16},
+      {d:'Cobertura', p:15},
+      {d:'Instalações elétricas e hidráulicas', p:15},
+      {d:'Reboco e contrapiso', p:10},
+      {d:'Acabamento', p:10},
+      {d:'Entrega final da obra', p:5}
+    ];
     etapasFallback=true;
   }
   var etapasRows='';
@@ -2753,7 +2764,6 @@ function montarContratoObraHTML(lead, c, numeroContrato){
     +'<button onclick="window.print()" style="background:#f5c518;color:#0d2044;border:none;padding:8px 20px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>'
     +'</div>'+ctrHTML+'</body></html>';
 
-  return {cover:coverDoc, idx:idxDoc, ctr:ctrDoc};
 function extractBody(html){
     var m=html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
     return m?m[1]:'';
@@ -2820,7 +2830,7 @@ function confirmarContratoObra(){
     w.document.close();
     w.focus();
     var msg = '✅ Contrato Nº '+resultado.nc+' gerado pra '+lead.nome+'.';
-    if(resultado.etapasFallback) msg += ' (usei um cronograma de parcela única, de 100%, porque você não detalhou etapas — pode gerar de novo depois, se quiser um cronograma dividido.)';
+    if(resultado.etapasFallback) msg += ' (usei o cronograma padrão de 8 etapas, já que você não detalhou um diferente — se quiser outro, é só me falar as etapas e percentuais na próxima vez.)';
     historicoDuvida.push({role:'assistant', texto:msg});
     renderHistoricoDuvida();
     salvarHistoricoDuvida();
