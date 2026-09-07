@@ -2992,8 +2992,7 @@ function confirmarItemMaterial(){
   });
 }
 
-var LABELS_ESPEC_GERAL = {tinta_ext:'Tinta externa (lata 18kg)', tinta_int:'Tinta interna (lata)', cimento:'Cimento (saco)', pia:'Pia de granito c/ cuba', gabinete:'Gabinete + cuba', nicho:'Nicho', torn_ban:'Torneira banheiro', torn_coz:'Torneira cozinha', torn_tan:'Torneira tanque', acabamento:'Acabamento das torneiras', piso_max:'Piso cerâmico (m²)', hydra:'Bacia sanitária hydra', acoplada:'Bacia sanitária acoplada', alv_acr:'Acréscimo tijolo maciço (m)', jan_fach:'Janela de fachada', jan_amb:'Janela de ambiente', port_fach:'Porta de fachada'};
-var GRUPO_TITULO_MATERIAL = {tinta_ext:'tinta', tinta_int:'tinta', cimento:'cimento', pia:'pia', gabinete:'gabinete', nicho:'nicho', torn_ban:'torn', torn_coz:'torn', torn_tan:'torn', acabamento:'torn', piso_max:'piso'};
+
 var especGeralPendente = null;
 var especClientePendente = null;
 
@@ -3001,16 +3000,18 @@ function renderCardEspecGeralDuvida(){
   if(!especGeralPendente) return '';
   var itens = Array.isArray(especGeralPendente.itens) ? especGeralPendente.itens : [];
   var linhas = itens.map(function(it){
-    var nome = LABELS_ESPEC_GERAL[it.campo]||it.campo;
-    var partes = [];
-    if(it.titulo) partes.push('✏️ '+nome+' → novo título: <b>'+esc(it.titulo)+'</b>');
-    if(it.oculto===true) partes.push('🚫 '+nome+': <b>ocultar</b> (some pra todo mundo)');
-    if(it.oculto===false) partes.push('👁️ '+nome+': <b>voltar a mostrar</b>');
-    if(it.valor) partes.push(nome+': <b>'+esc(it.valor)+'</b>');
-    return partes.join('<br>');
+    if(it.acao==='adicionar') return '➕ Novo item: <b>'+esc(it.tituloNovo||'—')+'</b> — '+esc(it.texto||'');
+    if(it.acao==='remover') return '🗑️ Remover: <b>'+esc(it.tituloAtual||'—')+'</b>';
+    // editar
+    var partes = ['✏️ '+esc(it.tituloAtual||'—')];
+    if(it.tituloNovo) partes.push('novo título: <b>'+esc(it.tituloNovo)+'</b>');
+    if(it.texto) partes.push('novo texto: <b>'+esc(it.texto)+'</b>');
+    if(it.oculto===true) partes.push('<b>🚫 ocultar</b>');
+    if(it.oculto===false) partes.push('<b>👁️ voltar a mostrar</b>');
+    return partes.join(' — ');
   });
   return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
-    + '<div style="font-weight:600;margin-bottom:4px">⚙️ Especificações gerais (vale pra todos os clientes)</div>'
+    + '<div style="font-weight:600;margin-bottom:4px">⚙️ Especificações e Limites (vale pra todos os clientes)</div>'
     + '<div style="color:var(--tx2);margin-bottom:8px;line-height:1.6">'+linhas.join('<br>')+'</div>'
     + '<div style="display:flex;gap:8px">'
     +   '<button class="btn small" onclick="confirmarEspecGeral()">✅ Confirmar</button>'
@@ -3030,17 +3031,40 @@ function confirmarEspecGeral(){
   if(!especGeralPendente || !db) return;
   var itens = Array.isArray(especGeralPendente.itens) ? especGeralPendente.itens : [];
   especGeralPendente = null;
-  var dados = {};
-  itens.forEach(function(it){
-    if(it.valor!==undefined && it.valor!==null && it.valor!=='') dados[it.campo] = it.valor;
-    if(it.oculto!==undefined) dados[it.campo+'_oculto'] = !!it.oculto;
-    if(it.titulo){
-      var grupo = GRUPO_TITULO_MATERIAL[it.campo] || it.campo;
-      dados['titulo_'+grupo] = it.titulo;
-    }
-  });
-  db.collection('materiais_config').doc('geral').set(dados, {merge:true}).then(function(){
-    historicoDuvida.push({role:'assistant', texto:'✅ Especificações gerais atualizadas — já valem pra qualquer cliente que abrir o formulário de materiais.'});
+
+  var ITENS_PADRAO = [
+    {titulo:'Tinta', texto:'Máx. R$ 400,00/lata 18kg (externa) | R$ 300,00/lata (interna).'},
+    {titulo:'Cimento', texto:'Certificado. Máx. R$ 32,00/saco.'},
+    {titulo:'Pia da Cozinha', texto:'Granito Verde Ubatuba. Máx. R$ 420,00 incluindo cuba. Gás: responsabilidade do cliente.'},
+    {titulo:'Gabinete do Banheiro', texto:'Gabinete + cuba: até R$ 280,00.'},
+    {titulo:'Nicho do Banheiro', texto:'Até R$ 120,00.'},
+    {titulo:'Torneiras e Registros', texto:'Banheiro R$ 60,00 · Cozinha R$ 70,00 · Tanque R$ 25,00. Acabamentos: máx. R$ 25,00.'},
+    {titulo:'Piso e Revestimentos', texto:'Cerâmica até R$ 30,00/m² (área total + banheiro + cozinha + tanque). Box banheiro NÃO incluso.'},
+    {titulo:'Observações Gerais', texto:'Box do banheiro NÃO incluso. Tubulação de gás NÃO inclusa.'}
+  ];
+
+  var ref = db.collection('materiais_config').doc('geral');
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      var lista = (doc.exists && Array.isArray(doc.data().itensEspecGerais)) ? doc.data().itensEspecGerais.slice() : ITENS_PADRAO.map(function(x){return Object.assign({},x);});
+      itens.forEach(function(it){
+        if(it.acao==='adicionar'){
+          lista.push({titulo: it.tituloNovo||'', texto: it.texto||'', oculto:false});
+        } else if(it.acao==='remover'){
+          lista = lista.filter(function(x){ return (x.titulo||'').toLowerCase()!==(it.tituloAtual||'').toLowerCase(); });
+        } else { // editar
+          var alvo = lista.find(function(x){ return (x.titulo||'').toLowerCase()===(it.tituloAtual||'').toLowerCase(); });
+          if(alvo){
+            if(it.tituloNovo) alvo.titulo = it.tituloNovo;
+            if(it.texto) alvo.texto = it.texto;
+            if(it.oculto!==undefined) alvo.oculto = !!it.oculto;
+          }
+        }
+      });
+      tx.set(ref, {itensEspecGerais: lista}, {merge:true});
+    });
+  }).then(function(){
+    historicoDuvida.push({role:'assistant', texto:'✅ Especificações e Limites atualizadas — já valem pra qualquer cliente que abrir o formulário de materiais.'});
     renderHistoricoDuvida();
     salvarHistoricoDuvida();
   }).catch(function(err){
@@ -3055,8 +3079,7 @@ function renderCardEspecClienteDuvida(){
   var lead = leads.find(function(l){ return l.nome && m.leadNome && l.nome.toLowerCase().indexOf(m.leadNome.toLowerCase())!==-1; });
   var itens = Array.isArray(m.itens) ? m.itens : [];
   var linhas = itens.map(function(it){
-    var nome = LABELS_ESPEC_GERAL[it.campo]||it.campo;
-    return (it.oculto ? '🚫 ' : '👁️ ')+nome+': <b>'+(it.oculto?'ocultar só pra esse cliente':'voltar a mostrar só pra esse cliente')+'</b>';
+    return (it.oculto ? '🚫 ' : '👁️ ')+esc(it.tituloAtual||'—')+': <b>'+(it.oculto?'ocultar só pra esse cliente':'voltar a mostrar só pra esse cliente')+'</b>';
   });
   return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
     + '<div style="font-weight:600;margin-bottom:4px">⚙️ Exceção de especificações — só pra esse cliente</div>'
@@ -3089,8 +3112,8 @@ function confirmarEspecCliente(){
     return tx.get(ref).then(function(doc){
       var atuais = (doc.data().especGeraisOcultosCliente)||[];
       itens.forEach(function(it){
-        atuais = atuais.filter(function(c){ return c!==it.campo; });
-        if(it.oculto) atuais.push(it.campo);
+        atuais = atuais.filter(function(c){ return c.toLowerCase()!==(it.tituloAtual||'').toLowerCase(); });
+        if(it.oculto) atuais.push(it.tituloAtual);
       });
       tx.update(ref, {especGeraisOcultosCliente: atuais});
     });
