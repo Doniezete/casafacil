@@ -541,6 +541,22 @@ function salvarLeadAutomatico(dadosD){
       parcela:dadosD.pmt_first||0,
       cidade:dadosD.cidade_atend||'',
       origem:'simulador',
+      // Dados completos, pra não precisar mais copiar/colar código
+      // manualmente na hora de gerar um contrato depois.
+      nascimento: dadosD.nasc||'',
+      profissao: dadosD.profissao||'',
+      estadoCivil: dadosD.civil||'',
+      rua: dadosD.rua||'',
+      bairro: dadosD.bairro||'',
+      cep: dadosD.cep||'',
+      cidadeEndereco: dadosD.cidade_cli||'',
+      ufEndereco: dadosD.uf_cli||'',
+      temTerrenoProprio: dadosD.tem_terreno||'',
+      terrenoLote: dadosD.t_lote||'',
+      terrenoQuadra: dadosD.t_quadra||'',
+      terrenoArea: dadosD.t_area||'',
+      terrenoBairro: dadosD.t_bairro||'',
+      terrenoCidade: dadosD.t_cidade||'',
       atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
     };
     ref.get().then(function(snap){
