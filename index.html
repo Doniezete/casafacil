@@ -69,24 +69,11 @@
   </select>
 
   <div class="sep"></div>
-  <div class="sec-title">👥 Segundo contratante (opcional)</div>
-  <div class="info-box">Preencha só se o contrato/financiamento vai ser em nome de duas pessoas (cônjuge, sócio, ou qualquer outra pessoa) — não precisa ser necessariamente casado(a).</div>
+  <div class="sec-title">👥 Outros contratantes (opcional)</div>
+  <div class="info-box">Adicione se o contrato/financiamento vai ser em nome de mais de uma pessoa (cônjuge, sócio, ou qualquer outra pessoa) — não precisa ser necessariamente casado(a).</div>
 
-  <label>Nome completo</label>
-  <input type="text" id="contratante2_nome" placeholder="Deixe em branco se for só uma pessoa"/>
-
-  <div class="grid2">
-    <div>
-      <label>CPF</label>
-      <input type="text" id="contratante2_cpf" placeholder="000.000.000-00" oninput="fmtCPF(this)" maxlength="14"/>
-    </div>
-    <div>
-      <label>Data de nascimento</label>
-      <input type="date" id="contratante2_nascimento"/>
-    </div>
-  </div>
-  <label>Profissão</label>
-  <input type="text" id="contratante2_profissao" placeholder="Ex: Comerciante"/>
+  <div id="listaContratantesExtrasSim"></div>
+  <button type="button" onclick="adicionarLinhaContratanteExtraSim()" style="width:100%;padding:12px;border-radius:10px;border:1px dashed #999;background:transparent;color:#555;font-weight:600;font-size:14px;cursor:pointer;margin-bottom:16px">➕ Adicionar outro contratante</button>
 
   <div class="sep"></div>
   <div class="sec-title">📍 Endereço do Proponente</div>
@@ -577,10 +564,7 @@ function salvarLeadAutomatico(dadosD){
       terrenoArea: dadosD.t_area||'',
       terrenoBairro: dadosD.t_bairro||'',
       terrenoCidade: dadosD.t_cidade||'',
-      contratante2Nome: dadosD.contratante2Nome||'',
-      contratante2Cpf: dadosD.contratante2Cpf||'',
-      contratante2Nascimento: dadosD.contratante2Nascimento||'',
-      contratante2Profissao: dadosD.contratante2Profissao||'',
+      contratantesExtras: dadosD.contratantesExtras||[],
       atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
     };
     ref.get().then(function(snap){
@@ -757,6 +741,38 @@ function parseM(el){var v=el.value.replace(/\./g,'').replace(',','.');return par
 function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function lerp(a,b,t){return a+t*(b-a);}
 function fmtCPF(el){var v=el.value.replace(/\D/g,'').substring(0,11);if(v.length<=3)el.value=v;else if(v.length<=6)el.value=v.slice(0,3)+'.'+v.slice(3);else if(v.length<=9)el.value=v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);else el.value=v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9);}
+
+/* Lista expansível de contratantes extras (cônjuge, sócio, quem for). */
+function adicionarLinhaContratanteExtraSim(){
+  var lista = document.getElementById('listaContratantesExtrasSim');
+  var div = document.createElement('div');
+  div.className = 'contratante-extra-row-sim';
+  div.style.cssText = 'border:1px solid #ccc;border-radius:8px;padding:12px;margin-bottom:12px;position:relative';
+  div.innerHTML =
+    '<button type="button" onclick="this.parentElement.remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px">🗑️</button>'
+    + '<label>Nome completo</label><input type="text" class="ce_nome_sim"/>'
+    + '<div class="grid2">'
+    +   '<div><label>CPF</label><input type="text" class="ce_cpf_sim" oninput="fmtCPF(this)" maxlength="14"/></div>'
+    +   '<div><label>Data de nascimento</label><input type="date" class="ce_nascimento_sim"/></div>'
+    + '</div>'
+    + '<label>Profissão</label><input type="text" class="ce_profissao_sim"/>';
+  lista.appendChild(div);
+}
+
+function coletarContratantesExtrasSim(){
+  var arr = [];
+  document.querySelectorAll('#listaContratantesExtrasSim .contratante-extra-row-sim').forEach(function(row){
+    var nome = row.querySelector('.ce_nome_sim').value.trim();
+    if(!nome) return;
+    arr.push({
+      nome: nome,
+      cpf: row.querySelector('.ce_cpf_sim').value.trim(),
+      nascimento: row.querySelector('.ce_nascimento_sim').value,
+      profissao: row.querySelector('.ce_profissao_sim').value.trim()
+    });
+  });
+  return arr;
+}
 function fmtCEP(el){var v=el.value.replace(/\D/g,'').substring(0,8);if(v.length<=5)el.value=v;else el.value=v.slice(0,5)+'-'+v.slice(5);}
 function fmtData(d){if(!d)return'';var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
 
@@ -1546,8 +1562,7 @@ function gerar(){
     nome:g('nome'),cpf:g('cpf'),telefone:g('telefone'),nasc:nasc,profissao:g('profissao'),civil:civMap[g('civil')]||g('civil'),
     rua:g('rua'),bairro:g('bairro'),cep:g('cep'),cidade_cli:g('cidade_cliente'),uf_cli:g('uf_cliente'),
     endereco:endereco_completo,
-    contratante2Nome:g('contratante2_nome'),contratante2Cpf:g('contratante2_cpf'),
-    contratante2Nascimento:document.getElementById('contratante2_nascimento').value,contratante2Profissao:g('contratante2_profissao'),
+    contratantesExtras:coletarContratantesExtrasSim(),
     tem_terreno:g('tem_terreno'),t_lote:g('t_lote'),t_quadra:g('t_quadra'),
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
     renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,renda_fmt:fmt(renda),
@@ -2074,8 +2089,7 @@ function copiarDados(){
     nome:nomeVal,cpf:g('cpf'),nasc:nasc,profissao:g('profissao'),civil:civMap[g('civil')]||g('civil'),
     rua:g('rua'),bairro:g('bairro'),cep:g('cep'),cidade_cli:g('cidade_cliente'),uf_cli:g('uf_cliente'),
     endereco:g('rua')+', '+g('bairro')+', CEP '+g('cep')+' — '+g('cidade_cliente')+'/'+g('uf_cliente'),
-    contratante2Nome:g('contratante2_nome'),contratante2Cpf:g('contratante2_cpf'),
-    contratante2Nascimento:document.getElementById('contratante2_nascimento').value,contratante2Profissao:g('contratante2_profissao'),
+    contratantesExtras:coletarContratantesExtrasSim(),
     tem_terreno:g('tem_terreno'),t_lote:g('t_lote'),t_quadra:g('t_quadra'),
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
     renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,

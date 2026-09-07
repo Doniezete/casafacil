@@ -249,13 +249,9 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
           <div class="campo" style="margin-bottom:0"><label>Bairro do terreno</label><input type="text" id="f_terrenoBairro"/></div>
           <div class="campo" style="margin-bottom:0"><label>Cidade do terreno</label><input type="text" id="f_terrenoCidade"/></div>
         </div>
-        <div style="border-top:1px solid var(--bd2);margin:12px 0 10px;padding-top:10px;color:var(--tx2);font-size:12px;font-weight:600">👥 Segundo contratante (opcional — cônjuge, sócio, ou qualquer outra pessoa no contrato)</div>
-        <div class="campo" style="margin-bottom:8px"><label>Nome completo</label><input type="text" id="f_contratante2Nome"/></div>
-        <div class="linha2">
-          <div class="campo" style="margin-bottom:8px"><label>CPF</label><input type="text" id="f_contratante2Cpf"/></div>
-          <div class="campo" style="margin-bottom:8px"><label>Data de nascimento</label><input type="date" id="f_contratante2Nascimento"/></div>
-        </div>
-        <div class="campo" style="margin-bottom:0"><label>Profissão</label><input type="text" id="f_contratante2Profissao"/></div>
+        <div style="border-top:1px solid var(--bd2);margin:12px 0 10px;padding-top:10px;color:var(--tx2);font-size:12px;font-weight:600">👥 Outros contratantes (opcional — cônjuge, sócio, ou qualquer outra pessoa no contrato)</div>
+        <div id="listaContratantesExtras"></div>
+        <button type="button" class="btn small secondary" onclick="adicionarLinhaContratanteExtra()">➕ Adicionar contratante</button>
       </div>
     </div>
     <div class="campo"><label>Minhas anotações rápidas</label><textarea id="f_notas" placeholder="Ex: disse que só teria a renda em julho. Já tem entrada guardada."></textarea></div>
@@ -941,6 +937,40 @@ function marcarAgConcluido(id, valor){
   });
 }
 
+/* Lista expansível de contratantes extras (cônjuge, sócio, quem for) —
+   usada tanto na edição do lead quanto na geração do contrato. */
+function adicionarLinhaContratanteExtra(dados){
+  dados = dados || {};
+  var lista = document.getElementById('listaContratantesExtras');
+  var div = document.createElement('div');
+  div.className = 'contratante-extra-row';
+  div.style.cssText = 'border:1px solid var(--bd2);border-radius:8px;padding:10px;margin-bottom:10px;position:relative';
+  div.innerHTML =
+    '<button type="button" onclick="this.parentElement.remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;color:#f87171;cursor:pointer;font-size:15px">🗑️</button>'
+    + '<div class="campo" style="margin-bottom:8px"><label>Nome completo</label><input type="text" class="ce_nome" value="'+esc(dados.nome||'')+'"/></div>'
+    + '<div class="linha2">'
+    +   '<div class="campo" style="margin-bottom:0"><label>CPF</label><input type="text" class="ce_cpf" value="'+esc(dados.cpf||'')+'"/></div>'
+    +   '<div class="campo" style="margin-bottom:0"><label>Data de nascimento</label><input type="date" class="ce_nascimento" value="'+esc(dados.nascimento||'')+'"/></div>'
+    + '</div>'
+    + '<div class="campo" style="margin-bottom:0;margin-top:8px"><label>Profissão</label><input type="text" class="ce_profissao" value="'+esc(dados.profissao||'')+'"/></div>';
+  lista.appendChild(div);
+}
+
+function coletarContratantesExtras(){
+  var arr = [];
+  document.querySelectorAll('#listaContratantesExtras .contratante-extra-row').forEach(function(row){
+    var nome = row.querySelector('.ce_nome').value.trim();
+    if(!nome) return;
+    arr.push({
+      nome: nome,
+      cpf: row.querySelector('.ce_cpf').value.trim(),
+      nascimento: row.querySelector('.ce_nascimento').value,
+      profissao: row.querySelector('.ce_profissao').value.trim()
+    });
+  });
+  return arr;
+}
+
 function salvarLead(){
   var nome=document.getElementById('f_nome').value.trim();
   if(!nome){ alert('Preencha o nome.'); return; }
@@ -977,10 +1007,7 @@ function salvarLead(){
     terrenoQuadra: document.getElementById('f_terrenoQuadra').value.trim(),
     terrenoBairro: document.getElementById('f_terrenoBairro').value.trim(),
     terrenoCidade: document.getElementById('f_terrenoCidade').value.trim(),
-    contratante2Nome: document.getElementById('f_contratante2Nome').value.trim(),
-    contratante2Cpf: document.getElementById('f_contratante2Cpf').value.trim(),
-    contratante2Nascimento: document.getElementById('f_contratante2Nascimento').value||'',
-    contratante2Profissao: document.getElementById('f_contratante2Profissao').value.trim(),
+    contratantesExtras: coletarContratantesExtras(),
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   if(!db){ alert('Banco de dados nao configurado ainda (veja o aviso no topo da pagina).'); return; }
@@ -2511,16 +2538,37 @@ function montarLocalObraLead(lead){
   return parts.join(', ');
 }
 
-/* Segundo contratante — só existe quando o lead tem esse campo preenchido
-   (cônjuge, sócio, ou qualquer outra pessoa incluída no contrato). */
-function segundoContratanteLead(lead){
-  if(!lead.contratante2Nome) return null;
-  return {
-    nome: lead.contratante2Nome,
-    cpf: lead.contratante2Cpf||'',
-    nascimento: lead.contratante2Nascimento?fmtData(lead.contratante2Nascimento):'',
-    profissao: lead.contratante2Profissao||''
-  };
+/* Contratantes extras — quantos existirem no cadastro (cônjuge, sócio,
+   ou qualquer outra pessoa incluída no contrato). Mantém compatibilidade
+   com cadastros antigos que ainda usam os campos únicos de "segundo
+   contratante" (antes dessa lista virar expansível). */
+function contratantesExtrasLead(lead){
+  if(Array.isArray(lead.contratantesExtras) && lead.contratantesExtras.length>0){
+    return lead.contratantesExtras.map(function(e){
+      return {
+        nome: e.nome||'',
+        cpf: e.cpf||'',
+        nascimento: e.nascimento?fmtData(e.nascimento):'',
+        profissao: e.profissao||''
+      };
+    }).filter(function(e){ return e.nome; });
+  }
+  if(lead.contratante2Nome){
+    return [{
+      nome: lead.contratante2Nome,
+      cpf: lead.contratante2Cpf||'',
+      nascimento: lead.contratante2Nascimento?fmtData(lead.contratante2Nascimento):'',
+      profissao: lead.contratante2Profissao||''
+    }];
+  }
+  return [];
+}
+
+/* Junta uma lista de nomes no formato "A, B e C" (português). */
+function formatarListaNomes(nomes){
+  if(nomes.length===0) return '';
+  if(nomes.length===1) return nomes[0];
+  return nomes.slice(0,-1).join(', ')+' e '+nomes[nomes.length-1];
 }
 
 /* Monta o HTML completo do dossiê (capa + índice + contrato) e devolve
@@ -2568,8 +2616,8 @@ function montarContratoObraHTML(lead, c, numeroContrato){
   var local_=montarLocalObraLead(lead)||'___________________________';
   var foro_=foro;
   var banco_=banco,ag_=ag,cc_=cc,pix_=pix;
-  var seg2_=segundoContratanteLead(lead); // segundo contratante, se existir
-  var nomesContratantes_=nome_+(seg2_?' e '+seg2_.nome:'');
+  var extras_=contratantesExtrasLead(lead); // outros contratantes, se existirem
+  var nomesContratantes_=formatarListaNomes([nome_].concat(extras_.map(function(e){return e.nome;})));
   var dataHoje=new Date().toLocaleDateString('pt-BR');
   var addr_=(rua_||'')+(bairro_?', '+bairro_:'')+(cep_?', CEP '+cep_:'')+(cidade_?' — '+cidade_:'');
   var dados_=(nasc_?'Nascimento: '+nasc_:'')+(civil_?' · '+civil_:'')+(prof_?' · '+prof_:'');
@@ -2614,7 +2662,7 @@ function montarContratoObraHTML(lead, c, numeroContrato){
     +'<div class="cv-t1">CONTRATO DE<span class="cv-ta">ADMINISTRAÇÃO</span>DE OBRA</div>'
     +'<div class="cv-cards">'
     +'<div class="cv-card"><div class="cv-cl">Imóvel / Local da Obra</div><div class="cv-cv">'+local_+'</div></div>'
-    +'<div class="cv-card"><div class="cv-cl">Contratante</div><div class="cv-cv">'+nomesContratantes_+(cpf_?' <small>— CPF: '+cpf_+(seg2_&&seg2_.cpf?' / '+seg2_.cpf:'')+'</small>':'')+'</div></div>'
+    +'<div class="cv-card"><div class="cv-cl">Contratante</div><div class="cv-cv">'+nomesContratantes_+(cpf_?' <small>— CPF: '+cpf_+(extras_.length?' / '+extras_.map(function(e){return e.cpf;}).filter(Boolean).join(' / '):'')+'</small>':'')+'</div></div>'
     +'<div class="cv-card"><div class="cv-cl">Contratada</div><div class="cv-cv">'+EMP_CTR.nome+' <small>— CNPJ: '+EMP_CTR.cnpj+'</small></div></div>'
     +'<div class="cv-card"><div class="cv-cl">Emissão &nbsp;·&nbsp; Nº do Contrato</div><div class="cv-cv">'+dataHoje+' <small>&nbsp;·&nbsp; Nº '+nc_+'</small></div></div>'
     +'</div>'
@@ -2759,7 +2807,7 @@ function montarContratoObraHTML(lead, c, numeroContrato){
     +'<div class="party-body">CNPJ: '+EMP_CTR.cnpj+'<br>Responsável: '+EMP_CTR.resp+' — CPF: '+EMP_CTR.cpf+'<br>CREA: '+EMP_CTR.crea+'<br>'+eo_.end+' — '+eo_.cidade+'/SP</div></div>'
     +'<div class="party"><div class="party-hdr"><div class="badge badge-cte">Contratante</div><div class="party-name">'+nomesContratantes_+'</div></div>'
     +'<div class="party-body">'+(cpf_?'CPF: '+cpf_+'<br>':'')+(dados_?dados_+'<br>':'')+(addr_||'')
-    +(seg2_?'<br><br><strong>'+seg2_.nome+'</strong><br>'+(seg2_.cpf?'CPF: '+seg2_.cpf+'<br>':'')+((seg2_.nascimento||seg2_.profissao)?(seg2_.nascimento?'Nascimento: '+seg2_.nascimento:'')+(seg2_.profissao?' · '+seg2_.profissao:''):''):'')
+    +(extras_.length?extras_.map(function(e){ return '<br><br><strong>'+e.nome+'</strong><br>'+(e.cpf?'CPF: '+e.cpf+'<br>':'')+((e.nascimento||e.profissao)?(e.nascimento?'Nascimento: '+e.nascimento:'')+(e.profissao?' · '+e.profissao:''):''); }).join(''):'')
     +'</div></div>'
     +'</div>'
     +'<div class="sec-div"><div class="sec-div-bar"></div><div class="sec-div-txt">Cláusulas Contratuais</div></div>'
@@ -2768,7 +2816,7 @@ function montarContratoObraHTML(lead, c, numeroContrato){
     +'<div class="sig-local">'+foro_+'/SP, '+dataHoje+'.</div>'
     +'<div class="sig-row">'
     +'<div class="sig-box"><div class="sig-space"></div><div class="sig-line"></div><div class="sig-name">'+nome_+'</div><div class="sig-info">'+(cpf_?'CPF: '+cpf_:'')+'</div><div class="sig-tag stag-cte">Contratante</div></div>'
-    +(seg2_?'<div class="sig-box"><div class="sig-space"></div><div class="sig-line"></div><div class="sig-name">'+seg2_.nome+'</div><div class="sig-info">'+(seg2_.cpf?'CPF: '+seg2_.cpf:'')+'</div><div class="sig-tag stag-cte">Contratante</div></div>':'')
+    +(extras_.length?extras_.map(function(e){ return '<div class="sig-box"><div class="sig-space"></div><div class="sig-line"></div><div class="sig-name">'+e.nome+'</div><div class="sig-info">'+(e.cpf?'CPF: '+e.cpf:'')+'</div><div class="sig-tag stag-cte">Contratante</div></div>'; }).join(''):'')
     +'<div class="sig-box"><div class="sig-space"></div><div class="sig-line"></div><div class="sig-name">'+EMP_CTR.nome+'</div><div class="sig-info">CNPJ: '+EMP_CTR.cnpj+'</div><div class="sig-tag stag-ct">Contratada</div></div>'
     +'</div>'
     +'<div class="wit-block"><div class="wit-label">Testemunhas</div>'
@@ -2978,10 +3026,13 @@ function abrirModal(lead){
   document.getElementById('f_terrenoQuadra').value = lead ? (lead.terrenoQuadra||'') : '';
   document.getElementById('f_terrenoBairro').value = lead ? (lead.terrenoBairro||'') : '';
   document.getElementById('f_terrenoCidade').value = lead ? (lead.terrenoCidade||'') : '';
-  document.getElementById('f_contratante2Nome').value = lead ? (lead.contratante2Nome||'') : '';
-  document.getElementById('f_contratante2Cpf').value = lead ? (lead.contratante2Cpf||'') : '';
-  document.getElementById('f_contratante2Nascimento').value = lead ? (lead.contratante2Nascimento||'') : '';
-  document.getElementById('f_contratante2Profissao').value = lead ? (lead.contratante2Profissao||'') : '';
+  document.getElementById('listaContratantesExtras').innerHTML = '';
+  var extrasExistentes = lead && Array.isArray(lead.contratantesExtras) ? lead.contratantesExtras : [];
+  if(extrasExistentes.length===0 && lead && lead.contratante2Nome){
+    // compatibilidade com cadastros feitos antes dessa lista virar expansível
+    extrasExistentes = [{nome:lead.contratante2Nome, cpf:lead.contratante2Cpf, nascimento:lead.contratante2Nascimento, profissao:lead.contratante2Profissao}];
+  }
+  extrasExistentes.forEach(function(ex){ adicionarLinhaContratanteExtra(ex); });
   document.getElementById('boxDadosCompletos').style.display = 'none';
   renderHistoricoBox(lead);
   document.getElementById('agendarSugestaoBox').style.display='none';
