@@ -856,6 +856,31 @@ function gerarPDF() {
   });
 
   var eobs = gv('f_elet');
+  function vis(k){ return !(VALS[k] && VALS[k].oculto); }
+  var especLis = [];
+  var tintaPartesPdf = [];
+  if(vis('tinta_ext')) tintaPartesPdf.push('máx. '+VALS.tinta_ext.v+'/lata 18kg (externa)');
+  if(vis('tinta_int')) tintaPartesPdf.push(VALS.tinta_int.v+'/lata (interna)');
+  if(tintaPartesPdf.length) especLis.push('<li>Tinta: '+tintaPartesPdf.join(' | ')+'</li>');
+  if(vis('cimento')) especLis.push('<li>Cimento certificado. Máx. '+VALS.cimento.v+'/saco</li>');
+  if(vis('pia')) especLis.push('<li>Pia cozinha: granito Verde Ubatuba, máx. '+VALS.pia.v+' (inclui cuba). Gás: resp. do cliente</li>');
+  var gabPartesPdf = [];
+  if(vis('gabinete')) gabPartesPdf.push('até '+VALS.gabinete.v+' (inclui cuba)');
+  if(vis('nicho')) gabPartesPdf.push('Nicho: até '+VALS.nicho.v);
+  if(gabPartesPdf.length) especLis.push('<li>Gabinete banheiro: '+gabPartesPdf.join('. ')+'</li>');
+  var tornPartesPdf = [];
+  if(vis('torn_ban')) tornPartesPdf.push('banheiro '+VALS.torn_ban.v);
+  if(vis('torn_coz')) tornPartesPdf.push('cozinha '+VALS.torn_coz.v);
+  if(vis('torn_tan')) tornPartesPdf.push('tanque '+VALS.torn_tan.v);
+  var tornLinePdf = tornPartesPdf.length ? 'Torneiras: '+tornPartesPdf.join(' · ') : '';
+  if(vis('acabamento')){
+    var acabTxtPdf = 'Acabamentos: máx. '+VALS.acabamento.v;
+    tornLinePdf = tornLinePdf ? tornLinePdf+'. '+acabTxtPdf : acabTxtPdf;
+  }
+  if(tornLinePdf) especLis.push('<li>'+tornLinePdf+'</li>');
+  if(vis('piso_max')) especLis.push('<li>Piso: cerâmica até '+VALS.piso_max.v+'/m² (área total + banheiro + cozinha + tanque)</li>');
+  especLis.push('<li><strong>Box do banheiro NÃO incluso. Tubulação de gás NÃO inclusa.</strong></li>');
+
   var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Contrato Materiais — CASA FÁCIL</title>'
     +'<style>'
     +'*{box-sizing:border-box;margin:0;padding:0}'
@@ -918,13 +943,7 @@ function gerarPDF() {
     +'</div>'
     +'<h2><span class="h2-accent"></span>Especificações Gerais</h2>'
     +'<div class="sc"><ul style="padding-left:16px">'
-    +'<li>Tinta: máx. '+VALS.tinta_ext.v+'/lata 18kg (externa) | '+VALS.tinta_int.v+'/lata (interna)</li>'
-    +'<li>Cimento certificado. Máx. '+VALS.cimento.v+'/saco</li>'
-    +'<li>Pia cozinha: granito Verde Ubatuba, máx. '+VALS.pia.v+' (inclui cuba). Gás: resp. do cliente</li>'
-    +'<li>Gabinete banheiro: até '+VALS.gabinete.v+' (inclui cuba). Nicho: até '+VALS.nicho.v+'</li>'
-    +'<li>Torneiras: banheiro '+VALS.torn_ban.v+' · cozinha '+VALS.torn_coz.v+' · tanque '+VALS.torn_tan.v+'. Acabamentos: máx. '+VALS.acabamento.v+'</li>'
-    +'<li>Piso: cerâmica até '+VALS.piso_max.v+'/m² (área total + banheiro + cozinha + tanque)</li>'
-    +'<li><strong>Box do banheiro NÃO incluso. Tubulação de gás NÃO inclusa.</strong></li>'
+    +especLis.join('')
     +'</ul></div>'
     +'<h2><span class="h2-accent"></span>Escolhas do Cliente</h2>'
     +'<table><thead><tr><th style="width:105px">Item</th><th>Especificação / Modelos</th><th style="width:115px">Observação</th></tr></thead>'
