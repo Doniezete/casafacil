@@ -2229,7 +2229,7 @@ function renderHistoricoDuvida(){
   box.innerHTML = historicoDuvida.map(function(m){
     var ehUsuario = m.role==='user';
     return '<div style="align-self:'+(ehUsuario?'flex-end':'flex-start')+';max-width:85%;background:'+(ehUsuario?'var(--ac)':'var(--card2)')+';color:'+(ehUsuario?'#1a1206':'var(--tx)')+';border-radius:10px;padding:8px 12px;font-size:13px;white-space:pre-wrap">'+linkificarTexto(m.texto)+'</div>';
-  }).join('') + renderCardAcaoDuvida() + renderCardContratoDuvida() + renderCardMaterialDuvida();
+  }).join('') + renderCardAcaoDuvida() + renderCardContratoDuvida() + renderCardMaterialDuvida() + renderCardEspecGeralDuvida();
   box.scrollTop = box.scrollHeight;
 }
 
@@ -2459,6 +2459,7 @@ function enviarDuvida(){
     if(obj.acao) acaoPendenteDuvida = obj.acao;
     if(obj.contratoObra) contratoObraPendente = obj.contratoObra;
     if(obj.itemMaterial) itemMaterialPendente = obj.itemMaterial;
+    if(obj.especGeral) especGeralPendente = obj.especGeral;
     renderHistoricoDuvida();
     salvarHistoricoDuvida();
   }).catch(function(err){
@@ -2936,14 +2937,14 @@ function renderCardMaterialDuvida(){
   if(!itemMaterialPendente) return '';
   var m = itemMaterialPendente;
   var lead = leads.find(function(l){ return l.nome && m.leadNome && l.nome.toLowerCase().indexOf(m.leadNome.toLowerCase())!==-1; });
-  var acaoLabel = m.acao==='remover' ? '🗑️ Remover item de materiais' : '➕ Adicionar item de materiais';
-  var detalhes = [];
-  detalhes.push('👤 '+esc(m.leadNome||'—')+(lead?'':' ⚠️ (lead não encontrado — confere o nome)'));
-  detalhes.push('📝 '+esc(m.titulo||'—'));
-  if(m.acao!=='remover' && m.texto) detalhes.push(esc(m.texto));
+  var itens = Array.isArray(m.itens) ? m.itens : [];
+  var linhasItens = itens.map(function(it){
+    var icone = it.acao==='remover' ? '🗑️' : '➕';
+    return icone+' '+esc(it.titulo||'—')+(it.acao!=='remover' && it.texto ? ' — '+esc(it.texto) : '');
+  });
   return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
-    + '<div style="font-weight:600;margin-bottom:4px">'+acaoLabel+'</div>'
-    + '<div style="color:var(--tx2);margin-bottom:8px;line-height:1.6">'+detalhes.join('<br>')+'</div>'
+    + '<div style="font-weight:600;margin-bottom:4px">📋 Itens de materiais</div>'
+    + '<div style="color:var(--tx2);margin-bottom:8px;line-height:1.6">👤 '+esc(m.leadNome||'—')+(lead?'':' ⚠️ (lead não encontrado — confere o nome)')+'<br>'+linhasItens.join('<br>')+'</div>'
     + (lead ? '' : '<div style="color:#f87171;font-size:12px;margin-bottom:8px">Não achei esse cliente na sua lista de leads.</div>')
     + '<div style="display:flex;gap:8px">'
     +   '<button class="btn small" onclick="confirmarItemMaterial()" '+(lead?'':'disabled')+'>✅ Confirmar</button>'
@@ -2962,6 +2963,7 @@ function cancelarItemMaterial(){
 function confirmarItemMaterial(){
   if(!itemMaterialPendente || !db) return;
   var m = itemMaterialPendente;
+  var itens = Array.isArray(m.itens) ? m.itens : [];
   var lead = leads.find(function(l){ return l.nome && m.leadNome && l.nome.toLowerCase().indexOf(m.leadNome.toLowerCase())!==-1; });
   if(!lead){ alert('Não encontrei esse cliente na lista de leads.'); return; }
   itemMaterialPendente = null;
@@ -2970,20 +2972,59 @@ function confirmarItemMaterial(){
   db.runTransaction(function(tx){
     return tx.get(ref).then(function(doc){
       var atuais = (doc.data().materiaisExtras)||[];
-      if(m.acao==='remover'){
-        atuais = atuais.filter(function(it){ return (it.titulo||'').toLowerCase()!==(m.titulo||'').toLowerCase(); });
-      } else {
-        atuais = atuais.filter(function(it){ return (it.titulo||'').toLowerCase()!==(m.titulo||'').toLowerCase(); });
-        atuais.push({titulo:m.titulo||'', texto:m.texto||''});
-      }
+      itens.forEach(function(it){
+        atuais = atuais.filter(function(a){ return (a.titulo||'').toLowerCase()!==(it.titulo||'').toLowerCase(); });
+        if(it.acao!=='remover'){
+          atuais.push({titulo:it.titulo||'', texto:it.texto||''});
+        }
+      });
       tx.update(ref, {materiaisExtras: atuais});
     });
   }).then(function(){
-    var msg = m.acao==='remover' ? '🗑️ Item removido do formulário de materiais de '+lead.nome+'.' : '✅ Item adicionado ao formulário de materiais de '+lead.nome+'.';
-    historicoDuvida.push({role:'assistant', texto:msg});
+    historicoDuvida.push({role:'assistant', texto:'✅ '+itens.length+' item(ns) atualizado(s) no formulário de materiais de '+lead.nome+'.'});
     renderHistoricoDuvida();
     salvarHistoricoDuvida();
     carregarLeads();
+  }).catch(function(err){
+    historicoDuvida.push({role:'assistant', texto:'⚠️ Erro: '+err.message});
+    renderHistoricoDuvida();
+  });
+}
+
+var LABELS_ESPEC_GERAL = {tinta_ext:'Tinta externa (lata 18kg)', tinta_int:'Tinta interna (lata)', cimento:'Cimento (saco)', pia:'Pia de granito c/ cuba', gabinete:'Gabinete + cuba', nicho:'Nicho', torn_ban:'Torneira banheiro', torn_coz:'Torneira cozinha', torn_tan:'Torneira tanque', acabamento:'Acabamento das torneiras', piso_max:'Piso cerâmico (m²)', hydra:'Bacia sanitária hydra', acoplada:'Bacia sanitária acoplada', alv_acr:'Acréscimo tijolo maciço (m)', jan_fach:'Janela de fachada', jan_amb:'Janela de ambiente', port_fach:'Porta de fachada'};
+var especGeralPendente = null;
+
+function renderCardEspecGeralDuvida(){
+  if(!especGeralPendente) return '';
+  var itens = Array.isArray(especGeralPendente.itens) ? especGeralPendente.itens : [];
+  var linhas = itens.map(function(it){ return (LABELS_ESPEC_GERAL[it.campo]||it.campo)+': <b>'+esc(it.valor||'')+'</b>'; });
+  return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
+    + '<div style="font-weight:600;margin-bottom:4px">⚙️ Especificações gerais (vale pra todos os clientes)</div>'
+    + '<div style="color:var(--tx2);margin-bottom:8px;line-height:1.6">'+linhas.join('<br>')+'</div>'
+    + '<div style="display:flex;gap:8px">'
+    +   '<button class="btn small" onclick="confirmarEspecGeral()">✅ Confirmar</button>'
+    +   '<button class="btn small secondary" onclick="cancelarEspecGeral()">Cancelar</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function cancelarEspecGeral(){
+  especGeralPendente = null;
+  historicoDuvida.push({role:'assistant', texto:'(ação cancelada)'});
+  renderHistoricoDuvida();
+  salvarHistoricoDuvida();
+}
+
+function confirmarEspecGeral(){
+  if(!especGeralPendente || !db) return;
+  var itens = Array.isArray(especGeralPendente.itens) ? especGeralPendente.itens : [];
+  especGeralPendente = null;
+  var dados = {};
+  itens.forEach(function(it){ dados[it.campo] = it.valor; });
+  db.collection('materiais_config').doc('geral').set(dados, {merge:true}).then(function(){
+    historicoDuvida.push({role:'assistant', texto:'✅ Especificações gerais atualizadas — já valem pra qualquer cliente que abrir o formulário de materiais.'});
+    renderHistoricoDuvida();
+    salvarHistoricoDuvida();
   }).catch(function(err){
     historicoDuvida.push({role:'assistant', texto:'⚠️ Erro: '+err.message});
     renderHistoricoDuvida();
