@@ -2229,7 +2229,7 @@ function renderHistoricoDuvida(){
   box.innerHTML = historicoDuvida.map(function(m){
     var ehUsuario = m.role==='user';
     return '<div style="align-self:'+(ehUsuario?'flex-end':'flex-start')+';max-width:85%;background:'+(ehUsuario?'var(--ac)':'var(--card2)')+';color:'+(ehUsuario?'#1a1206':'var(--tx)')+';border-radius:10px;padding:8px 12px;font-size:13px;white-space:pre-wrap">'+linkificarTexto(m.texto)+'</div>';
-  }).join('') + renderCardAcaoDuvida() + renderCardContratoDuvida() + renderCardMaterialDuvida() + renderCardEspecGeralDuvida();
+  }).join('') + renderCardAcaoDuvida() + renderCardContratoDuvida() + renderCardMaterialDuvida() + renderCardEspecGeralDuvida() + renderCardEspecClienteDuvida();
   box.scrollTop = box.scrollHeight;
 }
 
@@ -2460,6 +2460,7 @@ function enviarDuvida(){
     if(obj.contratoObra) contratoObraPendente = obj.contratoObra;
     if(obj.itemMaterial) itemMaterialPendente = obj.itemMaterial;
     if(obj.especGeral) especGeralPendente = obj.especGeral;
+    if(obj.especCliente) especClientePendente = obj.especCliente;
     renderHistoricoDuvida();
     salvarHistoricoDuvida();
   }).catch(function(err){
@@ -2993,6 +2994,7 @@ function confirmarItemMaterial(){
 
 var LABELS_ESPEC_GERAL = {tinta_ext:'Tinta externa (lata 18kg)', tinta_int:'Tinta interna (lata)', cimento:'Cimento (saco)', pia:'Pia de granito c/ cuba', gabinete:'Gabinete + cuba', nicho:'Nicho', torn_ban:'Torneira banheiro', torn_coz:'Torneira cozinha', torn_tan:'Torneira tanque', acabamento:'Acabamento das torneiras', piso_max:'Piso cerâmico (m²)', hydra:'Bacia sanitária hydra', acoplada:'Bacia sanitária acoplada', alv_acr:'Acréscimo tijolo maciço (m)', jan_fach:'Janela de fachada', jan_amb:'Janela de ambiente', port_fach:'Porta de fachada'};
 var especGeralPendente = null;
+var especClientePendente = null;
 
 function renderCardEspecGeralDuvida(){
   if(!especGeralPendente) return '';
@@ -3033,6 +3035,62 @@ function confirmarEspecGeral(){
     historicoDuvida.push({role:'assistant', texto:'✅ Especificações gerais atualizadas — já valem pra qualquer cliente que abrir o formulário de materiais.'});
     renderHistoricoDuvida();
     salvarHistoricoDuvida();
+  }).catch(function(err){
+    historicoDuvida.push({role:'assistant', texto:'⚠️ Erro: '+err.message});
+    renderHistoricoDuvida();
+  });
+}
+
+function renderCardEspecClienteDuvida(){
+  if(!especClientePendente) return '';
+  var m = especClientePendente;
+  var lead = leads.find(function(l){ return l.nome && m.leadNome && l.nome.toLowerCase().indexOf(m.leadNome.toLowerCase())!==-1; });
+  var itens = Array.isArray(m.itens) ? m.itens : [];
+  var linhas = itens.map(function(it){
+    var nome = LABELS_ESPEC_GERAL[it.campo]||it.campo;
+    return (it.oculto ? '🚫 ' : '👁️ ')+nome+': <b>'+(it.oculto?'ocultar só pra esse cliente':'voltar a mostrar só pra esse cliente')+'</b>';
+  });
+  return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
+    + '<div style="font-weight:600;margin-bottom:4px">⚙️ Exceção de especificações — só pra esse cliente</div>'
+    + '<div style="color:var(--tx2);margin-bottom:8px;line-height:1.6">👤 '+esc(m.leadNome||'—')+(lead?'':' ⚠️ (lead não encontrado — confere o nome)')+'<br>'+linhas.join('<br>')+'</div>'
+    + (lead ? '' : '<div style="color:#f87171;font-size:12px;margin-bottom:8px">Não achei esse cliente na sua lista de leads.</div>')
+    + '<div style="display:flex;gap:8px">'
+    +   '<button class="btn small" onclick="confirmarEspecCliente()" '+(lead?'':'disabled')+'>✅ Confirmar</button>'
+    +   '<button class="btn small secondary" onclick="cancelarEspecCliente()">Cancelar</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function cancelarEspecCliente(){
+  especClientePendente = null;
+  historicoDuvida.push({role:'assistant', texto:'(ação cancelada)'});
+  renderHistoricoDuvida();
+  salvarHistoricoDuvida();
+}
+
+function confirmarEspecCliente(){
+  if(!especClientePendente || !db) return;
+  var m = especClientePendente;
+  var itens = Array.isArray(m.itens) ? m.itens : [];
+  var lead = leads.find(function(l){ return l.nome && m.leadNome && l.nome.toLowerCase().indexOf(m.leadNome.toLowerCase())!==-1; });
+  if(!lead){ alert('Não encontrei esse cliente na lista de leads.'); return; }
+  especClientePendente = null;
+
+  var ref = db.collection('leads').doc(lead.id);
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      var atuais = (doc.data().especGeraisOcultosCliente)||[];
+      itens.forEach(function(it){
+        atuais = atuais.filter(function(c){ return c!==it.campo; });
+        if(it.oculto) atuais.push(it.campo);
+      });
+      tx.update(ref, {especGeraisOcultosCliente: atuais});
+    });
+  }).then(function(){
+    historicoDuvida.push({role:'assistant', texto:'✅ Exceção aplicada só pro cadastro de '+lead.nome+' — os outros clientes continuam vendo normal.'});
+    renderHistoricoDuvida();
+    salvarHistoricoDuvida();
+    carregarLeads();
   }).catch(function(err){
     historicoDuvida.push({role:'assistant', texto:'⚠️ Erro: '+err.message});
     renderHistoricoDuvida();

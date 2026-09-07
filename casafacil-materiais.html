@@ -442,6 +442,13 @@ function carregarDadosDoLead(){
     });
     if(d.cidade){ var selEmp = gi('f_emp'); if(selEmp) selEmp.value = d.cidade; }
     if(Array.isArray(d.materiaisExtras)) ADICIONAIS = d.materiaisExtras.slice();
+    // Exceções de especificações gerais que valem só pra esse cliente
+    // (ex: esconder o gabinete do banheiro só pro Bruno, mantendo visível pros outros).
+    Object.keys(VALS).forEach(function(k){ VALS[k].ocultoCliente = false; });
+    if(Array.isArray(d.especGeraisOcultosCliente)){
+      d.especGeraisOcultosCliente.forEach(function(campo){ if(VALS[campo]) VALS[campo].ocultoCliente = true; });
+    }
+    atualizarTextosVals();
   }).catch(function(err){ console.warn('Nao foi possivel carregar dados do lead:', err.message); });
 }
 
@@ -675,7 +682,7 @@ function openVP() {
 function closeVP() { gi('vpanel').classList.remove('open'); }
 function atualizarTextosVals() {
   function sv(id, html) { var el=gi(id); if(el) el.innerHTML=html; }
-  function vis(k){ return !(VALS[k] && VALS[k].oculto); }
+  function vis(k){ return !(VALS[k] && (VALS[k].oculto || VALS[k].ocultoCliente)); }
 
   var tintaPartes = [];
   if(vis('tinta_ext')) tintaPartes.push('Máx. '+VALS.tinta_ext.v+'/lata 18kg (externa)');
@@ -856,7 +863,7 @@ function gerarPDF() {
   });
 
   var eobs = gv('f_elet');
-  function vis(k){ return !(VALS[k] && VALS[k].oculto); }
+  function vis(k){ return !(VALS[k] && (VALS[k].oculto || VALS[k].ocultoCliente)); }
   var especLis = [];
   var tintaPartesPdf = [];
   if(vis('tinta_ext')) tintaPartesPdf.push('máx. '+VALS.tinta_ext.v+'/lata 18kg (externa)');
