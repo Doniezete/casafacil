@@ -119,12 +119,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--nl)}
 
 <div class="card">
   <div class="sec">📋 Especificações Gerais</div>
-  <div class="scope"><strong>Tinta</strong><span id="sv-tinta">Máx. R$ 400,00/lata 18kg (externa) | R$ 300,00/lata (interna).</span></div>
-  <div class="scope"><strong>Cimento</strong><span id="sv-cimento">Certificado. Máx. R$ 32,00/saco.</span></div>
-  <div class="scope"><strong>Pia da Cozinha</strong><span id="sv-pia">Granito Verde Ubatuba. Máx. R$ 420,00 incluindo cuba. Gás: responsabilidade do cliente.</span></div>
-  <div class="scope"><strong>Gabinete do Banheiro</strong><span id="sv-gabinete">Gabinete + cuba: até R$ 280,00. Nicho: até R$ 120,00.</span></div>
-  <div class="scope"><strong>Torneiras e Registros</strong><span id="sv-torn">Banheiro R$ 60,00 · Cozinha R$ 70,00 · Tanque R$ 25,00. Acabamentos: máx. R$ 25,00.</span></div>
-  <div class="scope"><strong>Piso e Revestimentos</strong><span id="sv-piso">Cerâmica até R$ 30,00/m² (área total + banheiro + cozinha + tanque). Box banheiro NÃO incluso.</span></div>
+  <div class="scope"><strong id="tt-tinta">Tinta</strong><span id="sv-tinta">Máx. R$ 400,00/lata 18kg (externa) | R$ 300,00/lata (interna).</span></div>
+  <div class="scope"><strong id="tt-cimento">Cimento</strong><span id="sv-cimento">Certificado. Máx. R$ 32,00/saco.</span></div>
+  <div class="scope"><strong id="tt-pia">Pia da Cozinha</strong><span id="sv-pia">Granito Verde Ubatuba. Máx. R$ 420,00 incluindo cuba. Gás: responsabilidade do cliente.</span></div>
+  <div class="scope"><strong id="tt-gabinete">Gabinete do Banheiro</strong><span id="sv-gabinete">Gabinete + cuba: até R$ 280,00.</span></div>
+  <div class="scope"><strong id="tt-nicho">Nicho do Banheiro</strong><span id="sv-nicho">Até R$ 120,00.</span></div>
+  <div class="scope"><strong id="tt-torn">Torneiras e Registros</strong><span id="sv-torn">Banheiro R$ 60,00 · Cozinha R$ 70,00 · Tanque R$ 25,00. Acabamentos: máx. R$ 25,00.</span></div>
+  <div class="scope"><strong id="tt-piso">Piso e Revestimentos</strong><span id="sv-piso">Cerâmica até R$ 30,00/m² (área total + banheiro + cozinha + tanque). Box banheiro NÃO incluso.</span></div>
 </div>
 
 <div class="card">
@@ -408,6 +409,20 @@ var VALS = {
 // Cada item: { titulo, texto }. Deixe texto vazio para ocultar no PDF.
 var ADICIONAIS = [];
 
+/* Títulos das especificações gerais — editáveis pelo chat. Cada campo de
+   VALS pertence a um "grupo" de título (a maioria é 1 pra 1; tinta/torn
+   têm mais de um campo compartilhando o mesmo título). */
+var TITULOS = {
+  tinta: 'Tinta', cimento: 'Cimento', pia: 'Pia da Cozinha',
+  gabinete: 'Gabinete do Banheiro', nicho: 'Nicho do Banheiro',
+  torn: 'Torneiras e Registros', piso: 'Piso e Revestimentos'
+};
+var GRUPO_TITULO = {
+  tinta_ext:'tinta', tinta_int:'tinta', cimento:'cimento', pia:'pia',
+  gabinete:'gabinete', nicho:'nicho', torn_ban:'torn', torn_coz:'torn',
+  torn_tan:'torn', acabamento:'torn', piso_max:'piso'
+};
+
 /* ============================================================
    Ponte com o cadastro do lead — identifica o cliente pelo link
    (?lead=ID), pré-preenche os dados dele e carrega os itens extras
@@ -462,6 +477,9 @@ function carregarValoresGerais(){
       if(k.slice(-7)==='_oculto'){
         var base = k.slice(0, -7);
         if(VALS[base]) VALS[base].oculto = !!salvos[k];
+      } else if(k.indexOf('titulo_')===0){
+        var grupo = k.slice(7);
+        if(TITULOS[grupo]!==undefined) TITULOS[grupo] = salvos[k];
       } else if(VALS[k]){
         VALS[k].v = salvos[k];
       }
@@ -684,6 +702,12 @@ function atualizarTextosVals() {
   function sv(id, html) { var el=gi(id); if(el) el.innerHTML=html; }
   function vis(k){ return !(VALS[k] && (VALS[k].oculto || VALS[k].ocultoCliente)); }
 
+  // Aplica os títulos personalizados (ou o padrão, se não houver nenhum salvo)
+  Object.keys(TITULOS).forEach(function(grupo){
+    var el = gi('tt-'+grupo);
+    if(el) el.textContent = TITULOS[grupo];
+  });
+
   var tintaPartes = [];
   if(vis('tinta_ext')) tintaPartes.push('Máx. '+VALS.tinta_ext.v+'/lata 18kg (externa)');
   if(vis('tinta_int')) tintaPartes.push(VALS.tinta_int.v+'/lata (interna)');
@@ -693,10 +717,8 @@ function atualizarTextosVals() {
 
   sv('sv-pia', vis('pia') ? 'Granito Verde Ubatuba. Máx. '+VALS.pia.v+' incluindo cuba. Gás: responsabilidade do cliente.' : '');
 
-  var gabPartes = [];
-  if(vis('gabinete')) gabPartes.push('Gabinete + cuba: até '+VALS.gabinete.v);
-  if(vis('nicho')) gabPartes.push('Nicho: até '+VALS.nicho.v);
-  sv('sv-gabinete', gabPartes.length ? gabPartes.join('. ')+'.' : '');
+  sv('sv-gabinete', vis('gabinete') ? 'Gabinete + cuba: até '+VALS.gabinete.v+'.' : '');
+  sv('sv-nicho', vis('nicho') ? 'Até '+VALS.nicho.v+'.' : '');
 
   var tornPartes = [];
   if(vis('torn_ban')) tornPartes.push('Banheiro '+VALS.torn_ban.v);
@@ -868,24 +890,22 @@ function gerarPDF() {
   var tintaPartesPdf = [];
   if(vis('tinta_ext')) tintaPartesPdf.push('máx. '+VALS.tinta_ext.v+'/lata 18kg (externa)');
   if(vis('tinta_int')) tintaPartesPdf.push(VALS.tinta_int.v+'/lata (interna)');
-  if(tintaPartesPdf.length) especLis.push('<li>Tinta: '+tintaPartesPdf.join(' | ')+'</li>');
-  if(vis('cimento')) especLis.push('<li>Cimento certificado. Máx. '+VALS.cimento.v+'/saco</li>');
-  if(vis('pia')) especLis.push('<li>Pia cozinha: granito Verde Ubatuba, máx. '+VALS.pia.v+' (inclui cuba). Gás: resp. do cliente</li>');
-  var gabPartesPdf = [];
-  if(vis('gabinete')) gabPartesPdf.push('até '+VALS.gabinete.v+' (inclui cuba)');
-  if(vis('nicho')) gabPartesPdf.push('Nicho: até '+VALS.nicho.v);
-  if(gabPartesPdf.length) especLis.push('<li>Gabinete banheiro: '+gabPartesPdf.join('. ')+'</li>');
+  if(tintaPartesPdf.length) especLis.push('<li>'+TITULOS.tinta+': '+tintaPartesPdf.join(' | ')+'</li>');
+  if(vis('cimento')) especLis.push('<li>'+TITULOS.cimento+' certificado. Máx. '+VALS.cimento.v+'/saco</li>');
+  if(vis('pia')) especLis.push('<li>'+TITULOS.pia+': granito Verde Ubatuba, máx. '+VALS.pia.v+' (inclui cuba). Gás: resp. do cliente</li>');
+  if(vis('gabinete')) especLis.push('<li>'+TITULOS.gabinete+': até '+VALS.gabinete.v+' (inclui cuba)</li>');
+  if(vis('nicho')) especLis.push('<li>'+TITULOS.nicho+': até '+VALS.nicho.v+'</li>');
   var tornPartesPdf = [];
   if(vis('torn_ban')) tornPartesPdf.push('banheiro '+VALS.torn_ban.v);
   if(vis('torn_coz')) tornPartesPdf.push('cozinha '+VALS.torn_coz.v);
   if(vis('torn_tan')) tornPartesPdf.push('tanque '+VALS.torn_tan.v);
-  var tornLinePdf = tornPartesPdf.length ? 'Torneiras: '+tornPartesPdf.join(' · ') : '';
+  var tornLinePdf = tornPartesPdf.length ? TITULOS.torn+': '+tornPartesPdf.join(' · ') : '';
   if(vis('acabamento')){
     var acabTxtPdf = 'Acabamentos: máx. '+VALS.acabamento.v;
     tornLinePdf = tornLinePdf ? tornLinePdf+'. '+acabTxtPdf : acabTxtPdf;
   }
   if(tornLinePdf) especLis.push('<li>'+tornLinePdf+'</li>');
-  if(vis('piso_max')) especLis.push('<li>Piso: cerâmica até '+VALS.piso_max.v+'/m² (área total + banheiro + cozinha + tanque)</li>');
+  if(vis('piso_max')) especLis.push('<li>'+TITULOS.piso+': cerâmica até '+VALS.piso_max.v+'/m² (área total + banheiro + cozinha + tanque)</li>');
   especLis.push('<li><strong>Box do banheiro NÃO incluso. Tubulação de gás NÃO inclusa.</strong></li>');
 
   var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Contrato Materiais — CASA FÁCIL</title>'
