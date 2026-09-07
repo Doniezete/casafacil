@@ -3079,7 +3079,11 @@ function renderCardEspecClienteDuvida(){
   var lead = leads.find(function(l){ return l.nome && m.leadNome && l.nome.toLowerCase().indexOf(m.leadNome.toLowerCase())!==-1; });
   var itens = Array.isArray(m.itens) ? m.itens : [];
   var linhas = itens.map(function(it){
-    return (it.oculto ? '🚫 ' : '👁️ ')+esc(it.tituloAtual||'—')+': <b>'+(it.oculto?'ocultar só pra esse cliente':'voltar a mostrar só pra esse cliente')+'</b>';
+    var partes = ['📌 '+esc(it.tituloAtual||'—')];
+    if(it.texto) partes.push('novo texto (só esse cliente): <b>'+esc(it.texto)+'</b>');
+    if(it.oculto===true) partes.push('<b>🚫 ocultar</b> só pra esse cliente');
+    if(it.oculto===false) partes.push('<b>👁️ voltar a mostrar</b> só pra esse cliente');
+    return partes.join(' — ');
   });
   return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
     + '<div style="font-weight:600;margin-bottom:4px">⚙️ Exceção de especificações — só pra esse cliente</div>'
@@ -3110,12 +3114,18 @@ function confirmarEspecCliente(){
   var ref = db.collection('leads').doc(lead.id);
   db.runTransaction(function(tx){
     return tx.get(ref).then(function(doc){
-      var atuais = (doc.data().especGeraisOcultosCliente)||[];
+      // Formato novo: lista de exceções {titulo, texto, oculto}, uma por item personalizado.
+      // Também apagamos qualquer entrada do formato antigo (só nome do título, sem texto),
+      // já que o novo formato substitui completamente.
+      var atuais = Array.isArray(doc.data().especGeraisOverridesCliente) ? doc.data().especGeraisOverridesCliente.slice() : [];
       itens.forEach(function(it){
-        atuais = atuais.filter(function(c){ return c.toLowerCase()!==(it.tituloAtual||'').toLowerCase(); });
-        if(it.oculto) atuais.push(it.tituloAtual);
+        atuais = atuais.filter(function(x){ return x.titulo.toLowerCase()!==(it.tituloAtual||'').toLowerCase(); });
+        var novo = {titulo: it.tituloAtual};
+        if(it.texto) novo.texto = it.texto;
+        if(it.oculto!==undefined) novo.oculto = !!it.oculto;
+        atuais.push(novo);
       });
-      tx.update(ref, {especGeraisOcultosCliente: atuais});
+      tx.update(ref, {especGeraisOverridesCliente: atuais, especGeraisOcultosCliente: firebase.firestore.FieldValue.delete()});
     });
   }).then(function(){
     historicoDuvida.push({role:'assistant', texto:'✅ Exceção aplicada só pro cadastro de '+lead.nome+' — os outros clientes continuam vendo normal.'});

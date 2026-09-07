@@ -418,7 +418,7 @@ function renderEspecGerais(){
   var html = '';
   ESPEC_GERAIS.forEach(function(it){
     if(it.oculto || it.ocultoCliente) return;
-    html += '<div class="scope"><strong>'+escMat(it.titulo)+'</strong><span>'+it.texto+'</span></div>';
+    html += '<div class="scope"><strong>'+escMat(it.titulo)+'</strong><span>'+(it.textoCliente||it.texto)+'</span></div>';
   });
   cont.innerHTML = html;
 }
@@ -458,14 +458,25 @@ function carregarDadosDoLead(){
     if(d.cidade){ var selEmp = gi('f_emp'); if(selEmp) selEmp.value = d.cidade; }
     if(Array.isArray(d.materiaisExtras)) ADICIONAIS = d.materiaisExtras.slice();
     // Exceções de especificações gerais que valem só pra esse cliente
-    // (ex: esconder o gabinete do banheiro só pro Bruno, mantendo visível pros outros).
+    // (ex: esconder o gabinete do banheiro só pro Bruno, ou mudar o texto
+    // do piso só pra ele, mantendo o padrão pros outros clientes).
     Object.keys(VALS).forEach(function(k){ VALS[k].ocultoCliente = false; });
-    ESPEC_GERAIS.forEach(function(it){ it.ocultoCliente = false; });
+    ESPEC_GERAIS.forEach(function(it){ it.ocultoCliente = false; delete it.textoCliente; });
+    // Formato antigo (só nome do item oculto) — mantido por compatibilidade
     if(Array.isArray(d.especGeraisOcultosCliente)){
       d.especGeraisOcultosCliente.forEach(function(titulo){
-        if(VALS[titulo]) VALS[titulo].ocultoCliente = true; // compatibilidade com formato antigo (por chave)
+        if(VALS[titulo]) VALS[titulo].ocultoCliente = true;
         var item = ESPEC_GERAIS.find(function(x){ return x.titulo.toLowerCase()===String(titulo).toLowerCase(); });
         if(item) item.ocultoCliente = true;
+      });
+    }
+    // Formato novo (oculto e/ou texto personalizado por item)
+    if(Array.isArray(d.especGeraisOverridesCliente)){
+      d.especGeraisOverridesCliente.forEach(function(ov){
+        var item = ESPEC_GERAIS.find(function(x){ return x.titulo.toLowerCase()===String(ov.titulo).toLowerCase(); });
+        if(!item) return;
+        if(ov.oculto!==undefined) item.ocultoCliente = !!ov.oculto;
+        if(ov.texto) item.textoCliente = ov.texto;
       });
     }
     atualizarTextosVals();
@@ -869,7 +880,7 @@ function gerarPDF() {
   var especLis = [];
   ESPEC_GERAIS.forEach(function(it){
     if(it.oculto || it.ocultoCliente) return;
-    especLis.push('<li><strong>'+it.titulo+':</strong> '+it.texto+'</li>');
+    especLis.push('<li><strong>'+it.titulo+':</strong> '+(it.textoCliente||it.texto)+'</li>');
   });
 
   var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Contrato Materiais — CASA FÁCIL</title>'
