@@ -2997,7 +2997,12 @@ var especGeralPendente = null;
 function renderCardEspecGeralDuvida(){
   if(!especGeralPendente) return '';
   var itens = Array.isArray(especGeralPendente.itens) ? especGeralPendente.itens : [];
-  var linhas = itens.map(function(it){ return (LABELS_ESPEC_GERAL[it.campo]||it.campo)+': <b>'+esc(it.valor||'')+'</b>'; });
+  var linhas = itens.map(function(it){
+    var nome = LABELS_ESPEC_GERAL[it.campo]||it.campo;
+    if(it.oculto===true) return '🚫 '+nome+': <b>ocultar</b> (some pra todo mundo)';
+    if(it.oculto===false) return '👁️ '+nome+': <b>voltar a mostrar</b>';
+    return nome+': <b>'+esc(it.valor||'')+'</b>';
+  });
   return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
     + '<div style="font-weight:600;margin-bottom:4px">⚙️ Especificações gerais (vale pra todos os clientes)</div>'
     + '<div style="color:var(--tx2);margin-bottom:8px;line-height:1.6">'+linhas.join('<br>')+'</div>'
@@ -3020,7 +3025,10 @@ function confirmarEspecGeral(){
   var itens = Array.isArray(especGeralPendente.itens) ? especGeralPendente.itens : [];
   especGeralPendente = null;
   var dados = {};
-  itens.forEach(function(it){ dados[it.campo] = it.valor; });
+  itens.forEach(function(it){
+    if(it.valor!==undefined && it.valor!==null && it.valor!=='') dados[it.campo] = it.valor;
+    if(it.oculto!==undefined) dados[it.campo+'_oculto'] = !!it.oculto;
+  });
   db.collection('materiais_config').doc('geral').set(dados, {merge:true}).then(function(){
     historicoDuvida.push({role:'assistant', texto:'✅ Especificações gerais atualizadas — já valem pra qualquer cliente que abrir o formulário de materiais.'});
     renderHistoricoDuvida();

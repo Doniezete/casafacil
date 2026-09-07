@@ -452,7 +452,12 @@ function carregarValoresGerais(){
     if(!doc.exists) return;
     var salvos = doc.data();
     Object.keys(salvos).forEach(function(k){
-      if(VALS[k]) VALS[k].v = salvos[k];
+      if(k.slice(-7)==='_oculto'){
+        var base = k.slice(0, -7);
+        if(VALS[base]) VALS[base].oculto = !!salvos[k];
+      } else if(VALS[k]){
+        VALS[k].v = salvos[k];
+      }
     });
     atualizarTextosVals();
   }).catch(function(err){ console.warn('Nao foi possivel carregar os valores gerais:', err.message); });
@@ -670,18 +675,42 @@ function openVP() {
 function closeVP() { gi('vpanel').classList.remove('open'); }
 function atualizarTextosVals() {
   function sv(id, html) { var el=gi(id); if(el) el.innerHTML=html; }
-  sv('sv-tinta',    'Máx. '+VALS.tinta_ext.v+'/lata 18kg (externa) | '+VALS.tinta_int.v+'/lata (interna).');
-  sv('sv-cimento',  'Certificado. Máx. '+VALS.cimento.v+'/saco.');
-  sv('sv-pia',      'Granito Verde Ubatuba. Máx. '+VALS.pia.v+' incluindo cuba. Gás: responsabilidade do cliente.');
-  sv('sv-gabinete', 'Gabinete + cuba: até '+VALS.gabinete.v+'. Nicho: até '+VALS.nicho.v+'.');
-  sv('sv-torn',     'Banheiro '+VALS.torn_ban.v+' · Cozinha '+VALS.torn_coz.v+' · Tanque '+VALS.torn_tan.v+'. Acabamentos: máx. '+VALS.acabamento.v+'.');
-  sv('sv-piso',     'Cerâmica até '+VALS.piso_max.v+'/m² (área total + banheiro + cozinha + tanque). Box banheiro NÃO incluso.');
-  sv('sv-hydra',    'Até '+VALS.hydra.v);
-  sv('sv-acop',     'Até '+VALS.acoplada.v);
-  sv('sv-alv-info', '⚠️ Acréscimo '+VALS.alv_acr.v+'/m');
-  sv('sv-alv-obs',  '⚠️ Tijolo maciço: acréscimo de '+VALS.alv_acr.v+' no metro da construção.');
-  sv('sv-jan-desc', '1 janela por ambiente. Fachada: até '+VALS.jan_fach.v+' · Cozinha/quartos: até '+VALS.jan_amb.v+'.');
-  sv('sv-port-desc','1 porta por ambiente. Fachada: até '+VALS.port_fach.v+'. Box banheiro NÃO incluso.');
+  function vis(k){ return !(VALS[k] && VALS[k].oculto); }
+
+  var tintaPartes = [];
+  if(vis('tinta_ext')) tintaPartes.push('Máx. '+VALS.tinta_ext.v+'/lata 18kg (externa)');
+  if(vis('tinta_int')) tintaPartes.push(VALS.tinta_int.v+'/lata (interna)');
+  sv('sv-tinta', tintaPartes.length ? tintaPartes.join(' | ')+'.' : '');
+
+  sv('sv-cimento', vis('cimento') ? 'Certificado. Máx. '+VALS.cimento.v+'/saco.' : '');
+
+  sv('sv-pia', vis('pia') ? 'Granito Verde Ubatuba. Máx. '+VALS.pia.v+' incluindo cuba. Gás: responsabilidade do cliente.' : '');
+
+  var gabPartes = [];
+  if(vis('gabinete')) gabPartes.push('Gabinete + cuba: até '+VALS.gabinete.v);
+  if(vis('nicho')) gabPartes.push('Nicho: até '+VALS.nicho.v);
+  sv('sv-gabinete', gabPartes.length ? gabPartes.join('. ')+'.' : '');
+
+  var tornPartes = [];
+  if(vis('torn_ban')) tornPartes.push('Banheiro '+VALS.torn_ban.v);
+  if(vis('torn_coz')) tornPartes.push('Cozinha '+VALS.torn_coz.v);
+  if(vis('torn_tan')) tornPartes.push('Tanque '+VALS.torn_tan.v);
+  var tornTxt = tornPartes.length ? tornPartes.join(' · ')+'.' : '';
+  if(vis('acabamento')) tornTxt += (tornTxt?' ':'')+'Acabamentos: máx. '+VALS.acabamento.v+'.';
+  sv('sv-torn', tornTxt);
+
+  sv('sv-piso', vis('piso_max') ? 'Cerâmica até '+VALS.piso_max.v+'/m² (área total + banheiro + cozinha + tanque). Box banheiro NÃO incluso.' : '');
+  sv('sv-hydra', vis('hydra') ? 'Até '+VALS.hydra.v : '');
+  sv('sv-acop', vis('acoplada') ? 'Até '+VALS.acoplada.v : '');
+  sv('sv-alv-info', vis('alv_acr') ? '⚠️ Acréscimo '+VALS.alv_acr.v+'/m' : '');
+  sv('sv-alv-obs', vis('alv_acr') ? '⚠️ Tijolo maciço: acréscimo de '+VALS.alv_acr.v+' no metro da construção.' : '');
+
+  var janPartes = [];
+  if(vis('jan_fach')) janPartes.push('Fachada: até '+VALS.jan_fach.v);
+  if(vis('jan_amb')) janPartes.push('Cozinha/quartos: até '+VALS.jan_amb.v);
+  sv('sv-jan-desc', '1 janela por ambiente.'+(janPartes.length?' '+janPartes.join(' · ')+'.':''));
+
+  sv('sv-port-desc', vis('port_fach') ? '1 porta por ambiente. Fachada: até '+VALS.port_fach.v+'. Box banheiro NÃO incluso.' : '1 porta por ambiente. Box banheiro NÃO incluso.');
 }
 
 function saveVP() {
