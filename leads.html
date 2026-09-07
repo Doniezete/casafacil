@@ -188,6 +188,9 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
     <h2 id="modalTitulo">Novo lead</h2>
     <input type="hidden" id="leadId"/>
     <div class="campo"><label>Nome *</label><input id="f_nome"/></div>
+    <div id="btnLinkMateriaisBox" style="display:none;margin:-8px 0 14px">
+      <button type="button" class="btn small secondary" onclick="copiarLinkMateriais()">🔗 Copiar link do formulário de materiais</button>
+    </div>
     <div class="linha2">
       <div class="campo"><label>Telefone</label><input id="f_telefone" placeholder="(00) 00000-0000" oninput="fmtTel(this)" maxlength="15"/></div>
       <div class="campo"><label>CPF</label><input id="f_cpf" placeholder="000.000.000-00" oninput="fmtCPF(this)" maxlength="14"/></div>
@@ -2226,7 +2229,7 @@ function renderHistoricoDuvida(){
   box.innerHTML = historicoDuvida.map(function(m){
     var ehUsuario = m.role==='user';
     return '<div style="align-self:'+(ehUsuario?'flex-end':'flex-start')+';max-width:85%;background:'+(ehUsuario?'var(--ac)':'var(--card2)')+';color:'+(ehUsuario?'#1a1206':'var(--tx)')+';border-radius:10px;padding:8px 12px;font-size:13px;white-space:pre-wrap">'+linkificarTexto(m.texto)+'</div>';
-  }).join('') + renderCardAcaoDuvida() + renderCardContratoDuvida();
+  }).join('') + renderCardAcaoDuvida() + renderCardContratoDuvida() + renderCardMaterialDuvida();
   box.scrollTop = box.scrollHeight;
 }
 
@@ -2427,6 +2430,7 @@ function montarContextoDuvida(pergunta){
 
 var acaoPendenteDuvida = null;
 var contratoObraPendente = null;
+var itemMaterialPendente = null;
 
 function enviarDuvida(){
   var texto = document.getElementById('duvidaInput').value.trim();
@@ -2454,6 +2458,7 @@ function enviarDuvida(){
     historicoDuvida.push({role:'assistant', texto:obj.text||'Sem resposta.'});
     if(obj.acao) acaoPendenteDuvida = obj.acao;
     if(obj.contratoObra) contratoObraPendente = obj.contratoObra;
+    if(obj.itemMaterial) itemMaterialPendente = obj.itemMaterial;
     renderHistoricoDuvida();
     salvarHistoricoDuvida();
   }).catch(function(err){
@@ -2909,11 +2914,80 @@ function confirmarContratoObra(){
   });
 }
 
+function copiarLinkMateriais(){
+  var id = document.getElementById('leadId').value;
+  if(!id){ alert('Salve o lead antes de gerar o link.'); return; }
+  var url = 'https://doniezete.github.io/casafacil/casafacil-materiais.html?lead='+id;
+  navigator.clipboard.writeText(url).then(function(){
+    alert('🔗 Link copiado!\n\n'+url+'\n\nEsse link já vem com os dados do cliente preenchidos, e mostra os itens extras que você configurar pra ele.');
+  }).catch(function(){
+    prompt('Copie o link abaixo:', url);
+  });
+}
+
 function cancelarContratoObra(){
   contratoObraPendente = null;
   historicoDuvida.push({role:'assistant', texto:'(geração de contrato cancelada)'});
   renderHistoricoDuvida();
   salvarHistoricoDuvida();
+}
+
+function renderCardMaterialDuvida(){
+  if(!itemMaterialPendente) return '';
+  var m = itemMaterialPendente;
+  var lead = leads.find(function(l){ return l.nome && m.leadNome && l.nome.toLowerCase().indexOf(m.leadNome.toLowerCase())!==-1; });
+  var acaoLabel = m.acao==='remover' ? '🗑️ Remover item de materiais' : '➕ Adicionar item de materiais';
+  var detalhes = [];
+  detalhes.push('👤 '+esc(m.leadNome||'—')+(lead?'':' ⚠️ (lead não encontrado — confere o nome)'));
+  detalhes.push('📝 '+esc(m.titulo||'—'));
+  if(m.acao!=='remover' && m.texto) detalhes.push(esc(m.texto));
+  return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
+    + '<div style="font-weight:600;margin-bottom:4px">'+acaoLabel+'</div>'
+    + '<div style="color:var(--tx2);margin-bottom:8px;line-height:1.6">'+detalhes.join('<br>')+'</div>'
+    + (lead ? '' : '<div style="color:#f87171;font-size:12px;margin-bottom:8px">Não achei esse cliente na sua lista de leads.</div>')
+    + '<div style="display:flex;gap:8px">'
+    +   '<button class="btn small" onclick="confirmarItemMaterial()" '+(lead?'':'disabled')+'>✅ Confirmar</button>'
+    +   '<button class="btn small secondary" onclick="cancelarItemMaterial()">Cancelar</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function cancelarItemMaterial(){
+  itemMaterialPendente = null;
+  historicoDuvida.push({role:'assistant', texto:'(ação cancelada)'});
+  renderHistoricoDuvida();
+  salvarHistoricoDuvida();
+}
+
+function confirmarItemMaterial(){
+  if(!itemMaterialPendente || !db) return;
+  var m = itemMaterialPendente;
+  var lead = leads.find(function(l){ return l.nome && m.leadNome && l.nome.toLowerCase().indexOf(m.leadNome.toLowerCase())!==-1; });
+  if(!lead){ alert('Não encontrei esse cliente na lista de leads.'); return; }
+  itemMaterialPendente = null;
+
+  var ref = db.collection('leads').doc(lead.id);
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      var atuais = (doc.data().materiaisExtras)||[];
+      if(m.acao==='remover'){
+        atuais = atuais.filter(function(it){ return (it.titulo||'').toLowerCase()!==(m.titulo||'').toLowerCase(); });
+      } else {
+        atuais = atuais.filter(function(it){ return (it.titulo||'').toLowerCase()!==(m.titulo||'').toLowerCase(); });
+        atuais.push({titulo:m.titulo||'', texto:m.texto||''});
+      }
+      tx.update(ref, {materiaisExtras: atuais});
+    });
+  }).then(function(){
+    var msg = m.acao==='remover' ? '🗑️ Item removido do formulário de materiais de '+lead.nome+'.' : '✅ Item adicionado ao formulário de materiais de '+lead.nome+'.';
+    historicoDuvida.push({role:'assistant', texto:msg});
+    renderHistoricoDuvida();
+    salvarHistoricoDuvida();
+    carregarLeads();
+  }).catch(function(err){
+    historicoDuvida.push({role:'assistant', texto:'⚠️ Erro: '+err.message});
+    renderHistoricoDuvida();
+  });
 }
 
 function cancelarAcaoDuvida(){
@@ -3034,6 +3108,7 @@ function abrirModal(lead){
   }
   extrasExistentes.forEach(function(ex){ adicionarLinhaContratanteExtra(ex); });
   document.getElementById('boxDadosCompletos').style.display = 'none';
+  document.getElementById('btnLinkMateriaisBox').style.display = lead ? 'block' : 'none';
   renderHistoricoBox(lead);
   document.getElementById('agendarSugestaoBox').style.display='none';
   var sBox=document.getElementById('sugestaoIABox');
