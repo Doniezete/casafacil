@@ -69,6 +69,26 @@
   </select>
 
   <div class="sep"></div>
+  <div class="sec-title">👥 Segundo contratante (opcional)</div>
+  <div class="info-box">Preencha só se o contrato/financiamento vai ser em nome de duas pessoas (cônjuge, sócio, ou qualquer outra pessoa) — não precisa ser necessariamente casado(a).</div>
+
+  <label>Nome completo</label>
+  <input type="text" id="contratante2_nome" placeholder="Deixe em branco se for só uma pessoa"/>
+
+  <div class="grid2">
+    <div>
+      <label>CPF</label>
+      <input type="text" id="contratante2_cpf" placeholder="000.000.000-00" oninput="fmtCPF(this)" maxlength="14"/>
+    </div>
+    <div>
+      <label>Data de nascimento</label>
+      <input type="date" id="contratante2_nascimento"/>
+    </div>
+  </div>
+  <label>Profissão</label>
+  <input type="text" id="contratante2_profissao" placeholder="Ex: Comerciante"/>
+
+  <div class="sep"></div>
   <div class="sec-title">📍 Endereço do Proponente</div>
 
   <label>Rua e número *</label>
@@ -557,6 +577,10 @@ function salvarLeadAutomatico(dadosD){
       terrenoArea: dadosD.t_area||'',
       terrenoBairro: dadosD.t_bairro||'',
       terrenoCidade: dadosD.t_cidade||'',
+      contratante2Nome: dadosD.contratante2Nome||'',
+      contratante2Cpf: dadosD.contratante2Cpf||'',
+      contratante2Nascimento: dadosD.contratante2Nascimento||'',
+      contratante2Profissao: dadosD.contratante2Profissao||'',
       atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
     };
     ref.get().then(function(snap){
@@ -1522,6 +1546,8 @@ function gerar(){
     nome:g('nome'),cpf:g('cpf'),telefone:g('telefone'),nasc:nasc,profissao:g('profissao'),civil:civMap[g('civil')]||g('civil'),
     rua:g('rua'),bairro:g('bairro'),cep:g('cep'),cidade_cli:g('cidade_cliente'),uf_cli:g('uf_cliente'),
     endereco:endereco_completo,
+    contratante2Nome:g('contratante2_nome'),contratante2Cpf:g('contratante2_cpf'),
+    contratante2Nascimento:document.getElementById('contratante2_nascimento').value,contratante2Profissao:g('contratante2_profissao'),
     tem_terreno:g('tem_terreno'),t_lote:g('t_lote'),t_quadra:g('t_quadra'),
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
     renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,renda_fmt:fmt(renda),
@@ -2048,6 +2074,8 @@ function copiarDados(){
     nome:nomeVal,cpf:g('cpf'),nasc:nasc,profissao:g('profissao'),civil:civMap[g('civil')]||g('civil'),
     rua:g('rua'),bairro:g('bairro'),cep:g('cep'),cidade_cli:g('cidade_cliente'),uf_cli:g('uf_cliente'),
     endereco:g('rua')+', '+g('bairro')+', CEP '+g('cep')+' — '+g('cidade_cliente')+'/'+g('uf_cliente'),
+    contratante2Nome:g('contratante2_nome'),contratante2Cpf:g('contratante2_cpf'),
+    contratante2Nascimento:document.getElementById('contratante2_nascimento').value,contratante2Profissao:g('contratante2_profissao'),
     tem_terreno:g('tem_terreno'),t_lote:g('t_lote'),t_quadra:g('t_quadra'),
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
     renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,
