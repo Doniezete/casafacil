@@ -400,6 +400,11 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <div class="msg-box" id="transcricaoTexto"></div>
     </div>
 
+    <div class="campo" id="debugVozBox" style="display:none">
+      <label style="color:#f59e0b">🔍 Diagnóstico (temporário — tira um print disso e manda pro suporte)</label>
+      <textarea id="debugVozTexto" readonly style="min-height:120px;font-size:10px;font-family:monospace;background:#0c111c;color:#8b94ad" onclick="this.select()"></textarea>
+    </div>
+
     <div id="previaTarefaBox" style="display:none;margin-top:10px;background:rgba(245,158,11,.08);border:1px dashed var(--ac);border-radius:10px;padding:12px">
       <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">📋 Confirme antes de salvar:</div>
       <div class="linha2" style="margin-bottom:8px">
@@ -1381,6 +1386,8 @@ function alternarGravacaoVoz(){
     gravandoVoz = true;
     transcricaoAcumuladaVoz = '';
     indicesFinalizadosVoz = {};
+    var debugEl0 = document.getElementById('debugVozTexto');
+    if(debugEl0) debugEl0.value = '';
     document.getElementById('btnMicVoz').textContent = '⏹️';
     document.getElementById('statusVoz').textContent = 'Ouvindo... pode falar vários itens, toque no botão quando terminar';
   };
@@ -1401,15 +1408,24 @@ function alternarGravacaoVoz(){
   };
   reconhecimentoVoz.onresult = function(event){
     var textoParcial = '';
+    var logLinha = '[evt '+(new Date()).toLocaleTimeString()+'] resultIndex='+event.resultIndex+' | total resultados='+event.results.length+'\n';
     for(var i=0; i<event.results.length; i++){
+      var transcriptoBruto = event.results[i][0].transcript;
+      logLinha += '  #'+i+' final='+event.results[i].isFinal+' já_marcado='+(!!indicesFinalizadosVoz[i])+' texto="'+transcriptoBruto+'"\n';
       if(event.results[i].isFinal){
         if(!indicesFinalizadosVoz[i]){
           indicesFinalizadosVoz[i] = true;
-          transcricaoAcumuladaVoz = acumularSemRepetir(transcricaoAcumuladaVoz, event.results[i][0].transcript);
+          transcricaoAcumuladaVoz = acumularSemRepetir(transcricaoAcumuladaVoz, transcriptoBruto);
         }
       } else if(i>=event.resultIndex){
-        textoParcial += event.results[i][0].transcript;
+        textoParcial += transcriptoBruto;
       }
+    }
+    var debugEl = document.getElementById('debugVozTexto');
+    if(debugEl){
+      document.getElementById('debugVozBox').style.display='block';
+      debugEl.value = (debugEl.value + logLinha + '  -> acumulado agora: "'+transcricaoAcumuladaVoz.trim()+'"\n\n');
+      debugEl.scrollTop = debugEl.scrollHeight;
     }
     document.getElementById('transcricaoBox').style.display='block';
     document.getElementById('transcricaoTexto').textContent = (transcricaoAcumuladaVoz+textoParcial).trim();
