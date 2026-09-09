@@ -2261,7 +2261,7 @@ function renderHistoricoDuvida(){
   box.innerHTML = historicoDuvida.map(function(m){
     var ehUsuario = m.role==='user';
     return '<div style="align-self:'+(ehUsuario?'flex-end':'flex-start')+';max-width:85%;background:'+(ehUsuario?'var(--ac)':'var(--card2)')+';color:'+(ehUsuario?'#1a1206':'var(--tx)')+';border-radius:10px;padding:8px 12px;font-size:13px;white-space:pre-wrap">'+linkificarTexto(m.texto)+'</div>';
-  }).join('') + renderCardAcaoDuvida() + renderCardContratoDuvida() + renderCardMaterialDuvida() + renderCardEspecGeralDuvida() + renderCardEspecClienteDuvida();
+  }).join('') + renderCardAcaoDuvida() + renderCardContratoDuvida() + renderCardMaterialDuvida() + renderCardEspecGeralDuvida() + renderCardEspecClienteDuvida() + renderCardClienteCasaFacilDuvida();
   box.scrollTop = box.scrollHeight;
 }
 
@@ -2463,6 +2463,7 @@ function montarContextoDuvida(pergunta){
 var acaoPendenteDuvida = null;
 var contratoObraPendente = null;
 var itemMaterialPendente = null;
+var clienteCasaFacilPendente = null;
 
 function enviarDuvida(){
   var texto = document.getElementById('duvidaInput').value.trim();
@@ -2491,6 +2492,7 @@ function enviarDuvida(){
     if(obj.acao) acaoPendenteDuvida = obj.acao;
     if(obj.contratoObra) contratoObraPendente = obj.contratoObra;
     if(obj.itemMaterial) itemMaterialPendente = obj.itemMaterial;
+    if(obj.clienteCasaFacil) clienteCasaFacilPendente = obj.clienteCasaFacil;
     if(obj.especGeral) especGeralPendente = obj.especGeral;
     if(obj.especCliente) especClientePendente = obj.especCliente;
     renderHistoricoDuvida();
@@ -3166,6 +3168,111 @@ function confirmarEspecCliente(){
     carregarLeads();
   }).catch(function(err){
     historicoDuvida.push({role:'assistant', texto:'⚠️ Erro: '+err.message});
+    renderHistoricoDuvida();
+  });
+}
+
+/* Sugere o login do cliente no Portal — usa a mesma lógica que o resto do
+   Casa Fácil grande usa como "chute" (primeira palavra do nome), pra
+   já vir preenchido certo e evitar aquele tipo de bug de login errado. */
+function sugerirLoginCasaFacil(nome){
+  var primeiraPalavra = (nome||'').trim().split(' ')[0] || '';
+  return removerAcentos(primeiraPalavra).toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+
+function renderCardClienteCasaFacilDuvida(){
+  if(!clienteCasaFacilPendente) return '';
+  var c = clienteCasaFacilPendente;
+  var lead = leads.find(function(l){ return l.nome && c.leadNome && l.nome.toLowerCase().indexOf(c.leadNome.toLowerCase())!==-1; });
+  if(!lead){
+    return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
+      + '<div style="font-weight:600;margin-bottom:4px">🏗️ Criar cliente no Casa Fácil</div>'
+      + '<div style="color:#f87171;font-size:12px;margin-bottom:8px">Não achei "'+esc(c.leadNome||'')+'" na sua lista de leads.</div>'
+      + '<button class="btn small secondary" onclick="cancelarClienteCasaFacil()">Fechar</button>'
+      + '</div>';
+  }
+  var loginSugerido = sugerirLoginCasaFacil(lead.nome);
+  var orcamento = c.orcamento || lead.financiamento || 0;
+  var obraNome = c.obraNome || ('Obra do '+(lead.nome||'').split(' ')[0]);
+  var status = c.status || 'Orçamento';
+  return '<div style="align-self:flex-start;max-width:95%;background:rgba(245,158,11,.1);border:1px dashed var(--ac);border-radius:10px;padding:10px 12px;font-size:13px">'
+    + '<div style="font-weight:600;margin-bottom:4px">🏗️ Criar cliente no Casa Fácil</div>'
+    + '<div style="color:var(--tx2);margin-bottom:8px;line-height:1.7">'
+    +   '👤 '+esc(lead.nome)+'<br>'
+    +   '🏠 Obra: '+esc(obraNome)+'<br>'
+    +   '💰 Orçamento: '+fmtR(orcamento)+'<br>'
+    +   '📍 '+esc(lead.rua ? [lead.rua,lead.bairro,lead.cidadeEndereco].filter(Boolean).join(', ') : '(sem endereço no cadastro)')+'<br>'
+    +   '📞 '+esc(lead.telefone||'—')+'<br>'
+    +   '📌 Status inicial: '+esc(status)+'<br>'
+    +   '🔑 Login sugerido no Portal: <b>'+esc(loginSugerido||'—')+'</b>'
+    + '</div>'
+    + '<div style="color:var(--mut);font-size:11px;margin-bottom:8px">Confere o login antes de confirmar — é ele que conecta os documentos e o portal a esse cliente certinho.</div>'
+    + '<div style="display:flex;gap:8px">'
+    +   '<button class="btn small" onclick="confirmarClienteCasaFacil()">✅ Confirmar e criar</button>'
+    +   '<button class="btn small secondary" onclick="cancelarClienteCasaFacil()">Cancelar</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function cancelarClienteCasaFacil(){
+  clienteCasaFacilPendente = null;
+  historicoDuvida.push({role:'assistant', texto:'(criação de cliente cancelada)'});
+  renderHistoricoDuvida();
+  salvarHistoricoDuvida();
+}
+
+function confirmarClienteCasaFacil(){
+  if(!clienteCasaFacilPendente || !db) return;
+  var c = clienteCasaFacilPendente;
+  var lead = leads.find(function(l){ return l.nome && c.leadNome && l.nome.toLowerCase().indexOf(c.leadNome.toLowerCase())!==-1; });
+  if(!lead){ alert('Não encontrei esse lead na lista.'); return; }
+  clienteCasaFacilPendente = null;
+
+  var loginSugerido = sugerirLoginCasaFacil(lead.nome);
+  var orcamento = c.orcamento || lead.financiamento || 0;
+  var obraNome = c.obraNome || ('Obra do '+(lead.nome||'').split(' ')[0]);
+  var status = c.status || 'Orçamento';
+  var endereco = lead.rua ? [lead.rua,lead.bairro,lead.cidadeEndereco].filter(Boolean).join(', ') : '';
+
+  var ref = db.collection('dados').doc('principal');
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      if(!doc.exists) throw new Error('Documento principal do Casa Fácil não encontrado.');
+      var S = JSON.parse(doc.data().dados);
+      S.obras = S.obras || [];
+      // Evita duplicar, se por acaso já existir uma obra com esse login
+      var jaExiste = S.obras.find(function(o){ return o.loginPortalConfirmado===loginSugerido; });
+      if(jaExiste) throw new Error('Já existe uma obra com esse login no Casa Fácil ('+jaExiste.nome+'). Ajuste o login manualmente lá antes de tentar de novo.');
+
+      var novaObra = {
+        id: uidCasaFacil(),
+        nome: lead.nome,
+        obra: obraNome,
+        orc: orcamento,
+        status: status,
+        end: endereco,
+        tel: lead.telefone||'',
+        data: hojeISO(),
+        loginPortalConfirmado: loginSugerido,
+        taxaAdm: 17,
+        entrada: {tipo:'nao', val:0, data:'', reimb:'', obs:''},
+        doc: {tipo:'', val:0, data:'', reimb:'', obs:''},
+        valorFinanciado: lead.financiamento || null,
+        taxaJuros: null,
+        prazoMeses: null,
+        subsidio: null,
+        sistemaFin: 'SAC',
+        primeiraParc: lead.parcela || null
+      };
+      S.obras.push(novaObra);
+      tx.update(ref, {dados: JSON.stringify(S)});
+    });
+  }).then(function(){
+    historicoDuvida.push({role:'assistant', texto:'✅ Cliente "'+lead.nome+'" criado no Casa Fácil, com login "'+loginSugerido+'" no Portal.'});
+    renderHistoricoDuvida();
+    salvarHistoricoDuvida();
+  }).catch(function(err){
+    historicoDuvida.push({role:'assistant', texto:'⚠️ Não consegui criar: '+err.message});
     renderHistoricoDuvida();
   });
 }
