@@ -2241,9 +2241,10 @@ function limparConversaDuvida(){
 
 function salvarHistoricoDuvida(){
   if(!db || !duvidaDocId) return;
-  var paraSalvar = historicoDuvida.slice(-40); // guarda só as últimas 40 mensagens
+  // Sem limite de mensagens guardadas — só você e a Tatiane usam esse chat,
+  // então não tem o mesmo risco de custo do chat público do site do evento.
   db.collection('duvidas_chat').doc(duvidaDocId).set({
-    mensagens: paraSalvar,
+    mensagens: historicoDuvida,
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   }, {merge:true}).catch(function(err){ console.warn('Nao foi possivel salvar a conversa:', err.message); });
 }

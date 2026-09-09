@@ -200,7 +200,7 @@ footer{text-align:center;color:var(--mut);font-size:11px;padding:20px 18px 30px}
 const ANALISE_IA_URL = "https://southamerica-east1-casa-facil-4aef8.cloudfunctions.net/analisar-lead";
 
 var historicoChatPublico = [];
-var LIMITE_MENSAGENS = 15;
+var LIMITE_MENSAGENS = 50; // limite por sessão, pra evitar uso abusivo/custo alto — site é público, sem login
 
 function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -249,7 +249,7 @@ function enviarChatPublico(){
   if(indicadoPor && indicadoPor.trim()){
     var banner = document.getElementById('bannerIndicacao');
     banner.style.display = 'block';
-    banner.textContent = '👋 Indicado(a) por '+indicadoPor+'! Se você fechar com a gente, ela ganha +100 pontos de bônus ou um prêmio — a escolha é dela.';
+    banner.textContent = '👋 Indicado(a) por '+indicadoPor+'! Se você fechar com a gente, ela ganha bônus ou um prêmio — a escolha é dela.';
 
     var btnWhats = document.getElementById('btnWhatsCta');
     var novoTexto = 'Olá! Fui indicado(a) por '+indicadoPor+' pra conhecer a Casa Fácil no Jardim Ranzani e quero saber mais.';
