@@ -1507,14 +1507,29 @@ function uidCasaFacil(){ return Date.now().toString(36) + Math.random().toString
 function acumularSemRepetir(acumulado, novoTrecho){
   novoTrecho = (novoTrecho||'').trim();
   if(!novoTrecho) return acumulado;
-  var acumuladoLower = acumulado.toLowerCase();
+  var acumuladoTrim = acumulado.trim();
+  if(!acumuladoTrim) return novoTrecho + ' ';
+  var acumuladoLower = acumuladoTrim.toLowerCase();
   var trechoLower = novoTrecho.toLowerCase();
+
+  // Alguns celulares (Android, principalmente) não mandam pedaços novos —
+  // mandam a FRASE INTEIRA dita até agora, crescendo a cada resultado
+  // ("Marque" -> "Marque uma" -> "Marque uma tarefa"...). Se o texto novo
+  // já contém tudo que tínhamos (ou vice-versa), é esse caso: SUBSTITUI
+  // pelo mais completo, em vez de somar.
+  if(trechoLower.indexOf(acumuladoLower) === 0){
+    return novoTrecho + ' '; // o novo é mais completo, engloba o que já tinha
+  }
+  if(acumuladoLower.indexOf(trechoLower) === 0){
+    return acumuladoTrim + ' '; // o que já tinha é mais completo, ignora o novo
+  }
   // já termina exatamente com esse trecho? não duplica.
-  if(acumuladoLower.trim().endsWith(trechoLower)) return acumulado;
+  if(acumuladoLower.endsWith(trechoLower)) return acumulado;
   // o trecho novo já apareceu como as últimas palavras ditas (mesmo com pontuação/espaço diferente)?
   var janela = acumuladoLower.slice(-1 * (trechoLower.length + 5)).trim();
   if(janela.indexOf(trechoLower) !== -1) return acumulado;
-  return acumulado + novoTrecho + ' ';
+  // Caso normal (a maioria dos navegadores): é mesmo um pedaço novo, soma.
+  return acumuladoTrim + ' ' + novoTrecho + ' ';
 }
 
 /* ============================================================
