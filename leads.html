@@ -1375,10 +1375,12 @@ function alternarGravacaoVoz(){
   reconhecimentoVoz.interimResults = true;
   reconhecimentoVoz.maxAlternatives = 1;
   var transcricaoAcumuladaVoz = '';
+  var indicesFinalizadosVoz = {}; // evita contar a mesma frase 2x, se o navegador reenviar o mesmo trecho
 
   reconhecimentoVoz.onstart = function(){
     gravandoVoz = true;
     transcricaoAcumuladaVoz = '';
+    indicesFinalizadosVoz = {};
     document.getElementById('btnMicVoz').textContent = '⏹️';
     document.getElementById('statusVoz').textContent = 'Ouvindo... pode falar vários itens, toque no botão quando terminar';
   };
@@ -1399,9 +1401,15 @@ function alternarGravacaoVoz(){
   };
   reconhecimentoVoz.onresult = function(event){
     var textoParcial = '';
-    for(var i=event.resultIndex; i<event.results.length; i++){
-      if(event.results[i].isFinal) transcricaoAcumuladaVoz += event.results[i][0].transcript + ' ';
-      else textoParcial += event.results[i][0].transcript;
+    for(var i=0; i<event.results.length; i++){
+      if(event.results[i].isFinal){
+        if(!indicesFinalizadosVoz[i]){
+          indicesFinalizadosVoz[i] = true;
+          transcricaoAcumuladaVoz += event.results[i][0].transcript + ' ';
+        }
+      } else if(i>=event.resultIndex){
+        textoParcial += event.results[i][0].transcript;
+      }
     }
     document.getElementById('transcricaoBox').style.display='block';
     document.getElementById('transcricaoTexto').textContent = (transcricaoAcumuladaVoz+textoParcial).trim();
@@ -1547,10 +1555,12 @@ function alternarGravacaoEstoque(){
   reconhecimentoEstoque.interimResults = true;
   reconhecimentoEstoque.maxAlternatives = 1;
   var transcricaoAcumuladaEst = '';
+  var indicesFinalizadosEst = {};
 
   reconhecimentoEstoque.onstart = function(){
     gravandoEstoque = true;
     transcricaoAcumuladaEst = '';
+    indicesFinalizadosEst = {};
     document.getElementById('btnMicEstoque').textContent = '⏹️';
     document.getElementById('statusEstoque').textContent = 'Ouvindo... pode falar vários itens, toque no botão quando terminar';
   };
@@ -1571,9 +1581,15 @@ function alternarGravacaoEstoque(){
   };
   reconhecimentoEstoque.onresult = function(event){
     var textoParcial = '';
-    for(var i=event.resultIndex; i<event.results.length; i++){
-      if(event.results[i].isFinal) transcricaoAcumuladaEst += event.results[i][0].transcript + ' ';
-      else textoParcial += event.results[i][0].transcript;
+    for(var i=0; i<event.results.length; i++){
+      if(event.results[i].isFinal){
+        if(!indicesFinalizadosEst[i]){
+          indicesFinalizadosEst[i] = true;
+          transcricaoAcumuladaEst += event.results[i][0].transcript + ' ';
+        }
+      } else if(i>=event.resultIndex){
+        textoParcial += event.results[i][0].transcript;
+      }
     }
     document.getElementById('transcricaoEstoqueBox').style.display='block';
     document.getElementById('transcricaoEstoqueTexto').textContent = (transcricaoAcumuladaEst+textoParcial).trim();
@@ -1768,10 +1784,12 @@ function alternarGravacaoEntradaEstoque(){
   reconhecimentoEntrada.interimResults = true;
   reconhecimentoEntrada.maxAlternatives = 1;
   var transcricaoAcumuladaEnt = '';
+  var indicesFinalizadosEnt = {};
 
   reconhecimentoEntrada.onstart = function(){
     gravandoEntrada = true;
     transcricaoAcumuladaEnt = '';
+    indicesFinalizadosEnt = {};
     document.getElementById('btnMicEntrada').textContent = '⏹️';
     document.getElementById('statusEntrada').textContent = 'Ouvindo... toque no botão quando terminar';
   };
@@ -1792,9 +1810,15 @@ function alternarGravacaoEntradaEstoque(){
   };
   reconhecimentoEntrada.onresult = function(event){
     var textoParcial = '';
-    for(var i=event.resultIndex; i<event.results.length; i++){
-      if(event.results[i].isFinal) transcricaoAcumuladaEnt += event.results[i][0].transcript + ' ';
-      else textoParcial += event.results[i][0].transcript;
+    for(var i=0; i<event.results.length; i++){
+      if(event.results[i].isFinal){
+        if(!indicesFinalizadosEnt[i]){
+          indicesFinalizadosEnt[i] = true;
+          transcricaoAcumuladaEnt += event.results[i][0].transcript + ' ';
+        }
+      } else if(i>=event.resultIndex){
+        textoParcial += event.results[i][0].transcript;
+      }
     }
     document.getElementById('transcricaoEntradaBox').style.display='block';
     document.getElementById('transcricaoEntradaTexto').textContent = (transcricaoAcumuladaEnt+textoParcial).trim();
@@ -2050,10 +2074,12 @@ function alternarGravacaoGastoCartao(){
   reconhecimentoCartao.interimResults = true;
   reconhecimentoCartao.maxAlternatives = 1;
   var transcricaoAcumuladaCartao = '';
+  var indicesFinalizadosCartao = {};
 
   reconhecimentoCartao.onstart = function(){
     gravandoCartao = true;
     transcricaoAcumuladaCartao = '';
+    indicesFinalizadosCartao = {};
     document.getElementById('btnMicCartao').textContent = '⏹️';
     document.getElementById('statusCartao').textContent = 'Ouvindo... toque no botão quando terminar';
   };
@@ -2074,9 +2100,15 @@ function alternarGravacaoGastoCartao(){
   };
   reconhecimentoCartao.onresult = function(event){
     var textoParcial = '';
-    for(var i=event.resultIndex; i<event.results.length; i++){
-      if(event.results[i].isFinal) transcricaoAcumuladaCartao += event.results[i][0].transcript + ' ';
-      else textoParcial += event.results[i][0].transcript;
+    for(var i=0; i<event.results.length; i++){
+      if(event.results[i].isFinal){
+        if(!indicesFinalizadosCartao[i]){
+          indicesFinalizadosCartao[i] = true;
+          transcricaoAcumuladaCartao += event.results[i][0].transcript + ' ';
+        }
+      } else if(i>=event.resultIndex){
+        textoParcial += event.results[i][0].transcript;
+      }
     }
     document.getElementById('transcricaoCartaoBox').style.display='block';
     document.getElementById('transcricaoCartaoTexto').textContent = (transcricaoAcumuladaCartao+textoParcial).trim();
