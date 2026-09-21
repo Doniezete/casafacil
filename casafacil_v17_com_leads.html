@@ -34,6 +34,8 @@
   <div class="cs">Informações do proponente</div>
   <div class="info-box">🏗️ Este simulador é para <strong>Aquisição de Terreno + Construção</strong> pelo Programa Minha Casa, Minha Vida — Recursos FGTS.</div>
 
+  <button type="button" onclick="abrirPreCadastrosEvento()" style="width:100%;padding:12px;border-radius:10px;border:1px dashed #f59e0b;background:rgba(245,158,11,.08);color:#c2740a;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px">📋 Carregar pré-cadastro do evento</button>
+
   <label>Nome completo *</label>
   <input type="text" id="nome" placeholder="Ex: Maria da Silva"/>
 
@@ -65,6 +67,13 @@
     <option value="divorciado">Divorciado(a)</option>
     <option value="viuvo">Viúvo(a)</option>
   </select>
+
+  <div class="sep"></div>
+  <div class="sec-title">👥 Outros contratantes (opcional)</div>
+  <div class="info-box">Adicione se o contrato/financiamento vai ser em nome de mais de uma pessoa (cônjuge, sócio, ou qualquer outra pessoa) — não precisa ser necessariamente casado(a).</div>
+
+  <div id="listaContratantesExtrasSim"></div>
+  <button type="button" onclick="adicionarLinhaContratanteExtraSim()" style="width:100%;padding:12px;border-radius:10px;border:1px dashed #999;background:transparent;color:#555;font-weight:600;font-size:14px;cursor:pointer;margin-bottom:16px">➕ Adicionar outro contratante</button>
 
   <div class="sep"></div>
   <div class="sec-title">📍 Endereço do Proponente</div>
@@ -377,6 +386,7 @@
   <div id="comlist" style="margin-bottom:14px"></div>
   <div class="av">⚠️ Simulação estimativa. Planta ilustrativa. Projeto definitivo elaborado por profissional habilitado. Modalidade: <strong>Aquisição de Terreno + Construção — MCMV Recursos FGTS</strong>.<br/><br/>ℹ️ Esta análise contempla apenas os valores do <strong>financiamento</strong>. Custos com documentação, cartório e registros não estão incluídos.</div>
   <button class="btn bpdf" onclick="gerarPDF()">📄 Baixar Simulação + Contrato (PDF)</button>
+  <button class="btn" id="btnCartaoEvento" onclick="abrirCartaoDoEvento()" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#1a1206;margin-top:9px;display:none">🎁 Imprimir cartão de bônus</button>
   <button class="btn" id="btnCopiar" onclick="copiarDados()" style="background:linear-gradient(135deg,#276749,#38a169);color:#fff;margin-top:9px">📋 Copiar dados para próximo contrato</button>
   <button class="btn bs" onclick="go(2)" style="margin-top:9px">← Voltar ao modelo</button>
   <div id="copiadoMsg" style="display:none;background:#f0fdf4;border:1px solid #68d391;border-radius:10px;padding:10px 13px;font-size:12px;color:#276749;margin-top:8px;line-height:1.6;text-align:center">
@@ -538,6 +548,23 @@ function salvarLeadAutomatico(dadosD){
       parcela:dadosD.pmt_first||0,
       cidade:dadosD.cidade_atend||'',
       origem:'simulador',
+      // Dados completos, pra não precisar mais copiar/colar código
+      // manualmente na hora de gerar um contrato depois.
+      nascimento: dadosD.nasc||'',
+      profissao: dadosD.profissao||'',
+      estadoCivil: dadosD.civil||'',
+      rua: dadosD.rua||'',
+      bairro: dadosD.bairro||'',
+      cep: dadosD.cep||'',
+      cidadeEndereco: dadosD.cidade_cli||'',
+      ufEndereco: dadosD.uf_cli||'',
+      temTerrenoProprio: dadosD.tem_terreno||'',
+      terrenoLote: dadosD.t_lote||'',
+      terrenoQuadra: dadosD.t_quadra||'',
+      terrenoArea: dadosD.t_area||'',
+      terrenoBairro: dadosD.t_bairro||'',
+      terrenoCidade: dadosD.t_cidade||'',
+      contratantesExtras: dadosD.contratantesExtras||[],
       atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
     };
     ref.get().then(function(snap){
@@ -603,10 +630,149 @@ function fmtTel(el){
   else el.value=v.replace(/(\d{2})(\d{5})(\d{0,4})/,'($1) $2-$3').replace(/-$/,'');
 }
 function fmtM(el){var v=el.value.replace(/\D/g,'');if(!v){el.value='';return;}el.value=(parseInt(v,10)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+/* ============================================================
+   PRÉ-CADASTROS DO EVENTO — puxa o que os atendentes já coletaram
+   e preenche o começo do simulador sozinho.
+   ============================================================ */
+function abrirPreCadastrosEvento(){
+  document.getElementById('overlayPreCadastros').style.display='flex';
+  if(!leadsDb){
+    document.getElementById('listaPreCadastrosEvento').innerHTML = '<div>Sistema de leads não configurado.</div>';
+    return;
+  }
+  leadsDb.collection('evento_precadastros').where('status','==','pendente').get().then(function(snap){
+    var itens = [];
+    snap.forEach(function(doc){ itens.push(Object.assign({id:doc.id}, doc.data())); });
+    itens.sort(function(a,b){
+      // Ordena por número de senha (quem chegou primeiro, atende primeiro).
+      // Se algum registro antigo não tiver número, usa a data de criação como reserva.
+      if(a.numero && b.numero) return a.numero-b.numero;
+      var ta = a.criadoEm && a.criadoEm.toMillis ? a.criadoEm.toMillis() : 0;
+      var tb = b.criadoEm && b.criadoEm.toMillis ? b.criadoEm.toMillis() : 0;
+      return ta-tb;
+    });
+    if(itens.length===0){
+      document.getElementById('listaPreCadastrosEvento').innerHTML = '<div>Nenhum pré-cadastro pendente no momento.</div>';
+      return;
+    }
+    document.getElementById('listaPreCadastrosEvento').innerHTML = itens.map(function(it){
+      return '<div style="background:#0c111c;border:1px solid #2a3454;border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px">'
+        + '<div onclick="selecionarPreCadastroEvento(\''+it.id+'\')" style="cursor:pointer;flex:1;display:flex;gap:10px;align-items:center">'
+        +   (it.numero ? '<div style="background:#f59e0b;color:#1a1206;font-weight:800;font-size:13px;border-radius:50%;width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center">'+it.numero+'</div>' : '')
+        +   '<div>'
+        +     '<div style="font-weight:700;color:#eef1f8">'+(it.nome||'sem nome')+'</div>'
+        +     '<div style="color:#8b94ad;font-size:12px;margin-top:2px">'+(it.telefone||'')+' · renda total: R$ '+(it.rendaTotal||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div>'
+        +   '</div>'
+        + '</div>'
+        + '<button onclick="apagarPreCadastroEvento(\''+it.id+'\')" title="Apagar" style="background:none;border:none;color:#f87171;font-size:16px;cursor:pointer;padding:6px">🗑️</button>'
+        + '</div>';
+    }).join('');
+  }).catch(function(err){
+    document.getElementById('listaPreCadastrosEvento').innerHTML = '<div>Erro ao carregar: '+err.message+'</div>';
+  });
+}
+
+function apagarPreCadastroEvento(id){
+  if(!confirm('Apagar esse pré-cadastro? Essa ação não pode ser desfeita.')) return;
+  leadsDb.collection('evento_precadastros').doc(id).delete().then(abrirPreCadastrosEvento);
+}
+
+function preencherSeExiste(id, valor){
+  if(valor===undefined || valor===null || valor==='') return;
+  var el = document.getElementById(id);
+  if(el) el.value = valor;
+}
+
+function selecionarPreCadastroEvento(id){
+  leadsDb.collection('evento_precadastros').doc(id).get().then(function(doc){
+    if(!doc.exists) return;
+    var d = doc.data();
+
+    // Guarda qual pré-cadastro foi usado, pra depois abrir o cartão certo direto
+    window._ultimoPreCadastroId = id;
+    window._ultimoPreCadastroNome = d.nome || '';
+
+    // Dados pessoais
+    preencherSeExiste('nome', d.nome);
+    preencherSeExiste('telefone', d.telefone);
+    preencherSeExiste('cpf', d.cpf);
+    preencherSeExiste('nascimento', d.nascimento);
+    if(typeof calcIdade==='function') calcIdade();
+    preencherSeExiste('profissao', d.profissao);
+    preencherSeExiste('civil', d.civil);
+
+    // Endereço
+    preencherSeExiste('rua', d.rua);
+    preencherSeExiste('bairro', d.bairro);
+    preencherSeExiste('cep', d.cep);
+    preencherSeExiste('cidade_cliente', d.cidade);
+    preencherSeExiste('uf_cliente', d.uf);
+
+    // Financiamento
+    if(d.imovel){ preencherSeExiste('imovel', d.imovel); if(typeof checkImovel==='function') checkImovel(); }
+    if(d.dependente){ preencherSeExiste('dep', d.dependente); if(typeof toggleDep==='function') toggleDep(); }
+    preencherSeExiste('dep_renda', d.dependenteRenda);
+    preencherSeExiste('fgts', d.fgts);
+    if(d.rendaTotal){
+      var elRenda = document.getElementById('renda');
+      elRenda.value = Math.round(d.rendaTotal*100).toString();
+      fmtM(elRenda);
+    }
+
+    // Terreno
+    if(d.temTerreno){ preencherSeExiste('tem_terreno', d.temTerreno); if(typeof toggleTerreno==='function') toggleTerreno(); }
+    preencherSeExiste('t_lote', d.tLote);
+    preencherSeExiste('t_quadra', d.tQuadra);
+    preencherSeExiste('t_area', d.tArea);
+    preencherSeExiste('t_rua', d.tRua);
+    preencherSeExiste('t_bairro', d.tBairro);
+    preencherSeExiste('t_cep_terreno', d.tCep);
+    preencherSeExiste('t_cidade', d.tCidade);
+
+    if(typeof atualizarFinanciamento==='function') atualizarFinanciamento();
+
+    document.getElementById('overlayPreCadastros').style.display='none';
+    // marca como usado, pra não aparecer de novo na lista pra outra pessoa
+    leadsDb.collection('evento_precadastros').doc(id).set({status:'usado'}, {merge:true});
+  });
+}
 function parseM(el){var v=el.value.replace(/\./g,'').replace(',','.');return parseFloat(v)||0;}
 function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function lerp(a,b,t){return a+t*(b-a);}
 function fmtCPF(el){var v=el.value.replace(/\D/g,'').substring(0,11);if(v.length<=3)el.value=v;else if(v.length<=6)el.value=v.slice(0,3)+'.'+v.slice(3);else if(v.length<=9)el.value=v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);else el.value=v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9);}
+
+/* Lista expansível de contratantes extras (cônjuge, sócio, quem for). */
+function adicionarLinhaContratanteExtraSim(){
+  var lista = document.getElementById('listaContratantesExtrasSim');
+  var div = document.createElement('div');
+  div.className = 'contratante-extra-row-sim';
+  div.style.cssText = 'border:1px solid #ccc;border-radius:8px;padding:12px;margin-bottom:12px;position:relative';
+  div.innerHTML =
+    '<button type="button" onclick="this.parentElement.remove()" style="position:absolute;top:8px;right:8px;background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px">🗑️</button>'
+    + '<label>Nome completo</label><input type="text" class="ce_nome_sim"/>'
+    + '<div class="grid2">'
+    +   '<div><label>CPF</label><input type="text" class="ce_cpf_sim" oninput="fmtCPF(this)" maxlength="14"/></div>'
+    +   '<div><label>Data de nascimento</label><input type="date" class="ce_nascimento_sim"/></div>'
+    + '</div>'
+    + '<label>Profissão</label><input type="text" class="ce_profissao_sim"/>';
+  lista.appendChild(div);
+}
+
+function coletarContratantesExtrasSim(){
+  var arr = [];
+  document.querySelectorAll('#listaContratantesExtrasSim .contratante-extra-row-sim').forEach(function(row){
+    var nome = row.querySelector('.ce_nome_sim').value.trim();
+    if(!nome) return;
+    arr.push({
+      nome: nome,
+      cpf: row.querySelector('.ce_cpf_sim').value.trim(),
+      nascimento: row.querySelector('.ce_nascimento_sim').value,
+      profissao: row.querySelector('.ce_profissao_sim').value.trim()
+    });
+  });
+  return arr;
+}
 function fmtCEP(el){var v=el.value.replace(/\D/g,'').substring(0,8);if(v.length<=5)el.value=v;else el.value=v.slice(0,5)+'-'+v.slice(5);}
 function fmtData(d){if(!d)return'';var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
 
@@ -648,9 +814,20 @@ var ANCHORS=[
   //   Padrao confirmado: sFGTS = cFGTS + 0.50 p.p., nos MESMOS pontos de quebra (independente de dependente)
   //   3.201: cFGTS=5.00% / sFGTS=5.50%  |  3.500: cFGTS=5.00% / sFGTS=5.50%
   //   4.000: cFGTS=5.50% / sFGTS=6.00%  |  5.000: cFGTS=6.50% / sFGTS=7.00%
-  // Corte abrupto Faixa 1->2 em 3201
+  // Corte abrupto Faixa 1->2 em 3201 — CORRIGIDO em 09/2026 com simulação real Caixa
+  // (renda R$3.289,19, imóvel R$210.000, com FGTS, sem dependente): subsídio de
+  // R$3.157,00 confirmado (taxa 5,00% bateu certo). Aplicado no ponto de início da
+  // Faixa 2 (coluna 1 = com FGTS + sem dependente). AINDA NÃO CONFIRMADO: a forma
+  // exata da queda do subsídio até R$5.000 (por enquanto interpola linear até 0 no
+  // anchor de R$5.000), e as outras 3 colunas (com dependente / sem FGTS) — essas
+  // continuam assumindo R$0 até termos simulação real pra cada uma.
+  // CORRIGIDO em 09/2026 com 3 simulações reais Caixa (imóvel R$210.000, com FGTS,
+  // COM dependente — coluna 2): renda 3.289 → subsídio R$3.157 (taxa 5,00%);
+  // renda 3.500 → subsídio R$1.882 (taxa 5,00%); renda 3.700 → subsídio R$0 (taxa
+  // 5,50%, já batia certo com a tabela). Queda suave e coerente entre os 3 pontos.
   [3201,  170000,    0,5.00,  170000,    0,5.00,  165000,    0,5.50,  165000,    0,5.50],
-  [3500,  180000,    0,5.00,  180000,    0,5.00,  170000,    0,5.50,  170000,    0,5.50],
+  [3289,  170000,    0,5.00,  170000, 3157,5.00,  165000,    0,5.50,  165000,    0,5.50],
+  [3500,  180000,    0,5.00,  180000, 1882,5.00,  170000,    0,5.50,  170000,    0,5.50],
   [3501,  185000,    0,5.50,  185000,    0,5.50,  175000,    0,6.00,  175000,    0,6.00],
   [4000,  210000,    0,5.50,  210000,    0,5.50,  200000,    0,6.00,  200000,    0,6.00],
   [4001,  235000,    0,6.50,  235000,    0,6.50,  225000,    0,7.00,  225000,    0,7.00],
@@ -1396,6 +1573,7 @@ function gerar(){
     nome:g('nome'),cpf:g('cpf'),telefone:g('telefone'),nasc:nasc,profissao:g('profissao'),civil:civMap[g('civil')]||g('civil'),
     rua:g('rua'),bairro:g('bairro'),cep:g('cep'),cidade_cli:g('cidade_cliente'),uf_cli:g('uf_cliente'),
     endereco:endereco_completo,
+    contratantesExtras:coletarContratantesExtrasSim(),
     tem_terreno:g('tem_terreno'),t_lote:g('t_lote'),t_quadra:g('t_quadra'),
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
     renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,renda_fmt:fmt(renda),
@@ -1420,10 +1598,29 @@ function gerar(){
   var plantasWrap = document.querySelector('.pw');
   if(fachadaWrap) fachadaWrap.style.display = isSRV ? 'none' : '';
   if(plantasWrap) plantasWrap.style.display = isSRV ? 'none' : '';
+  var btnCartaoEl = document.getElementById('btnCartaoEvento');
+  if(btnCartaoEl) btnCartaoEl.style.display = window._ultimoPreCadastroId ? '' : 'none';
   go(3);
 }
 
+/* Abre a tela de cartões do evento numa aba nova, já com o cartão dessa
+   pessoa pronto pra imprimir — sem precisar procurar na lista. */
+function abrirCartaoDoEvento(){
+  var id = window._ultimoPreCadastroId || '';
+  var nome = window._ultimoPreCadastroNome || '';
+  var url = 'evento-cartoes.html?abrir=' + encodeURIComponent(id) + '&nome=' + encodeURIComponent(nome);
+  window.open(url, '_blank');
+}
+
 function gerarPDF(){
+  // Assim que clica em "Salvar/Baixar PDF", já abre o cartão de bônus dessa
+  // pessoa numa aba nova (só quando ela veio de um pré-cadastro do evento).
+  // Chamado logo no início, ainda dentro do clique, pra o navegador não
+  // bloquear como pop-up.
+  if(window._ultimoPreCadastroId){
+    var urlCartao = 'evento-cartoes.html?abrir=' + encodeURIComponent(window._ultimoPreCadastroId) + '&nome=' + encodeURIComponent(window._ultimoPreCadastroNome||'');
+    window.open(urlCartao, '_blank');
+  }
   // Proteção: se D estiver vazio/incompleto, tenta reconstruir dos campos
   if(!D.nome || !D.est){
     if(!qSel){alert('Por favor, preencha os dados e clique em "Gerar Resultado" antes de gerar o PDF.');return;}
@@ -1903,6 +2100,7 @@ function copiarDados(){
     nome:nomeVal,cpf:g('cpf'),nasc:nasc,profissao:g('profissao'),civil:civMap[g('civil')]||g('civil'),
     rua:g('rua'),bairro:g('bairro'),cep:g('cep'),cidade_cli:g('cidade_cliente'),uf_cli:g('uf_cliente'),
     endereco:g('rua')+', '+g('bairro')+', CEP '+g('cep')+' — '+g('cidade_cliente')+'/'+g('uf_cliente'),
+    contratantesExtras:coletarContratantesExtrasSim(),
     tem_terreno:g('tem_terreno'),t_lote:g('t_lote'),t_quadra:g('t_quadra'),
     t_area:document.getElementById('t_area').value,t_bairro:g('t_bairro'),t_cidade:g('t_cidade'),
     renda:renda,dep:dep,fgts:fgts,terreno:terreno,cidade_atend:cidade_atend,
@@ -2034,6 +2232,16 @@ window.addEventListener('DOMContentLoaded',function(){
       </div>
       <div class="saved-msg" id="savedMsg">✅ Configurações salvas com sucesso!</div>
     </div>
+  </div>
+</div>
+
+<div id="overlayPreCadastros" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#161d2e;border:1px solid #2a3454;border-radius:16px;padding:20px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;color:#eef1f8">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:800;color:#f59e0b;font-size:16px">📋 Pré-cadastros do evento</div>
+      <button onclick="document.getElementById('overlayPreCadastros').style.display='none'" style="background:none;border:none;color:#8b94ad;font-size:22px;cursor:pointer">×</button>
+    </div>
+    <div id="listaPreCadastrosEvento" style="font-size:13px;color:#8b94ad">Carregando...</div>
   </div>
 </div>
 
