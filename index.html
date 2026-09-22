@@ -814,9 +814,20 @@ var ANCHORS=[
   //   Padrao confirmado: sFGTS = cFGTS + 0.50 p.p., nos MESMOS pontos de quebra (independente de dependente)
   //   3.201: cFGTS=5.00% / sFGTS=5.50%  |  3.500: cFGTS=5.00% / sFGTS=5.50%
   //   4.000: cFGTS=5.50% / sFGTS=6.00%  |  5.000: cFGTS=6.50% / sFGTS=7.00%
-  // Corte abrupto Faixa 1->2 em 3201
+  // Corte abrupto Faixa 1->2 em 3201 — CORRIGIDO em 09/2026 com simulação real Caixa
+  // (renda R$3.289,19, imóvel R$210.000, com FGTS, sem dependente): subsídio de
+  // R$3.157,00 confirmado (taxa 5,00% bateu certo). Aplicado no ponto de início da
+  // Faixa 2 (coluna 1 = com FGTS + sem dependente). AINDA NÃO CONFIRMADO: a forma
+  // exata da queda do subsídio até R$5.000 (por enquanto interpola linear até 0 no
+  // anchor de R$5.000), e as outras 3 colunas (com dependente / sem FGTS) — essas
+  // continuam assumindo R$0 até termos simulação real pra cada uma.
+  // CORRIGIDO em 09/2026 com 3 simulações reais Caixa (imóvel R$210.000, com FGTS,
+  // COM dependente — coluna 2): renda 3.289 → subsídio R$3.157 (taxa 5,00%);
+  // renda 3.500 → subsídio R$1.882 (taxa 5,00%); renda 3.700 → subsídio R$0 (taxa
+  // 5,50%, já batia certo com a tabela). Queda suave e coerente entre os 3 pontos.
   [3201,  170000,    0,5.00,  170000,    0,5.00,  165000,    0,5.50,  165000,    0,5.50],
-  [3500,  180000,    0,5.00,  180000,    0,5.00,  170000,    0,5.50,  170000,    0,5.50],
+  [3289,  170000,    0,5.00,  170000, 3157,5.00,  165000,    0,5.50,  165000,    0,5.50],
+  [3500,  180000,    0,5.00,  180000, 1882,5.00,  170000,    0,5.50,  170000,    0,5.50],
   [3501,  185000,    0,5.50,  185000,    0,5.50,  175000,    0,6.00,  175000,    0,6.00],
   [4000,  210000,    0,5.50,  210000,    0,5.50,  200000,    0,6.00,  200000,    0,6.00],
   [4001,  235000,    0,6.50,  235000,    0,6.50,  225000,    0,7.00,  225000,    0,7.00],
