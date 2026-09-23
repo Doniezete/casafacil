@@ -414,8 +414,8 @@ function voltarEtapa(){
 
 function salvarAtendimento(){
   try {
-    var campos = ['nome','cpf','nascimento','profissao','rua','bairro','cep','cidade_cliente','renda','vfin','vsub','vent','vdoc','vter'];
-    var selects = ['civil','dep','uf_cliente','fgts','cidade_atend'];
+    var campos = ['nome','cpf','nascimento','profissao','telefone','rua','bairro','cep','cidade_cliente','renda','vfin','vsub','vent','vdoc','vter','t_lote','t_quadra','t_area','t_bairro','t_cidade'];
+    var selects = ['civil','dep','uf_cliente','fgts','cidade_atend','tem_terreno','terreno'];
     var backup = {};
     campos.forEach(function(id){
       var el = document.getElementById(id);
@@ -2016,6 +2016,7 @@ function carregarCodigo(){
     document.getElementById('renda').value=rendaFmt;
     document.getElementById('dep').value=p.dep||'nao';toggleDep();
     document.getElementById('fgts').value=p.fgts||'sim';
+    atualizarFinanciamento(); // dispara o mesmo cálculo que rodaria se você tivesse digitado a renda na mão (precisa vir depois de dep/fgts, que também entram na conta)
     document.getElementById('imovel').value='nao';
     // Terreno
     document.getElementById('tem_terreno').value=p.tem_terreno||'nao';toggleTerreno();
@@ -2066,8 +2067,10 @@ function carregarCodigo(){
     qSel=qts<=maxQ?qts:maxQ;
     [1,2,3].forEach(function(i){document.getElementById('q'+i).classList.toggle('sel',i===qSel);});
     document.getElementById('btnGerar').style.display='block';
-    // Executar gerar() para ir direto ao passo 4
-    gerar();
+    // Deixa tudo já calculado, mas volta pra primeira página — assim você pode
+    // conferir os dados antes de seguir, em vez de já cair direto no resultado.
+    go(0);
+    document.getElementById('import_code').value='';
   }catch(e){document.getElementById('importErro').style.display='block';}
 }
 
@@ -2143,9 +2146,19 @@ window.addEventListener('DOMContentLoaded',function(){
     });
     var btnGerar=document.getElementById('btnGerar');
     if(btnGerar)btnGerar.style.display='block';
+    // Recalcula idade e mostra/esconde a seção de terreno de acordo com o
+    // que foi salvo (os selects já vêm com o valor certo, mas as funções
+    // de mostrar/esconder e recalcular só rodam se a gente chamar na mão).
+    if(typeof calcIdade==='function') calcIdade();
+    if(typeof toggleTerreno==='function') toggleTerreno();
+    if(typeof updateTerrenoInfo==='function') updateTerrenoInfo();
+    if(typeof toggleDep==='function') toggleDep();
+    if(typeof atualizarFinanciamento==='function') atualizarFinanciamento();
   }
   if(typeof window._savedPasso==='number' && window._savedPasso>=0){
-    go(window._savedPasso);
+    // Sempre volta pra primeira página ao reabrir um atendimento salvo,
+    // mesmo que ele tenha sido salvo na tela de resultado (o normal).
+    go(0);
   }
 });
 
