@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
 :root{
   --bg:#0f1420;--bg2:#0c0f1a;--card:#161d2e;--card2:#131827;
@@ -97,6 +98,44 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
 .tipo-badge.ligacao{background:rgba(59,130,246,.18);color:var(--aguardando)}
 .tipo-badge.mensagem{background:rgba(34,197,94,.18);color:var(--convertido)}
 .tipo-badge.retorno{background:rgba(100,116,139,.2);color:var(--esfriando)}
+/* ===== Aba WhatsApp ===== */
+#whatsBadge{background:var(--ac);color:#0f1420;border-radius:999px;padding:0 7px;font-size:11px;margin-left:4px}
+.w-filtros{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}
+.w-chip .w-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:currentColor;vertical-align:middle}
+.w-layout{display:flex;gap:18px;align-items:flex-start}
+.w-col{width:380px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;max-height:75vh;overflow:auto}
+.w-det{flex:1;min-width:0;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px}
+.w-card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;cursor:pointer}
+.w-card:hover{border-color:var(--bd2)}
+.w-card.sel{border-color:var(--ac)}
+.w-topo{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px}
+.w-tag{font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;display:inline-block}
+.wt-laranja{background:rgba(251,146,60,.16);color:#fdba74}
+.wt-verde{background:rgba(52,211,153,.15);color:#6ee7b7}
+.wt-azul{background:rgba(96,165,250,.16);color:#93c5fd}
+.wt-roxo{background:rgba(167,139,250,.17);color:#c4b5fd}
+.chip.wt-laranja,.chip.wt-verde,.chip.wt-azul,.chip.wt-roxo{border-color:transparent}
+.w-cinza{background:rgba(148,163,184,.15);color:#cbd5e1;margin-top:6px}
+.w-tempo{font-size:12px;color:var(--mut);white-space:nowrap}
+.w-nome{font-weight:700;font-size:15px;color:var(--tx)}
+.w-linha{font-size:13px;color:var(--mut);margin-top:3px}
+.w-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
+.w-cab-nome{font-size:18px;font-weight:700;color:var(--tx)}
+.w-sub{font-size:12px;color:var(--mut);margin-top:4px}
+.w-secao{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--mut);margin:16px 0 8px}
+.w-msgs{max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:6px;background:var(--bg2);border-radius:10px;padding:10px}
+.w-bolha{max-width:78%;padding:8px 11px;border-radius:10px;font-size:13px;color:var(--tx2);line-height:1.4}
+.w-bolha.esq{align-self:flex-start;background:var(--card2);border:1px solid var(--bd2)}
+.w-bolha.dir{align-self:flex-end;background:rgba(52,211,153,.12)}
+.w-quem{display:block;font-size:10.5px;color:var(--mut);margin-bottom:2px}
+.w-docs{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--tx2)}
+.w-prob{color:#fdba74;font-size:12px}
+.w-texto{width:100%;min-height:110px;box-sizing:border-box;background:var(--bg2);color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:10px;font:inherit;font-size:14px;resize:vertical}
+.w-acoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.w-dica{font-size:11.5px;color:var(--mut);margin-top:8px}
+.w-vazio{color:var(--mut);font-size:14px;padding:20px;text-align:center}
+.w-motivo{font-size:13px;color:#fdba74}
+@media(max-width:800px){.w-layout{flex-direction:column}.w-col{width:100%;max-height:none}}
 </style>
 </head>
 <body>
@@ -149,6 +188,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
   <div class="tabs">
     <span class="tab active" id="tabLeads" onclick="mudarView('leads')">📋 Leads</span>
     <span class="tab" id="tabAgenda" onclick="mudarView('agenda')">📅 Agenda</span>
+    <span class="tab" id="tabWhats" onclick="mudarView('whats')">💬 WhatsApp<span id="whatsBadge" style="display:none"></span></span>
   </div>
 
   <div id="viewLeads">
@@ -177,6 +217,14 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
     <div class="agenda-grid" id="agendaGrid"></div>
     <h3 style="margin-top:22px;font-size:15px;color:var(--ac)" id="diaSelecionadoTitulo">Hoje</h3>
     <div id="agendaDoDia"></div>
+  </div>
+
+  <div id="viewWhats" style="display:none">
+    <div class="w-filtros" id="whatsFiltros"></div>
+    <div class="w-layout">
+      <div class="w-col" id="whatsLista"><div class="w-vazio">Carregando...</div></div>
+      <div class="w-det" id="whatsDetalhe"><div class="w-vazio">Selecione uma conversa à esquerda.</div></div>
+    </div>
   </div>
 </div>
 </div>
@@ -655,6 +703,7 @@ firebase.auth().onAuthStateChanged(function(user){
     if(badge) badge.textContent = '👤 '+(user.displayName||user.email);
     carregarLeads();
     carregarAgendamentos();
+    iniciarWhats();
   } else {
     document.getElementById('appConteudo').style.display='none';
     document.getElementById('telaLogin').style.display='flex';
@@ -726,6 +775,9 @@ function mudarView(v){
   document.getElementById('tabAgenda').classList.toggle('active', v==='agenda');
   document.getElementById('viewLeads').style.display = v==='leads' ? '' : 'none';
   document.getElementById('viewAgenda').style.display = v==='agenda' ? '' : 'none';
+  document.getElementById('tabWhats').classList.toggle('active', v==='whats');
+  document.getElementById('viewWhats').style.display = v==='whats' ? '' : 'none';
+  if(v==='whats'){ iniciarWhats(); renderWhats(); }
   if(v==='agenda'){
     if(!diaSelecionado) diaSelecionado=hojeISO();
     if(agendamentos.length===0) carregarAgendamentos(); else renderCalendario();
@@ -3657,6 +3709,167 @@ function ajustarEtapasPorTipo(manterValor){
 
 function badgeClass(s){ if(s==='aguardando renda') return 'aguardando'; return s||'quente'; }
 function labelStatus(s){ return {quente:'🔥 Quente','aguardando renda':'⏳ Aguardando renda',esfriando:'🧊 Esfriando',convertido:'✅ Convertido'}[s]||s; }
+
+/* ============================================================
+   9) WHATSAPP — aba "aguardando você" (conversas que pedem sua atenção)
+   ============================================================ */
+var whatsConversas = [], whatsFiltro = 'todos', whatsSelecionado = null, whatsUnsub = null, whatsEditado = false, whatsUltimaMsg = {};
+var WHATS_TIPOS = {
+  pediu_atendimento: { rotulo: 'Pediu atendimento', cls: 'wt-laranja' },
+  erro_assistente:   { rotulo: 'Precisa de você',   cls: 'wt-laranja' },
+  novo_lead:         { rotulo: 'Novo lead',         cls: 'wt-verde' },
+  cliente_andamento: { rotulo: 'Cliente em andamento', cls: 'wt-azul' },
+  retorno_agendado:  { rotulo: 'Retorno agendado',  cls: 'wt-roxo' }
+};
+function iniciarWhats(){
+  if(!db || whatsUnsub) return;
+  whatsUnsub = db.collection('whatsapp_conversas').where('aguardando.tipo','in',Object.keys(WHATS_TIPOS))
+    .onSnapshot(function(snap){
+      whatsConversas = [];
+      snap.forEach(function(d){ whatsConversas.push(Object.assign({id:d.id}, d.data())); });
+      whatsConversas.sort(function(a,b){ return tsMs(a.aguardando.desde) - tsMs(b.aguardando.desde); });
+      renderWhatsBadge();
+      if(viewAtual==='whats') renderWhats();
+      // conversa aberta: atualiza mensagens e sugestão se chegou algo novo
+      var c = whatsSelecionado && whatsConversas.find(function(x){ return x.id===whatsSelecionado; });
+      if(c){
+        var ult = tsMs(c.ultimaMensagemEm);
+        if(whatsUltimaMsg[c.id] !== ult){ whatsUltimaMsg[c.id] = ult; carregarMsgsWhats(c.id); }
+        var ta = document.getElementById('whatsTexto');
+        if(ta && !whatsEditado && c.sugestao && c.sugestao.texto && c.sugestao.texto !== ta.value) ta.value = c.sugestao.texto;
+      }
+    }, function(err){
+      console.error(err);
+      var el = document.getElementById('whatsLista');
+      if(el) el.innerHTML = '<div class="w-vazio">Erro ao carregar as conversas: '+esc(err.message)+'</div>';
+    });
+}
+function tsMs(t){ if(!t) return 0; if(t.toMillis) return t.toMillis(); if(t.seconds) return t.seconds*1000; return new Date(t).getTime() || 0; }
+function haQuanto(t){
+  var min = Math.round((Date.now() - tsMs(t)) / 60000);
+  if(min < 1) return 'agora'; if(min < 60) return 'há '+min+' min';
+  var h = Math.round(min/60); if(h < 24) return 'há '+h+' h';
+  return 'há '+Math.round(h/24)+' dia(s)';
+}
+function formatarDataHoraWhats(t){
+  var d = new Date(tsMs(t)); if(!tsMs(t)) return '';
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function formatarTelWhats(t){
+  var d = String(t||'').replace(/\D/g,'');
+  if(d.indexOf('55')===0 && d.length>=12) d = d.slice(2);
+  if(d.length===10 && /[6-9]/.test(d[2])) d = d.slice(0,2)+'9'+d.slice(2);
+  return d.length===11 ? '('+d.slice(0,2)+') '+d.slice(2,7)+'-'+d.slice(7) : String(t||'');
+}
+function tipoConv(c){ return WHATS_TIPOS[(c.aguardando||{}).tipo] || WHATS_TIPOS.cliente_andamento; }
+function nomeConv(c){
+  var l = c.leadId && leads.find(function(x){ return x.id===c.leadId; });
+  return (l && l.nome) || (c.ficha && c.ficha.nome) || c.nomeWhatsApp || formatarTelWhats(c.telefone || c.id);
+}
+function renderWhatsBadge(){
+  var b = document.getElementById('whatsBadge'); if(!b) return;
+  b.textContent = whatsConversas.length || ''; b.style.display = whatsConversas.length ? '' : 'none';
+}
+function setWhatsFiltro(f){ whatsFiltro = f; renderWhats(); }
+function renderWhats(){
+  var cont = { todos: whatsConversas.length };
+  whatsConversas.forEach(function(c){ var k = tipoConv(c).cls; cont[k] = (cont[k]||0) + 1; });
+  var chips = [['todos','Tudo'],['wt-laranja','Pediu atendimento'],['wt-verde','Novo lead'],['wt-azul','Cliente em andamento'],['wt-roxo','Retorno agendado']];
+  document.getElementById('whatsFiltros').innerHTML = chips.map(function(ch){
+    var k = ch[0];
+    return '<span class="chip w-chip '+(k!=='todos'?k:'')+(whatsFiltro===k?' active':'')+'" onclick="setWhatsFiltro(\''+k+'\')">'
+      +(k!=='todos'?'<i class="w-dot"></i>':'')+esc(ch[1])+' · '+(cont[k]||0)+'</span>';
+  }).join('');
+  var lista = whatsConversas.filter(function(c){ return whatsFiltro==='todos' || tipoConv(c).cls===whatsFiltro; });
+  var el = document.getElementById('whatsLista');
+  if(whatsSelecionado && !whatsConversas.some(function(c){ return c.id===whatsSelecionado; })){
+    whatsSelecionado = null;
+    document.getElementById('whatsDetalhe').innerHTML = '<div class="w-vazio">Esta conversa foi respondida e saiu da lista. ✅</div>';
+  }
+  if(!lista.length){ el.innerHTML = '<div class="w-vazio">Nada esperando por você aqui. 🎉</div>'; return; }
+  el.innerHTML = lista.map(function(c){
+    var tp = tipoConv(c), sug = c.sugestao || {}, extra = '';
+    if((c.aguardando||{}).tipo==='novo_lead' && c.aguardando.temperatura) extra = ' · '+c.aguardando.temperatura;
+    var linha = sug.resumo || c.ultimoTexto || '';
+    return '<div class="w-card'+(whatsSelecionado===c.id?' sel':'')+'" onclick="abrirWhats(\''+c.id+'\')">'
+      +'<div class="w-topo"><span class="w-tag '+tp.cls+'">'+esc(tp.rotulo+extra)+'</span><span class="w-tempo">'+haQuanto(c.aguardando.desde)+'</span></div>'
+      +'<div class="w-nome">'+esc(nomeConv(c))+'</div>'
+      +'<div class="w-linha">'+esc(String(linha).slice(0,120))+'</div>'
+      +(sug.precisaResponder===false ? '<span class="w-tag w-cinza">Talvez não precise responder</span>' : '')
+      +'</div>';
+  }).join('');
+  if(!whatsSelecionado && !document.getElementById('whatsTexto')) document.getElementById('whatsDetalhe').innerHTML = '<div class="w-vazio">Selecione uma conversa à esquerda.</div>';
+}
+function abrirWhats(id){
+  whatsSelecionado = id; whatsEditado = false; renderWhats();
+  var c = whatsConversas.find(function(x){ return x.id===id; }); if(!c) return;
+  var tp = tipoConv(c), sug = c.sugestao || {}, docs = c.documentos || [];
+  var html = '<div class="w-cab"><div><div class="w-cab-nome">'+esc(nomeConv(c))+' <span class="w-tag '+tp.cls+'">'+esc(tp.rotulo)+'</span></div>'
+    +'<div class="w-sub">'+esc(formatarTelWhats(c.telefone || c.id))+(c.ultimaMensagemEm ? ' · última mensagem '+haQuanto(c.ultimaMensagemEm) : '')+'</div></div>'
+    +(c.leadId ? '<button class="btn small secondary" onclick="abrirLeadPorIdWhats(\''+c.leadId+'\')">Abrir ficha do lead</button>' : '')+'</div>';
+  if(c.aguardando && c.aguardando.motivo) html += '<div class="w-motivo">Motivo: '+esc(c.aguardando.motivo)+'</div>';
+  html += '<div class="w-secao">ÚLTIMAS MENSAGENS</div><div class="w-msgs" id="whatsMsgs">Carregando...</div>';
+  if(docs.length){
+    html += '<div class="w-secao">DOCUMENTOS RECEBIDOS</div><div class="w-docs">'+docs.map(function(d){
+      var ok = d.legivel!==false && d.completo!==false && !d.problema;
+      return '<div class="w-doc">'+(ok?'✅':'⚠️')+' <b>'+esc(d.descricao||d.tipo)+'</b>'+(d.dataReferencia?' · '+esc(d.dataReferencia):'')
+        +(d.problema?' <span class="w-prob">'+esc(d.problema)+'</span>':'')
+        +(d.arquivo?' · <a href="#" onclick="abrirArquivoWhats(\''+esc(d.arquivo)+'\');return false">abrir</a>':'')+'</div>';
+    }).join('')+'</div>';
+  }
+  html += '<div class="w-secao">MENSAGEM PARA ENVIAR</div>'
+    +'<textarea id="whatsTexto" class="w-texto" oninput="whatsEditado=true" placeholder="Escreva sua mensagem...">'+esc(sug.texto||'')+'</textarea>'
+    +(sug.texto ? '<div class="w-sub">Sugestão da IA'+(sug.geradaEm?' · '+haQuanto(sug.geradaEm):'')+'. Confira e ajuste antes de enviar.</div>' : '')
+    +'<div class="w-acoes"><button class="btn" onclick="copiarAbrirWhats()">📋 Copiar e abrir no WhatsApp (grátis)</button>'
+    +'<button class="btn secondary" onclick="arquivarWhats()">Já respondi / arquivar</button></div>'
+    +'<div class="w-dica">Envie pelo WhatsApp Web ou pelo celular da Casa Fácil — não pelo aplicativo do Windows — para o sistema perceber que você respondeu e tirar o cartão da lista sozinho.</div>';
+  document.getElementById('whatsDetalhe').innerHTML = html;
+  whatsUltimaMsg[id] = tsMs(c.ultimaMensagemEm);
+  carregarMsgsWhats(id);
+}
+function carregarMsgsWhats(id){
+  db.collection('whatsapp_conversas').doc(id).collection('mensagens').orderBy('enviadaEm','desc').limit(20).get().then(function(snap){
+    var arr = []; snap.forEach(function(d){ arr.push(d.data()); }); arr.reverse();
+    var box = document.getElementById('whatsMsgs'); if(!box || whatsSelecionado!==id) return;
+    box.innerHTML = arr.map(function(m){
+      var lado = m.de==='cliente' ? 'esq' : 'dir';
+      var quem = m.de==='cliente' ? 'Cliente' : (m.de==='bot' ? 'Assistente' : 'Você');
+      var t = m.texto || '';
+      if(m.tipo==='audio') t = '🎤 '+(m.transcricao || '(áudio)');
+      else if(m.tipo==='image' || m.tipo==='document') t = '📎 '+((m.analise && m.analise.descricao) || 'arquivo')+(t ? ' — '+t : '');
+      return '<div class="w-bolha '+lado+'"><span class="w-quem">'+quem+' · '+formatarDataHoraWhats(m.enviadaEm)+'</span>'+esc(t).replace(/\n/g,'<br>')+'</div>';
+    }).join('') || '<div class="w-sub">Sem mensagens guardadas.</div>';
+    box.scrollTop = box.scrollHeight;
+  }).catch(function(e){ var box = document.getElementById('whatsMsgs'); if(box) box.textContent = 'Erro ao carregar mensagens: '+e.message; });
+}
+function abrirLeadPorIdWhats(id){
+  var l = leads.find(function(x){ return x.id===id; });
+  if(l) abrirModal(l); else alert('Lead não encontrado na lista carregada.');
+}
+function abrirArquivoWhats(caminho){
+  var janela = window.open('about:blank', '_blank');
+  firebase.storage().ref(caminho).getDownloadURL().then(function(url){ if(janela) janela.location = url; else window.open(url, '_blank'); })
+    .catch(function(e){ if(janela) janela.close(); alert('Não foi possível abrir o arquivo: '+e.message); });
+}
+function copiarAbrirWhats(){
+  var c = whatsConversas.find(function(x){ return x.id===whatsSelecionado; }); if(!c) return;
+  var texto = (document.getElementById('whatsTexto').value || '').trim();
+  if(!texto){ alert('Escreva a mensagem antes.'); return; }
+  if(navigator.clipboard) navigator.clipboard.writeText(texto).catch(function(){});
+  var tel = String(c.id).replace(/\D/g,'');
+  var celular = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  var url = celular ? 'https://wa.me/'+tel+'?text='+encodeURIComponent(texto)
+                    : 'https://web.whatsapp.com/send?phone='+tel+'&text='+encodeURIComponent(texto);
+  window.open(url, '_blank');
+}
+function arquivarWhats(){
+  if(!whatsSelecionado) return;
+  db.collection('whatsapp_conversas').doc(whatsSelecionado).update({
+    aguardando: firebase.firestore.FieldValue.delete(),
+    sugestao: firebase.firestore.FieldValue.delete()
+  }).catch(function(e){ alert('Erro ao arquivar: '+e.message); });
+}
+
 function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 
 if('Notification' in window && Notification.permission==='granted' && localStorage.getItem('cf_notif_ativas')==='1'){
