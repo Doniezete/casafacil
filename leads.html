@@ -306,6 +306,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       </div>
     </div>
     <div class="campo"><label>Minhas anotações rápidas</label><textarea id="f_notas" placeholder="Ex: disse que só teria a renda em julho. Já tem entrada guardada."></textarea></div>
+    <div class="campo"><label>💬 Situação para o cliente <span style="font-weight:400;color:var(--mut)">(o assistente do WhatsApp pode contar isto ao cliente — não escreva nada interno aqui)</span></label><textarea id="f_situacao" placeholder="Ex: Projeto aprovado na prefeitura em 10/10. Agora aguardando a vistoria do engenheiro da Caixa."></textarea><div id="f_situacaoEm" style="font-size:12px;color:var(--mut);margin-top:4px"></div></div>
 
     <div class="campo" id="historicoBox" style="display:none;border-top:1px solid var(--bd2);padding-top:14px;margin-top:6px">
       <label>📜 Histórico de atendimentos anteriores com este cliente</label>
@@ -1043,6 +1044,8 @@ function salvarLead(){
     ultimoContato:document.getElementById('f_ultimoContato').value||null,
     proximoContato:document.getElementById('f_proximoContato').value||null,
     notas:document.getElementById('f_notas').value,
+    situacaoCliente:document.getElementById('f_situacao').value,
+    situacaoClienteEm:dataSituacaoCliente(document.getElementById('leadId').value),
     tipoCliente:document.getElementById('f_tipoCliente').value,
     etapa:document.getElementById('f_etapa').value,
     objecao:document.getElementById('f_objecao').value,
@@ -1116,6 +1119,8 @@ function garantirLeadSalvo(){
     ultimoContato:document.getElementById('f_ultimoContato').value||null,
     proximoContato:document.getElementById('f_proximoContato').value||null,
     notas:document.getElementById('f_notas').value,
+    situacaoCliente:document.getElementById('f_situacao').value,
+    situacaoClienteEm:dataSituacaoCliente(document.getElementById('leadId').value),
     tipoCliente:document.getElementById('f_tipoCliente').value,
     etapa:document.getElementById('f_etapa').value,
     objecao:document.getElementById('f_objecao').value,
@@ -3455,6 +3460,8 @@ function abrirModal(lead){
   document.getElementById('f_ultimoContato').value = lead ? (lead.ultimoContato||'') : hojeISO();
   document.getElementById('f_proximoContato').value = lead ? (lead.proximoContato||'') : '';
   document.getElementById('f_notas').value = lead ? (lead.notas||'') : '';
+  document.getElementById('f_situacao').value = lead ? (lead.situacaoCliente||'') : '';
+  document.getElementById('f_situacaoEm').textContent = (lead && lead.situacaoClienteEm) ? ('Atualizada em '+lead.situacaoClienteEm.split('-').reverse().join('/')) : '';
   document.getElementById('f_tipoCliente').value = lead ? (lead.tipoCliente||'lead_novo') : 'lead_novo';
   document.getElementById('f_etapa').value = lead ? (lead.etapa||'primeiro_contato') : 'primeiro_contato';
   ajustarEtapasPorTipo(true);
@@ -3908,6 +3915,14 @@ function arquivarWhats(){
   }).catch(function(e){ alert('Erro ao arquivar: '+e.message); });
 }
 
+// data da última mudança do campo "Situação para o cliente" (o assistente usa para saber se a informação é recente)
+function dataSituacaoCliente(id){
+  var atual = (document.getElementById('f_situacao').value||'').trim();
+  var l = id && leads.find(function(x){ return x.id===id; });
+  if(!atual) return null;
+  if(l && (l.situacaoCliente||'').trim()===atual && l.situacaoClienteEm) return l.situacaoClienteEm;
+  return hojeISO();
+}
 function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 
 if('Notification' in window && Notification.permission==='granted' && localStorage.getItem('cf_notif_ativas')==='1'){
