@@ -3855,6 +3855,7 @@ function abrirWhats(id){
   html += '<div class="w-secao">MENSAGEM PARA ENVIAR</div>'
     +'<textarea id="whatsTexto" class="w-texto" oninput="whatsEditado=true" placeholder="Escreva sua mensagem...">'+esc(sug.texto||'')+'</textarea>'
     +(sug.texto ? '<div class="w-sub">Sugestão da IA'+(sug.geradaEm?' · '+haQuanto(sug.geradaEm):'')+'. Confira e ajuste antes de enviar.</div>' : '')
+    +(!sug.texto && sug.semSugestaoMotivo ? '<div class="w-sub" style="color:#fdba74">A IA não sugeriu resposta: '+esc(sug.semSugestaoMotivo)+'</div>' : '')
     +'<div class="w-acoes"><button class="btn" onclick="copiarAbrirWhats()">📋 Copiar e abrir no WhatsApp (grátis)</button>'
     +'<button class="btn secondary" onclick="arquivarWhats()">Já respondi / arquivar</button>'
     +(c.modo!=='bot' ? '<button class="btn secondary" onclick="devolverAssistenteWhats()">🤖 Devolver para o assistente</button>' : '')+'</div>'
