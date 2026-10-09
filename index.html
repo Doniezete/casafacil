@@ -463,6 +463,40 @@ function salvarAtendimento(){
 
 /* Manda uma cópia do atendimento pro Storage do Firebase e guarda o link
    dentro do cadastro do lead, pra você acessar depois direto pelo painel. */
+function montarEntradaSnapshot(downloadUrl, nomeArq){
+  // Entrada = link do arquivo + resumo com os números principais da simulação,
+  // pra outros sistemas (ex.: assistente do WhatsApp) lerem sem abrir o HTML.
+  var e = { url: downloadUrl, nomeArquivo: nomeArq, data: new Date().toISOString().slice(0,10) };
+  try{
+    var d = (typeof D!=='undefined' && D && D.nome) ? D : null;
+    if(d){
+      var est = d.est || {};
+      e.resumo = {
+        renda: d.renda||0,
+        dependentes: d.dep||'',
+        usaFgts: d.fgts||'',
+        faixa: est.faixa||'',
+        financiamento: (d.fin>0?d.fin:est.fin)||0,
+        subsidio: d.sub||0,
+        entrada: d.ent||0,
+        valorTerreno: d.ter||0,
+        documentacao: d.doc_val||0,
+        verbaTotal: d.verba||0,
+        areaEstimada: d.area||0,
+        quartos: d.quartos||0,
+        modelo: d.mod||'',
+        parcelaInicial: d.pmt_first||0,
+        parcelaFinal: d.pmt_last||0,
+        prazoMeses: d.prazo||0,
+        taxa: est.taxa||0,
+        temTerreno: d.tem_terreno||'',
+        cidadeAtendimento: d.cidade_atend||''
+      };
+    }
+  }catch(err){ console.warn('Resumo do atendimento nao gravado:', err.message); }
+  return e;
+}
+
 function enviarAtendimentoParaNuvem(blob, nomeArq){
   if(!leadsStorage || !leadsDb || !window._ultimoLeadId){
     console.warn('Envio pra nuvem indisponivel (sistema de leads nao configurado ou lead ainda nao identificado).');
@@ -474,11 +508,7 @@ function enviarAtendimentoParaNuvem(blob, nomeArq){
     return snapshot.ref.getDownloadURL();
   }).then(function(downloadUrl){
     return leadsDb.collection('leads').doc(leadId).set({
-      snapshotsAtendimento: firebase.firestore.FieldValue.arrayUnion({
-        url: downloadUrl,
-        nomeArquivo: nomeArq,
-        data: new Date().toISOString().slice(0,10)
-      })
+      snapshotsAtendimento: firebase.firestore.FieldValue.arrayUnion(montarEntradaSnapshot(downloadUrl, nomeArq))
     }, {merge:true});
   }).catch(function(err){
     console.warn('Nao foi possivel enviar o atendimento pra nuvem:', err.message);
