@@ -680,6 +680,7 @@ const firebaseConfig = {
    (instruções no final da conversa).
    ============================================================ */
 const CAIXA_URL = "https://whatsapp-webhook-cdyvt26v7q-rj.a.run.app/caixa";
+const SUGESTAO_URL = "https://whatsapp-webhook-cdyvt26v7q-rj.a.run.app/sugestao";
 const ANALISE_IA_URL = "https://southamerica-east1-casa-facil-4aef8.cloudfunctions.net/analisar-lead";
 
 let db = null, leads = [], filtroAtual = 'pendentes';
@@ -3884,7 +3885,9 @@ function abrirWhats(id){
     +'<textarea id="whatsTexto" class="w-texto" oninput="whatsEditado=true" placeholder="Escreva sua mensagem...">'+esc(sug.texto||'')+'</textarea>'
     +(sug.texto ? '<div class="w-sub">Sugestão da IA'+(sug.geradaEm?' · '+haQuanto(sug.geradaEm):'')+'. Confira e ajuste antes de enviar.</div>' : '')
     +(!sug.texto && sug.semSugestaoMotivo ? '<div class="w-sub" style="color:#fdba74">A IA não sugeriu resposta: '+esc(sug.semSugestaoMotivo)+'</div>' : '')
+    +(!sug.texto && !sug.semSugestaoMotivo ? '<div class="w-sub">Ainda não há sugestão para esta conversa. Clique em "✨ Gerar sugestão".</div>' : '')
     +'<div class="w-acoes"><button class="btn" onclick="copiarAbrirWhats()">📋 Copiar e abrir no WhatsApp (grátis)</button>'
+    +'<button class="btn secondary" id="btnGerarSug" onclick="gerarSugestaoWhats()">✨ '+(sug.texto?'Gerar outra sugestão':'Gerar sugestão')+'</button>'
     +'<button class="btn secondary" onclick="arquivarWhats()">Já respondi / arquivar</button>'
     +(c.modo!=='bot' ? '<button class="btn secondary" onclick="devolverAssistenteWhats()">🤖 Devolver para o assistente</button>' : '')+'</div>'
     +'<div class="w-dica">Envie pelo WhatsApp Web ou pelo celular da Casa Fácil — não pelo aplicativo do Windows — para o sistema perceber que você respondeu e tirar o cartão da lista sozinho.</div>';
@@ -3926,6 +3929,17 @@ function copiarAbrirWhats(){
   var url = celular ? 'https://wa.me/'+tel+'?text='+encodeURIComponent(texto)
                     : 'https://web.whatsapp.com/send?phone='+tel+'&text='+encodeURIComponent(texto);
   window.open(url, '_blank');
+}
+function gerarSugestaoWhats(){
+  var id = whatsSelecionado; if(!id) return;
+  var btn = document.getElementById('btnGerarSug'); if(btn){ btn.disabled = true; btn.textContent = '⏳ Gerando...'; }
+  firebase.auth().currentUser.getIdToken().then(function(token){
+    return fetch(SUGESTAO_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({idToken: token, telefone: id})});
+  }).then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.erro||('erro '+r.status)); return d; }); })
+  .then(function(d){
+    var c = acharConvWhats(id); if(c) c.sugestao = d.sugestao;
+    whatsEditado = false; if(whatsSelecionado===id) abrirWhats(id);
+  }).catch(function(e){ alert('Não foi possível gerar a sugestão: '+e.message); if(btn){ btn.disabled = false; btn.textContent = '✨ Gerar sugestão'; } });
 }
 function devolverAssistenteWhats(){
   if(!whatsSelecionado) return;
