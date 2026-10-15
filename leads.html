@@ -136,6 +136,10 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
 .w-vazio{color:var(--mut);font-size:14px;padding:20px;text-align:center}
 .w-motivo{font-size:13px;color:#fdba74}
 @media(max-width:800px){.w-layout{flex-direction:column}.w-col{width:100%;max-height:none}}
+.dup-box{background:rgba(251,146,60,.10);border:1px solid rgba(251,146,60,.4);border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:13px;color:var(--tx2)}
+.dup-item{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--bd2);margin-top:8px}
+.dup-item small{color:var(--mut)}
+.dup-acoes{display:flex;gap:8px}
 </style>
 </head>
 <body>
@@ -192,6 +196,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
   </div>
 
   <div id="viewLeads">
+  <div id="duplicadosBox"></div>
   <div class="stats" id="stats"></div>
 
   <div class="filtros">
@@ -313,6 +318,11 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
       <div id="historicoLista"></div>
     </div>
 
+    <div class="campo" id="caixaBox" style="display:none;border-top:1px solid var(--bd2);padding-top:14px;margin-top:6px">
+      <label>🏦 Simulação aprovada pela Caixa (oficial)</label>
+      <div id="caixaConteudo"></div>
+      <input type="file" id="caixaArquivo" accept="application/pdf,image/*" style="display:none" onchange="enviarSimulacaoCaixa(this)"/>
+    </div>
     <div class="campo" id="simulacoesBox" style="display:none;border-top:1px solid var(--bd2);padding-top:14px;margin-top:6px">
       <label>📄 Simulações salvas no simulador</label>
       <div id="simulacoesLista"></div>
@@ -669,6 +679,7 @@ const firebaseConfig = {
    Cole aqui a URL que aparece depois de publicar a função
    (instruções no final da conversa).
    ============================================================ */
+const CAIXA_URL = "https://whatsapp-webhook-cdyvt26v7q-rj.a.run.app/caixa";
 const ANALISE_IA_URL = "https://southamerica-east1-casa-facil-4aef8.cloudfunctions.net/analisar-lead";
 
 let db = null, leads = [], filtroAtual = 'pendentes';
@@ -751,6 +762,7 @@ function carregarLeads(){
     leads = [];
     snap.forEach(function(doc){ leads.push(Object.assign({id:doc.id}, doc.data())); });
     render();
+    renderDuplicados();
     if(viewAtual==='agenda') renderCalendario();
   }).catch(function(err){ console.error(err); alert('Erro ao carregar leads: '+err.message); });
 }
@@ -3490,6 +3502,7 @@ function abrirModal(lead){
   document.getElementById('boxDadosCompletos').style.display = 'none';
   document.getElementById('btnLinkMateriaisBox').style.display = lead ? 'block' : 'none';
   renderHistoricoBox(lead);
+  renderCaixaBox(lead);
   document.getElementById('agendarSugestaoBox').style.display='none';
   var sBox=document.getElementById('sugestaoIABox');
   if(lead && lead.sugestaoIA){
@@ -3523,11 +3536,26 @@ function renderHistoricoBox(lead){
   var sims = (lead && Array.isArray(lead.snapshotsAtendimento)) ? lead.snapshotsAtendimento : [];
   if(sims.length===0){ simBox.style.display='none'; return; }
   simBox.style.display='block';
-  document.getElementById('simulacoesLista').innerHTML = sims.slice().reverse().map(function(s){
-    return '<a href="'+s.url+'" target="_blank" rel="noopener" class="msg-box" style="display:block;margin-top:6px;text-decoration:none;color:inherit">'
-      + '📄 <b>'+esc(s.nomeArquivo||'atendimento')+'</b> — '+fmtData(s.data)+' <span style="color:var(--mut);font-size:12px">(abrir)</span>'
-      + '</a>';
+  document.getElementById('simulacoesLista').innerHTML = sims.slice().reverse().map(function(s, i){
+    var escolhida = lead.simulacaoEscolhida && lead.simulacaoEscolhida===s.url;
+    return '<div class="msg-box" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap'+(escolhida?';border-color:#22c55e':'')+'">'
+      + '<a href="'+s.url+'" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">📄 <b>'+esc(s.nomeArquivo||'atendimento')+'</b> — '+fmtData(s.data)+' <span style="color:var(--mut);font-size:12px">(abrir)</span></a>'
+      + (escolhida
+          ? '<span style="color:#22c55e;font-weight:700;font-size:12px">✅ Escolhida pelo cliente <a href="#" style="color:var(--mut);font-weight:400" onclick="escolherSimulacao(\''+lead.id+'\',null);return false">(desfazer)</a></span>'
+          : '<button class="btn small secondary" data-url="'+esc(s.url)+'" onclick="escolherSimulacao(\''+lead.id+'\',this.getAttribute(\'data-url\'))">Cliente escolheu esta</button>')
+      + '</div>';
   }).join('');
+}
+// marca qual simulação o cliente escolheu (o assistente do WhatsApp passa a usar só ela)
+function escolherSimulacao(leadId, url){
+  if(!leadId){ alert('Salve o lead antes.'); return; }
+  db.collection('leads').doc(leadId).update({
+    simulacaoEscolhida: url || firebase.firestore.FieldValue.delete(),
+    simulacaoEscolhidaEm: url ? hojeISO() : firebase.firestore.FieldValue.delete()
+  }).then(function(){
+    var l = leads.find(function(x){ return x.id===leadId; });
+    if(l){ if(url){ l.simulacaoEscolhida = url; l.simulacaoEscolhidaEm = hojeISO(); } else { delete l.simulacaoEscolhida; delete l.simulacaoEscolhidaEm; } renderHistoricoBox(l); }
+  }).catch(function(e){ alert('Erro: '+e.message); });
 }
 
 /* ============================================================
@@ -3924,6 +3952,128 @@ function dataSituacaoCliente(id){
   if(l && (l.situacaoCliente||'').trim()===atual && l.situacaoClienteEm) return l.situacaoClienteEm;
   return hojeISO();
 }
+
+/* ============================================================
+   10) LEADS DUPLICADOS (mesmo telefone: ex. WhatsApp + simulador) — avisa e junta com 1 clique
+   ============================================================ */
+function chaveTelLead(t){
+  var d = String(t||'').replace(/\D/g,'');
+  if(d.indexOf('55')===0 && d.length>=12) d = d.slice(2);
+  return d.length>=10 ? d.slice(0,2)+d.slice(-8) : '';
+}
+function msLead(l){ var t = l.atualizadoEm || l.criadoEm; return t && t.toMillis ? t.toMillis() : 0; }
+function gruposDuplicados(){
+  var g = {};
+  leads.forEach(function(l){ var k = chaveTelLead(l.telefone); if(k){ (g[k] = g[k] || []).push(l); } });
+  return Object.keys(g).map(function(k){
+    var lista = g[k].filter(function(l){
+      return !g[k].every(function(o){ return o.id===l.id || (l.naoDuplicadoDe||[]).indexOf(o.id)!==-1; });
+    });
+    return lista;
+  }).filter(function(lista){ return lista.length > 1; });
+}
+// destino = o que tem CPF (veio do simulador); senão o mais recente
+function escolherDestino(lista){
+  var comCpf = lista.filter(function(l){ return (l.cpf||'').replace(/\D/g,'').length===11; });
+  var base = comCpf.length ? comCpf : lista;
+  return base.slice().sort(function(a,b){ return msLead(b)-msLead(a); })[0];
+}
+function renderDuplicados(){
+  var box = document.getElementById('duplicadosBox'); if(!box) return;
+  var grupos = gruposDuplicados();
+  if(!grupos.length){ box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="dup-box"><b>⚠️ Possíveis leads duplicados ('+grupos.length+')</b> — mesmo telefone em mais de um lead (ex.: atendimento do WhatsApp + simulação).'
+    + grupos.map(function(lista, i){
+      var dest = escolherDestino(lista);
+      return '<div class="dup-item"><span>'+lista.map(function(l){
+          return esc(l.nome||'sem nome')+' <small>('+esc(l.criadoPor==='assistente_whatsapp'?'WhatsApp':(l.origem==='simulador'?'simulador':'painel'))+(l.id===dest.id?' · fica este':'')+')</small>';
+        }).join(' + ')+' · '+esc(lista[0].telefone||'')+'</span>'
+        +'<span class="dup-acoes"><button class="btn small" onclick="juntarLeads('+i+')">Juntar</button>'
+        +'<button class="btn small secondary" onclick="naoDuplicado('+i+')">Não são a mesma pessoa</button></span></div>';
+    }).join('') + '</div>';
+}
+function vazio(v){ return v===undefined || v===null || v==='' || v===0 || (Array.isArray(v) && !v.length); }
+function juntarLeads(i){
+  var lista = gruposDuplicados()[i]; if(!lista) return;
+  var dest = escolherDestino(lista), outros = lista.filter(function(l){ return l.id!==dest.id; });
+  if(!confirm('Juntar '+lista.length+' leads em "'+(dest.nome||'')+'"?\n\nTudo vai para ele: conversa do WhatsApp, documentos, anotações, histórico, simulações e agenda. Os campos já preenchidos nele NÃO são alterados. Os outros leads serão apagados.')) return;
+  var novo = {};
+  outros.forEach(function(o){
+    Object.keys(o).forEach(function(k){
+      if(['id','criadoEm','atualizadoEm','naoDuplicadoDe'].indexOf(k)!==-1) return;
+      var atual = (k in novo) ? novo[k] : dest[k];
+      if(k==='notas' && o.notas && o.notas!==dest.notas){ novo.notas = (atual ? atual+'\n\n' : '') + o.notas; return; }
+      if(['historico','documentosWhatsApp','snapshotsAtendimento','contratantesExtras'].indexOf(k)!==-1 && Array.isArray(o[k])){
+        novo[k] = (Array.isArray(atual) ? atual : []).concat(o[k]); return;
+      }
+      if(vazio(atual) && !vazio(o[k])) novo[k] = o[k];
+    });
+  });
+  novo.atualizadoEm = firebase.firestore.FieldValue.serverTimestamp();
+  var batch = db.batch();
+  batch.set(db.collection('leads').doc(dest.id), novo, {merge:true});
+  var tarefas = outros.map(function(o){
+    return Promise.all([
+      db.collection('whatsapp_conversas').where('leadId','==',o.id).get(),
+      db.collection('agenda').where('leadId','==',o.id).get()
+    ]).then(function(r){
+      r[0].forEach(function(d){ batch.update(d.ref, {leadId: dest.id}); });
+      r[1].forEach(function(d){ batch.update(d.ref, {leadId: dest.id, leadNome: dest.nome||''}); });
+      batch.delete(db.collection('leads').doc(o.id));
+    });
+  });
+  Promise.all(tarefas).then(function(){ return batch.commit(); })
+    .then(function(){ alert('Pronto! Os leads foram juntados em "'+(dest.nome||'')+'".'); carregarLeads(); carregarAgendamentos(); })
+    .catch(function(e){ alert('Erro ao juntar: '+e.message+'\nNada foi apagado.'); });
+}
+function naoDuplicado(i){
+  var lista = gruposDuplicados()[i]; if(!lista) return;
+  var ids = lista.map(function(l){ return l.id; });
+  var batch = db.batch();
+  lista.forEach(function(l){ batch.update(db.collection('leads').doc(l.id), {naoDuplicadoDe: firebase.firestore.FieldValue.arrayUnion.apply(null, ids.filter(function(x){ return x!==l.id; }))}); });
+  batch.commit().then(carregarLeads).catch(function(e){ alert('Erro: '+e.message); });
+}
+
+
+/* ===== Simulação aprovada pela Caixa ===== */
+function fmtRS(v){ return (v===null||v===undefined||v==='') ? '—' : 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function renderCaixaBox(lead){
+  var box = document.getElementById('caixaBox'), cont = document.getElementById('caixaConteudo');
+  if(!lead || !lead.id){ box.style.display='none'; return; }
+  box.style.display='block';
+  var c = lead.simulacaoCaixa;
+  var botao = '<button class="btn small'+(c?' secondary':'')+'" style="margin-top:8px" onclick="document.getElementById(\'caixaArquivo\').click()">'+(c?'Trocar arquivo':'📎 Enviar simulação da Caixa (PDF ou foto)')+'</button>';
+  if(!c){ cont.innerHTML = '<div style="font-size:12px;color:var(--mut)">Quando a Caixa aprovar, envie aqui. O assistente passa a usar estes valores como os oficiais.</div>'+botao; return; }
+  cont.innerHTML = '<div class="msg-box" style="border-color:#22c55e">'
+    + '<div>Valor do imóvel: <b>'+fmtRS(c.valorImovel)+'</b> · Financiado: <b>'+fmtRS(c.valorFinanciado)+'</b> · Subsídio: <b>'+fmtRS(c.subsidio)+'</b></div>'
+    + '<div>Entrada: <b>'+fmtRS(c.entrada)+'</b> · Parcela inicial: <b>'+fmtRS(c.parcelaInicial)+'</b></div>'
+    + '<div style="font-size:12px;color:var(--mut);margin-top:4px">'+(c.prazoMeses?c.prazoMeses+' meses · ':'')+(c.taxaJurosAnual?c.taxaJurosAnual+'% a.a. · ':'')+(c.sistemaAmortizacao||'')+(c.dataSimulacao?' · simulação de '+esc(c.dataSimulacao):'')+'</div>'
+    + (c.observacao?'<div style="font-size:12px;margin-top:4px">'+esc(c.observacao)+'</div>':'')
+    + '<div style="font-size:12px;margin-top:6px"><a href="#" onclick="abrirArquivoWhats(\''+esc(c.arquivo)+'\');return false">abrir arquivo</a> · enviado em '+fmtData(c.enviadoEm)+' · <span style="color:#fdba74">confira os valores lidos pela IA</span></div>'
+    + '</div>'+botao;
+}
+function enviarSimulacaoCaixa(input){
+  var arq = input.files && input.files[0]; input.value=''; if(!arq) return;
+  var leadId = document.getElementById('leadId').value;
+  if(!leadId){ alert('Salve o lead antes de enviar a simulação.'); return; }
+  var user = firebase.auth().currentUser; if(!user){ alert('Faça login novamente.'); return; }
+  var ext = (arq.name.split('.').pop()||'pdf').toLowerCase().replace(/[^a-z0-9]/g,'');
+  var caminho = 'simulacoes_caixa/'+leadId+'/'+Date.now()+'.'+ext;
+  var cont = document.getElementById('caixaConteudo');
+  cont.innerHTML = '<div style="font-size:13px;color:var(--mut)">⏳ Enviando e lendo a simulação... (até 1 minuto)</div>';
+  firebase.storage().ref(caminho).put(arq, {contentType: arq.type||'application/pdf'})
+    .then(function(){ return user.getIdToken(); })
+    .then(function(token){
+      return fetch(CAIXA_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({idToken: token, leadId: leadId, caminho: caminho})});
+    })
+    .then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.erro||('erro '+r.status)); return d; }); })
+    .then(function(d){
+      var l = leads.find(function(x){ return x.id===leadId; });
+      if(l){ l.simulacaoCaixa = d.simulacaoCaixa; renderCaixaBox(l); }
+    })
+    .catch(function(e){ alert('Não foi possível enviar/ler a simulação: '+e.message); var l = leads.find(function(x){ return x.id===leadId; }); renderCaixaBox(l||{id:leadId}); });
+}
+
 function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 
 if('Notification' in window && Notification.permission==='granted' && localStorage.getItem('cf_notif_ativas')==='1'){
