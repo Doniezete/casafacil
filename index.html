@@ -414,6 +414,7 @@ function voltarEtapa(){
 
 function salvarAtendimento(){
   try {
+    window._obsAtendimento = (prompt('Observação para este atendimento (opcional, ex.: com muro e garagem).\nDeixe em branco ou toque em Cancelar para salvar sem observação:','')||'').trim().slice(0,120);
     var campos = ['nome','cpf','nascimento','profissao','telefone','rua','bairro','cep','cidade_cliente','renda','vfin','vsub','vent','vdoc','vter','t_lote','t_quadra','t_area','t_bairro','t_cidade'];
     var selects = ['civil','dep','uf_cliente','fgts','cidade_atend','tem_terreno','terreno'];
     var backup = {};
@@ -464,34 +465,26 @@ function salvarAtendimento(){
 /* Manda uma cópia do atendimento pro Storage do Firebase e guarda o link
    dentro do cadastro do lead, pra você acessar depois direto pelo painel. */
 function montarEntradaSnapshot(downloadUrl, nomeArq){
-  // Entrada = link do arquivo + resumo com os números principais da simulação,
-  // pra outros sistemas (ex.: assistente do WhatsApp) lerem sem abrir o HTML.
+  // Entrada = link do arquivo + resumo com os números principais da simulação
+  // (campos planos, números puros sem "R$" nem separador de milhar), pra outros
+  // sistemas (ex.: assistente do WhatsApp) lerem sem abrir o HTML.
   var e = { url: downloadUrl, nomeArquivo: nomeArq, data: new Date().toISOString().slice(0,10) };
   try{
     var d = (typeof D!=='undefined' && D && D.nome) ? D : null;
     if(d){
       var est = d.est || {};
-      e.resumo = {
-        renda: d.renda||0,
-        dependentes: d.dep||'',
-        usaFgts: d.fgts||'',
-        faixa: est.faixa||'',
-        financiamento: (d.fin>0?d.fin:est.fin)||0,
-        subsidio: d.sub||0,
-        entrada: d.ent||0,
-        valorTerreno: d.ter||0,
-        documentacao: d.doc_val||0,
-        verbaTotal: d.verba||0,
-        areaEstimada: d.area||0,
-        quartos: d.quartos||0,
-        modelo: d.mod||'',
-        parcelaInicial: d.pmt_first||0,
-        parcelaFinal: d.pmt_last||0,
-        prazoMeses: d.prazo||0,
-        taxa: est.taxa||0,
-        temTerreno: d.tem_terreno||'',
-        cidadeAtendimento: d.cidade_atend||''
-      };
+      var n2 = function(v){ v = Number(v)||0; return Math.round(v*100)/100; };
+      var fx = String(est.faixa||'');
+      var mf = fx.match(/^Faixa\s*\d+/i);
+      var imovelEl = document.getElementById('val_imovel_ref');
+      e.renda = n2(d.renda);
+      e.faixa = mf ? mf[0] : fx;
+      e.valorImovel = imovelEl ? n2(parseM(imovelEl)) : 0;
+      e.entrada = n2(d.ent);
+      e.financiamento = n2(d.fin>0 ? d.fin : est.fin);
+      e.parcela = n2(d.pmt_first);
+      var obs = (window._obsAtendimento||'').trim();
+      if(obs) e.observacao = obs;
     }
   }catch(err){ console.warn('Resumo do atendimento nao gravado:', err.message); }
   return e;
