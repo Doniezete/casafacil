@@ -143,6 +143,12 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
 .w-auto{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--tx2);background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;margin:6px 0 4px}
 .w-auto select{background:var(--bg2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:6px 8px;font:inherit}
 .w-ok{font-size:13px;color:#6ee7b7;margin-top:6px}
+.w-barra{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px}
+.w-tab{width:100%;border-collapse:collapse;font-size:13px;color:var(--tx2)}
+.w-tab th,.w-tab td{border-bottom:1px solid var(--bd);padding:7px 8px;text-align:left;vertical-align:top}
+.w-tab th{font-size:11.5px;color:var(--mut);font-weight:700}
+.w-tab .w-min{color:#6ee7b7;font-weight:700}
+.w-tab .w-tot td{font-weight:700;color:var(--tx)}
 </style>
 </head>
 <body>
@@ -228,6 +234,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
   </div>
 
   <div id="viewWhats" style="display:none">
+    <div class="w-barra"><button class="btn small secondary" onclick="abrirIndicacao()">🏡 Nova indicação de terreno</button><button class="btn small secondary" onclick="abrirCotacoes()">📦 Cotações com fornecedores</button></div>
     <div class="w-auto" id="whatsAutoGlobal"></div>
     <div class="w-filtros" id="whatsFiltros"></div>
     <div class="w-layout">
@@ -782,6 +789,8 @@ function carregarAgendamentos(){
     snap.forEach(function(doc){ agendamentos.push(Object.assign({id:doc.id}, doc.data())); });
     renderCalendario();
     render();
+    renderWhatsBadge();
+    if(viewAtual==='whats') renderWhats();
     checkAvisos();
     processarTarefasAtrasadas();
   }).catch(function(err){ console.error(err); alert('Erro ao carregar agenda: '+err.message); });
@@ -795,7 +804,7 @@ function mudarView(v){
   document.getElementById('viewAgenda').style.display = v==='agenda' ? '' : 'none';
   document.getElementById('tabWhats').classList.toggle('active', v==='whats');
   document.getElementById('viewWhats').style.display = v==='whats' ? '' : 'none';
-  if(v==='whats'){ iniciarWhats(); iniciarConfigWhats(); renderAutoGlobal(); renderWhats(); }
+  if(v==='whats'){ if(agendamentos.length===0) carregarAgendamentos(); iniciarWhats(); iniciarConfigWhats(); renderAutoGlobal(); renderWhats(); }
   if(v==='agenda'){
     if(!diaSelecionado) diaSelecionado=hojeISO();
     if(agendamentos.length===0) carregarAgendamentos(); else renderCalendario();
@@ -3808,7 +3817,8 @@ function nomeConv(c){
 }
 function renderWhatsBadge(){
   var b = document.getElementById('whatsBadge'); if(!b) return;
-  b.textContent = whatsConversas.length || ''; b.style.display = whatsConversas.length ? '' : 'none';
+  var n = whatsConversas.length + retornosAgenda().length;
+  b.textContent = n || ''; b.style.display = n ? '' : 'none';
 }
 function setWhatsFiltro(f){
   whatsFiltro = f;
@@ -3830,6 +3840,8 @@ function renderWhats(){
   var cont = { todos: whatsConversas.length };
   whatsConversas.forEach(function(c){ var k = tipoConv(c).cls; cont[k] = (cont[k]||0) + 1; });
   cont.historico = whatsHistorico.length || '';
+  var rets = retornosAgenda();
+  cont.todos += rets.length; cont['wt-roxo'] = (cont['wt-roxo']||0) + rets.length;
   var chips = [['todos','Tudo'],['wt-laranja','Pediu atendimento'],['wt-verde','Novo lead'],['wt-azul','Cliente em andamento'],['wt-roxo','Retorno agendado'],['historico','🗂️ Todas as conversas de clientes']];
   document.getElementById('whatsFiltros').innerHTML = chips.map(function(ch){
     var k = ch[0];
@@ -3839,12 +3851,13 @@ function renderWhats(){
   if(whatsFiltro==='historico'){ renderHistoricoWhats(); return; }
   var lista = whatsConversas.filter(function(c){ return whatsFiltro==='todos' || tipoConv(c).cls===whatsFiltro; });
   var el = document.getElementById('whatsLista');
+  var htmlRets = (whatsFiltro==='todos' || whatsFiltro==='wt-roxo') ? rets.map(cardRetorno).join('') : '';
   if(whatsSelecionado && whatsFiltro!=='historico' && !acharConvWhats(whatsSelecionado)){
     whatsSelecionado = null;
     document.getElementById('whatsDetalhe').innerHTML = '<div class="w-vazio">Esta conversa foi respondida e saiu da lista. ✅</div>';
   }
-  if(!lista.length){ el.innerHTML = '<div class="w-vazio">Nada esperando por você aqui. 🎉</div>'; return; }
-  el.innerHTML = lista.map(function(c){
+  if(!lista.length && !htmlRets){ el.innerHTML = '<div class="w-vazio">Nada esperando por você aqui. 🎉</div>'; return; }
+  el.innerHTML = htmlRets + lista.map(function(c){
     var tp = tipoConv(c), sug = c.sugestao || {}, extra = '';
     if((c.aguardando||{}).tipo==='novo_lead' && c.aguardando.temperatura) extra = ' · '+c.aguardando.temperatura;
     var linha = sug.resumo || c.ultimoTexto || '';
@@ -3855,7 +3868,7 @@ function renderWhats(){
       +(sug.precisaResponder===false ? '<span class="w-tag w-cinza">Talvez não precise responder</span>' : '')
       +'</div>';
   }).join('');
-  if(!whatsSelecionado && !document.getElementById('whatsTexto')) document.getElementById('whatsDetalhe').innerHTML = '<div class="w-vazio">Selecione uma conversa à esquerda.</div>';
+  if(!whatsSelecionado && !whatsPainel && !document.getElementById('whatsTexto')) document.getElementById('whatsDetalhe').innerHTML = '<div class="w-vazio">Selecione uma conversa à esquerda.</div>';
 }
 function renderHistoricoWhats(){
   var el = document.getElementById('whatsLista');
@@ -3869,7 +3882,7 @@ function renderHistoricoWhats(){
   }).join('');
 }
 function abrirWhats(id){
-  whatsSelecionado = id; whatsEditado = false; renderWhats();
+  whatsPainel = null; whatsSelecionado = id; whatsEditado = false; renderWhats();
   var c = acharConvWhats(id); if(!c) return;
   var tp = tipoConv(c), sug = c.sugestao || {}, docs = c.documentos || [];
   var html = '<div class="w-cab"><div><div class="w-cab-nome">'+esc(nomeConv(c))+' <span class="w-tag '+tp.cls+'">'+esc(tp.rotulo)+'</span></div>'
@@ -4099,6 +4112,299 @@ function enviarSimulacaoCaixa(input){
 
 
 /* ===== Resposta automática (fora do horário comercial, só assuntos seguros) ===== */
+
+/* ============================================================
+   RETORNOS DA AGENDA (🟣), INDICAÇÕES DE TERRENO E COTAÇÕES
+   ============================================================ */
+const PAINEL_URL = "https://whatsapp-webhook-cdyvt26v7q-rj.a.run.app/painel";
+var whatsPainel = null, cotAtual = null, cotRespostas = {};
+function painelApi(acao, dados){
+  return firebase.auth().currentUser.getIdToken().then(function(token){
+    return fetch(PAINEL_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(Object.assign({idToken: token, acao: acao}, dados||{}))});
+  }).then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.erro||('erro '+r.status)); return d; }); });
+}
+function numeroWhats(t){
+  var d = String(t||'').replace(/\D/g,'');
+  if(d.indexOf('55')===0 && d.length>=12) d = d.slice(2);
+  if(d.length===10 && /[6-9]/.test(d[2])) d = d.slice(0,2)+'9'+d.slice(2);
+  return d ? '55'+d : '';
+}
+function abrirNoWhats(tel, texto){
+  if(navigator.clipboard) navigator.clipboard.writeText(texto).catch(function(){});
+  var n = numeroWhats(tel);
+  var celular = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  window.open(celular ? 'https://wa.me/'+n+'?text='+encodeURIComponent(texto)
+                      : 'https://web.whatsapp.com/send?phone='+n+'&text='+encodeURIComponent(texto), '_blank');
+}
+function brl(v){ return (v===null || v===undefined || v==='' || isNaN(Number(v))) ? '—' : Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function dataBR(iso){ return iso ? String(iso).split('-').reverse().join('/') : ''; }
+function amanhaISO(){ var d = new Date(hojeISO()+'T12:00:00'); d.setDate(d.getDate()+1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function detalheWhats(html){ document.getElementById('whatsDetalhe').innerHTML = html; }
+
+/* ---------- 🟣 retornos agendados ---------- */
+function retornosAgenda(){
+  var hoje = hojeISO();
+  return (agendamentos||[]).filter(function(a){
+    return !a.concluido && a.leadId && a.data && a.data <= hoje && (a.tipo==='mensagem' || a.tipo==='retorno');
+  }).sort(function(a,b){ return String(a.data).localeCompare(String(b.data)); });
+}
+function cardRetorno(a){
+  var l = leads.find(function(x){ return x.id===a.leadId; }) || {};
+  var atraso = diasEntre(a.data);
+  return '<div class="w-card'+(whatsPainel==='ret:'+a.id?' sel':'')+'" onclick="abrirRetorno(\''+a.id+'\')">'
+    +'<div class="w-topo"><span class="w-tag wt-roxo">Retorno agendado</span><span class="w-tempo">'+(atraso>0?'atrasado '+atraso+' dia(s)':'hoje'+(a.hora?' '+esc(a.hora):''))+'</span></div>'
+    +'<div class="w-nome">'+esc(l.nome || a.leadNome || 'Cliente')+'</div>'
+    +'<div class="w-linha">'+esc(String(a.obs||a.titulo||'').slice(0,120))+'</div></div>';
+}
+function abrirRetorno(id){
+  var a = agendamentos.find(function(x){ return x.id===id; }); if(!a) return;
+  var l = leads.find(function(x){ return x.id===a.leadId; }) || {};
+  whatsSelecionado = null; whatsPainel = 'ret:'+id; renderWhats();
+  var prep = a.mensagemPreparada || {};
+  var atraso = diasEntre(a.data);
+  detalheWhats('<div class="w-cab"><div><div class="w-cab-nome">'+esc(l.nome||a.leadNome||'Cliente')+' <span class="w-tag wt-roxo">Retorno agendado</span></div>'
+    +'<div class="w-sub">'+esc(l.telefone||'sem telefone')+' · agendado para '+dataBR(a.data)+(a.hora?' '+esc(a.hora):'')+(atraso>0?' (atrasado '+atraso+' dia(s))':'')+'</div></div>'
+    +(l.id?'<button class="btn small secondary" onclick="abrirLeadPorIdWhats(\''+l.id+'\')">Abrir ficha do lead</button>':'')+'</div>'
+    +'<div class="w-secao">ANOTAÇÃO DA AGENDA</div><div class="w-sub" style="font-size:14px;color:var(--tx2)">'+esc(a.obs||a.titulo||'(sem anotação)')+'</div>'
+    +'<div class="w-secao">ÚLTIMAS MENSAGENS</div><div class="w-msgs" id="retMsgs">Carregando...</div>'
+    +'<div class="w-secao">MENSAGEM PARA ENVIAR</div>'
+    +'<textarea id="retTexto" class="w-texto" placeholder="Escreva a mensagem, ou clique em ✨ para a IA preparar...">'+esc(prep.texto||'')+'</textarea>'
+    +(prep.observacao?'<div class="w-sub" style="color:#fdba74">Atenção: '+esc(prep.observacao)+'</div>':'')
+    +'<div class="w-acoes"><button class="btn" onclick="enviarRetorno(\''+id+'\')">📋 Copiar e abrir no WhatsApp (grátis)</button>'
+    +'<button class="btn secondary" id="btnRet" onclick="prepararRetorno(\''+id+'\')">✨ '+(prep.texto?'Preparar outra':'Preparar mensagem com IA')+'</button>'
+    +'<button class="btn secondary" onclick="feitoRetorno(\''+id+'\')">✅ Feito</button>'
+    +'<button class="btn secondary" onclick="adiarRetorno(\''+id+'\')">⏭ Adiar para amanhã</button></div>'
+    +'<div class="w-dica">Depois de enviar, clique em "✅ Feito" para tirar o retorno da lista.</div>');
+  carregarMsgsRetorno(l.telefone);
+}
+function carregarMsgsRetorno(tel){
+  var n = numeroWhats(tel), ids = n ? [n] : [];
+  if(n.length===13) ids.push(n.slice(0,4)+n.slice(5));
+  var box = function(){ return document.getElementById('retMsgs'); };
+  function tentar(i){
+    if(i>=ids.length){ if(box()) box().innerHTML = '<div class="w-sub">Nenhuma conversa guardada com este cliente.</div>'; return; }
+    db.collection('whatsapp_conversas').doc(ids[i]).collection('mensagens').orderBy('enviadaEm','desc').limit(10).get().then(function(snap){
+      if(snap.empty) return tentar(i+1);
+      var arr = []; snap.forEach(function(d){ arr.push(d.data()); }); arr.reverse();
+      if(!box()) return;
+      box().innerHTML = arr.map(function(m){
+        var quem = m.de==='cliente' ? 'Cliente' : (m.de==='bot' ? 'Assistente' : 'Você');
+        var t = m.tipo==='audio' ? '🎤 '+(m.transcricao||'(áudio)') : ((m.tipo==='image'||m.tipo==='document') ? '📎 '+((m.analise&&m.analise.descricao)||'arquivo') : (m.texto||''));
+        return '<div class="w-bolha '+(m.de==='cliente'?'esq':'dir')+'"><span class="w-quem">'+quem+' · '+formatarDataHoraWhats(m.enviadaEm)+'</span>'+esc(t).replace(/\n/g,'<br>')+'</div>';
+      }).join('');
+      box().scrollTop = box().scrollHeight;
+    }).catch(function(){ tentar(i+1); });
+  }
+  tentar(0);
+}
+function prepararRetorno(id){
+  var btn = document.getElementById('btnRet'); if(btn){ btn.disabled = true; btn.textContent = '⏳ Preparando...'; }
+  painelApi('retorno', {agendaId: id}).then(function(d){
+    var a = agendamentos.find(function(x){ return x.id===id; });
+    if(a) a.mensagemPreparada = {texto: d.texto, observacao: d.observacao};
+    if(whatsPainel==='ret:'+id) abrirRetorno(id);
+  }).catch(function(e){ alert('Não foi possível preparar a mensagem: '+e.message); if(btn){ btn.disabled = false; btn.textContent = '✨ Preparar mensagem com IA'; } });
+}
+function enviarRetorno(id){
+  var a = agendamentos.find(function(x){ return x.id===id; }); if(!a) return;
+  var l = leads.find(function(x){ return x.id===a.leadId; }) || {};
+  var texto = (document.getElementById('retTexto').value||'').trim();
+  if(!texto){ alert('Escreva a mensagem antes (ou clique em ✨ para a IA preparar).'); return; }
+  if(!l.telefone){ alert('Este lead não tem telefone cadastrado.'); return; }
+  abrirNoWhats(l.telefone, texto);
+}
+function feitoRetorno(id){
+  db.collection('agenda').doc(id).update({concluido:true}).then(function(){
+    whatsPainel = null; detalheWhats('<div class="w-vazio">Retorno concluído. ✅</div>'); carregarAgendamentos();
+  }).catch(function(e){ alert('Erro: '+e.message); });
+}
+function adiarRetorno(id){
+  var a = agendamentos.find(function(x){ return x.id===id; }); if(!a) return;
+  db.collection('agenda').doc(id).update({data: amanhaISO(), vezesRemanejada: (a.vezesRemanejada||0)+1}).then(function(){
+    whatsPainel = null; detalheWhats('<div class="w-vazio">Retorno adiado para amanhã. ⏭</div>'); carregarAgendamentos();
+  }).catch(function(e){ alert('Erro: '+e.message); });
+}
+
+/* ---------- 🏡 indicação da empresa de terrenos ---------- */
+function lerLocal(k){ try { return localStorage.getItem(k) || ''; } catch(e){ return ''; } }
+function gravarLocal(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+var indMsgEditada = false;
+function abrirIndicacao(){
+  whatsSelecionado = null; whatsPainel = 'indicacao'; renderWhats(); indMsgEditada = false;
+  var cidades = ['Vargem Grande do Sul','Santa Cruz das Palmeiras','Itobi'];
+  detalheWhats('<div class="w-cab-nome">🏡 Cliente indicado pela empresa de terrenos</div>'
+    +'<div class="w-sub" style="margin-bottom:14px">Você manda a primeira mensagem. Quando a pessoa responder, o assistente continua a conversa (já sabendo que ela está comprando o lote) e, no final, completa a ficha dela no painel.</div>'
+    +'<div class="linha2"><div class="campo"><label>Nome do cliente *</label><input id="ind_nome" oninput="atualizarMsgIndicacao()"/></div>'
+    +'<div class="campo"><label>Telefone (WhatsApp) *</label><input id="ind_tel" placeholder="(00) 00000-0000" oninput="fmtTel(this)" maxlength="15"/></div></div>'
+    +'<div class="linha2"><div class="campo"><label>Empresa que indicou *</label><input id="ind_empresa" value="'+esc(lerLocal('cf_ind_empresa'))+'" oninput="atualizarMsgIndicacao()"/></div>'
+    +'<div class="campo"><label>Loteamento</label><input id="ind_lote" value="'+esc(lerLocal('cf_ind_lote'))+'" oninput="atualizarMsgIndicacao()"/></div></div>'
+    +'<div class="linha2"><div class="campo"><label>Cidade</label><select id="ind_cidade">'+cidades.map(function(c){ return '<option'+(lerLocal('cf_ind_cidade')===c?' selected':'')+'>'+c+'</option>'; }).join('')+'<option value="">Outra</option></select></div>'
+    +'<div class="campo"><label>Observação (só para a equipe)</label><input id="ind_obs"/></div></div>'
+    +'<div class="campo"><label>Primeira mensagem (pode ajustar)</label><textarea id="ind_msg" class="w-texto" oninput="indMsgEditada=true"></textarea></div>'
+    +'<div class="w-acoes"><button class="btn" onclick="salvarIndicacao()">💾 Salvar e abrir no WhatsApp</button></div>'
+    +'<div class="w-dica">Envie pelo WhatsApp Web ou pelo celular da Casa Fácil (não pelo aplicativo do Windows). Se você mandar mais mensagens antes de a pessoa responder, o assistente continua com ela; depois que ela responder, se você escrever, a conversa passa para você, como sempre.</div>');
+  atualizarMsgIndicacao();
+}
+function atualizarMsgIndicacao(){
+  if(indMsgEditada) return;
+  var nome = (document.getElementById('ind_nome').value||'').trim().split(' ')[0];
+  var emp = (document.getElementById('ind_empresa').value||'').trim() || '[empresa]';
+  var lote = (document.getElementById('ind_lote').value||'').trim();
+  document.getElementById('ind_msg').value = 'Olá'+(nome?', '+nome:'')+'! Tudo bem? 😊 Aqui é o Donizete, da *Casa Fácil*. A '+emp+' me passou o seu contato porque você está adquirindo um lote'+(lote?' no '+lote:'')+'. Nós cuidamos de todo o processo para você construir a sua casa pelo Minha Casa Minha Vida, da documentação até a entrega das chaves. Posso te fazer algumas perguntas rápidas para entender o seu caso?';
+}
+function salvarIndicacao(){
+  var g = function(id){ return (document.getElementById(id).value||'').trim(); };
+  var nome = g('ind_nome'), tel = g('ind_tel'), emp = g('ind_empresa'), lote = g('ind_lote'), cidade = g('ind_cidade'), obs = g('ind_obs'), msg = g('ind_msg');
+  if(!nome || tel.replace(/\D/g,'').length < 10 || !emp){ alert('Preencha nome, telefone e a empresa que indicou.'); return; }
+  if(!msg){ alert('Escreva a primeira mensagem.'); return; }
+  gravarLocal('cf_ind_empresa', emp); gravarLocal('cf_ind_lote', lote); gravarLocal('cf_ind_cidade', cidade);
+  var indicacao = {empresa: emp, loteamento: lote, cidade: cidade, obs: obs, em: hojeISO(), mensagem: msg};
+  var nota = '🏡 Indicado por '+emp+' — comprando lote'+(lote?' no '+lote:'')+(cidade?' ('+cidade+')':'')+'. O assistente do WhatsApp atende quando a pessoa responder à primeira mensagem.'+(obs?'\nObs.: '+obs:'');
+  var digitos = tel.replace(/\D/g,'');
+  var existente = leads.find(function(l){ return String(l.telefone||'').replace(/\D/g,'') === digitos; });
+  var ts = firebase.firestore.FieldValue.serverTimestamp();
+  var p;
+  if(existente){
+    if(!confirm('Já existe um lead com esse telefone ('+existente.nome+'). Marcar esse lead como indicação, para o assistente atender quando a pessoa responder?')) return;
+    p = db.collection('leads').doc(existente.id).set({assistenteAtende: true, indicacao: indicacao, notas: (existente.notas ? existente.notas+'\n\n' : '')+nota,
+      terrenoBairro: existente.terrenoBairro || lote, terrenoCidade: existente.terrenoCidade || cidade, atualizadoEm: ts}, {merge:true});
+  } else {
+    p = db.collection('leads').doc().set({
+      nome: nome, telefone: tel, cpf: '', renda: 0, faixa: '', financiamento: 0, parcela: 0, status: 'aguardando renda',
+      ultimoContato: hojeISO(), proximoContato: null, notas: nota, tipoCliente: 'lead_novo', etapa: 'primeiro_contato', objecao: 'sem_objecao',
+      origem: 'indicacao', resumoAtendimento: '', sugestaoIA: '', historico: [], terrenoBairro: lote, terrenoCidade: cidade,
+      assistenteAtende: true, indicacao: indicacao, criadoPor: 'indicacao_terreno', criadoEm: ts, atualizadoEm: ts
+    });
+  }
+  p.then(function(){
+    abrirNoWhats(tel, msg);
+    carregarLeads();
+    detalheWhats('<div class="w-vazio">✅ Indicação salva e WhatsApp aberto com a mensagem.<br><br>Quando '+esc(nome.split(' ')[0])+' responder, o assistente continua a conversa.<br><br><button class="btn secondary" onclick="abrirIndicacao()">🏡 Cadastrar outra indicação</button></div>');
+  }).catch(function(e){ alert('Erro ao salvar: '+e.message); });
+}
+
+/* ---------- 📦 cotações com fornecedores ---------- */
+function abrirCotacoes(){
+  whatsSelecionado = null; whatsPainel = 'cotacoes'; renderWhats();
+  detalheWhats('<div class="w-cab"><div class="w-cab-nome">📦 Cotações com fornecedores</div><button class="btn small" onclick="novaCotacao()">➕ Nova cotação</button></div>'
+    +'<div class="w-sub" style="margin-bottom:12px">Você envia o pedido para as lojas de material de construção, as respostas chegam aqui sozinhas e a IA monta a comparação.</div>'
+    +'<div id="cotLista" style="display:flex;flex-direction:column;gap:10px"><div class="w-vazio">Carregando...</div></div>');
+  painelApi('listarCotacoes').then(function(d){
+    var el = document.getElementById('cotLista'); if(!el) return;
+    if(!d.cotacoes.length){ el.innerHTML = '<div class="w-vazio">Nenhuma cotação ainda. Clique em "➕ Nova cotação".</div>'; return; }
+    el.innerHTML = d.cotacoes.map(function(c){
+      var env = c.fornecedores.filter(function(f){ return f.enviadaEm; }).length, resp = c.fornecedores.filter(function(f){ return f.respostas; }).length;
+      return '<div class="w-card" onclick="abrirCotacao(\''+c.id+'\')"><div class="w-topo"><span class="w-tag '+(c.status==='aberta'?'wt-verde':'w-cinza')+'" style="margin-top:0">'+(c.status==='aberta'?'Aberta':'Encerrada')+'</span>'
+        +'<span class="w-tempo">'+formatarDataHoraWhats(c.criadaEm)+'</span></div><div class="w-nome">'+esc(c.titulo)+'</div>'
+        +'<div class="w-linha">'+c.fornecedores.length+' fornecedor(es) · '+env+' enviada(s) · '+resp+' respondeu(ram)'+(c.temNovidade?' · <b style="color:#6ee7b7">respostas novas</b>':'')+'</div></div>';
+    }).join('');
+  }).catch(function(e){ var el = document.getElementById('cotLista'); if(el) el.innerHTML = '<div class="w-vazio">Erro: '+esc(e.message)+'</div>'; });
+}
+function novaCotacao(){
+  whatsPainel = 'cotacoes';
+  detalheWhats('<div class="w-cab"><div class="w-cab-nome">➕ Nova cotação</div><button class="btn small secondary" onclick="abrirCotacoes()">← Voltar</button></div>'
+    +'<div class="campo"><label>Nome da cotação (só para você)</label><input id="cot_titulo" placeholder="Ex.: Obra Maria — fundação"/></div>'
+    +'<div class="campo"><label>Materiais (um por linha, com a quantidade) *</label><textarea id="cot_itens" class="w-texto" style="min-height:150px" placeholder="10 sacos de cimento CP-II 50 kg&#10;3 m³ de areia média&#10;20 barras de ferro 3/8"></textarea></div>'
+    +'<div class="campo"><label>Observação para os fornecedores</label><input id="cot_obs" placeholder="Ex.: entrega no bairro São Luiz, em Santa Cruz das Palmeiras"/></div>'
+    +'<div class="w-secao">FORNECEDORES</div><div id="cot_forn" class="w-docs">Buscando contatos com "material de construção" no nome...</div>'
+    +'<div class="linha2" style="margin-top:10px"><div class="campo"><label>Outro fornecedor (nome)</label><input id="cot_extra_nome"/></div>'
+    +'<div class="campo"><label>Telefone</label><input id="cot_extra_tel" placeholder="(00) 00000-0000" oninput="fmtTel(this)" maxlength="15"/></div></div>'
+    +'<div class="w-acoes"><button class="btn" id="btnCriarCot" onclick="criarCotacao()">Criar cotação</button></div>');
+  painelApi('fornecedores').then(function(d){
+    var el = document.getElementById('cot_forn'); if(!el) return;
+    el.innerHTML = d.fornecedores.length ? d.fornecedores.map(function(f, i){
+      return '<label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" class="cot_chk" checked data-nome="'+esc(f.nome)+'" data-tel="'+esc(f.telefone)+'"/> '+esc(f.nome)+' <span class="w-sub" style="margin:0">'+esc(formatarTelWhats(f.telefone))+'</span></label>';
+    }).join('') : '<div class="w-sub">Nenhum contato com "material de construção" no nome foi encontrado entre os '+d.totalContatos+' contatos sincronizados. Use o campo abaixo para adicionar.</div>';
+  }).catch(function(e){ var el = document.getElementById('cot_forn'); if(el) el.textContent = 'Erro ao buscar fornecedores: '+e.message; });
+}
+function criarCotacao(){
+  var itens = (document.getElementById('cot_itens').value||'').trim();
+  var forn = [];
+  document.querySelectorAll('.cot_chk').forEach(function(c){ if(c.checked) forn.push({nome: c.getAttribute('data-nome'), telefone: c.getAttribute('data-tel')}); });
+  var en = (document.getElementById('cot_extra_nome').value||'').trim(), et = (document.getElementById('cot_extra_tel').value||'').trim();
+  if(et.replace(/\D/g,'').length >= 10) forn.push({nome: en || et, telefone: et});
+  if(!itens){ alert('Escreva os materiais.'); return; }
+  if(!forn.length){ alert('Escolha pelo menos um fornecedor.'); return; }
+  var btn = document.getElementById('btnCriarCot'); btn.disabled = true; btn.textContent = '⏳ Criando...';
+  painelApi('criarCotacao', {titulo: document.getElementById('cot_titulo').value, itens: itens, observacao: document.getElementById('cot_obs').value, fornecedores: forn})
+    .then(function(d){ abrirCotacao(d.cotacao.id); })
+    .catch(function(e){ alert('Erro: '+e.message); btn.disabled = false; btn.textContent = 'Criar cotação'; });
+}
+function abrirCotacao(id){
+  whatsPainel = 'cotacoes';
+  detalheWhats('<div class="w-vazio">Carregando cotação...</div>');
+  painelApi('verCotacao', {id: id}).then(function(d){ cotAtual = d.cotacao; cotRespostas = d.respostas || {}; renderCotacao(); })
+    .catch(function(e){ detalheWhats('<div class="w-vazio">Erro: '+esc(e.message)+'</div>'); });
+}
+function renderCotacao(){
+  var c = cotAtual; if(!c) return;
+  var algumaResp = c.fornecedores.some(function(f){ return f.respostas; });
+  var html = '<div class="w-cab"><div><div class="w-cab-nome">'+esc(c.titulo)+' <span class="w-tag '+(c.status==='aberta'?'wt-verde':'w-cinza')+'">'+(c.status==='aberta'?'Aberta':'Encerrada')+'</span></div>'
+    +'<div class="w-sub">Criada '+formatarDataHoraWhats(c.criadaEm)+'</div></div><button class="btn small secondary" onclick="abrirCotacoes()">← Cotações</button></div>'
+    +'<div class="w-secao">MENSAGEM PARA OS FORNECEDORES (pode ajustar)</div>'
+    +'<textarea id="cotMsg" class="w-texto" style="min-height:160px" onchange="painelApi(\'mensagemCotacao\',{id:cotAtual.id,mensagem:this.value}).catch(function(){})">'+esc(c.mensagem)+'</textarea>'
+    +'<div class="w-secao">FORNECEDORES</div><div style="display:flex;flex-direction:column;gap:8px">';
+  html += c.fornecedores.map(function(f){
+    var st = f.respostas ? '<span class="w-tag wt-verde">✅ Respondeu ('+f.respostas+')</span>' : (f.enviadaEm ? '<span class="w-tag wt-azul">📤 Enviada '+formatarDataHoraWhats(f.enviadaEm)+'</span>' : '<span class="w-tag w-cinza" style="margin-top:0">⏳ Não enviada</span>');
+    var resp = (cotRespostas[f.chave]||[]).map(function(r){
+      var t = r.transcricao ? '🎤 '+r.transcricao : (r.texto || '');
+      return '<div class="w-bolha esq" style="max-width:100%">'+(t?esc(t).replace(/\n/g,'<br>'):'')+(r.arquivo?' <a href="#" onclick="abrirArquivoWhats(\''+esc(r.arquivo)+'\');return false">📎 abrir arquivo</a>':(!t?'📎 arquivo':''))+'</div>';
+    }).join('');
+    return '<div class="w-card" style="cursor:default"><div class="w-topo"><div class="w-nome">'+esc(f.nome)+' <span class="w-sub" style="font-weight:400">'+esc(formatarTelWhats(f.telefone))+'</span></div>'+st+'</div>'
+      +(c.status==='aberta'?'<button class="btn small'+(f.enviadaEm?' secondary':'')+'" onclick="enviarCotacaoForn(\''+f.chave+'\')">📋 '+(f.enviadaEm?'Abrir de novo':'Copiar e abrir no WhatsApp')+'</button>':'')
+      +(resp?'<div class="w-msgs" style="margin-top:8px;max-height:200px">'+resp+'</div>':'')+'</div>';
+  }).join('');
+  html += '</div><div class="w-acoes" style="margin-top:14px">'
+    +(algumaResp?'<button class="btn" id="btnComparar" onclick="compararCotacaoPainel()">🤖 '+(c.comparacao?'Comparar de novo':'Comparar respostas com IA')+'</button>':'<span class="w-sub">Quando os fornecedores responderem, as respostas aparecem aqui e você pode pedir a comparação.</span>')
+    +'<button class="btn secondary" onclick="abrirCotacao(cotAtual.id)">🔄 Atualizar</button>'
+    +'<button class="btn secondary" onclick="statusCotacao(\''+(c.status==='aberta'?'encerrarCotacao':'reabrirCotacao')+'\')">'+(c.status==='aberta'?'Encerrar cotação':'Reabrir cotação')+'</button></div>'
+    +'<div id="cotComparacao">'+(c.comparacao?htmlComparacao(c.comparacao):'')+'</div>'
+    +'<div class="w-dica">Envie pelo WhatsApp Web ou pelo celular da Casa Fácil: assim o sistema marca sozinho que a cotação foi enviada. Fotos e PDFs de orçamento também são lidos pela IA.</div>';
+  detalheWhats(html);
+}
+function enviarCotacaoForn(chave){
+  var f = cotAtual.fornecedores.find(function(x){ return x.chave===chave; }); if(!f) return;
+  var texto = (document.getElementById('cotMsg').value||'').trim();
+  abrirNoWhats(f.telefone, texto);
+  if(!f.enviadaEm){ f.enviadaEm = Date.now(); painelApi('marcarEnviada', {id: cotAtual.id, chave: chave}).catch(function(){}); renderCotacao(); }
+}
+function statusCotacao(acao){
+  painelApi(acao, {id: cotAtual.id}).then(function(){ abrirCotacao(cotAtual.id); }).catch(function(e){ alert('Erro: '+e.message); });
+}
+function compararCotacaoPainel(){
+  var btn = document.getElementById('btnComparar'); if(btn){ btn.disabled = true; btn.textContent = '⏳ Comparando (pode levar até 1 minuto)...'; }
+  painelApi('compararCotacao', {id: cotAtual.id}).then(function(d){
+    cotAtual.comparacao = d.comparacao; renderCotacao();
+    var el = document.getElementById('cotComparacao'); if(el) el.scrollIntoView({behavior:'smooth'});
+  }).catch(function(e){ alert('Não foi possível comparar: '+e.message); if(btn){ btn.disabled = false; btn.textContent = '🤖 Comparar respostas com IA'; } });
+}
+function htmlComparacao(cmp){
+  var forns = (cmp.fornecedores||[]).map(function(f){ return f.nome; });
+  (cmp.itens||[]).forEach(function(it){ Object.keys(it.precos||{}).forEach(function(n){ if(forns.indexOf(n)<0) forns.push(n); }); });
+  var h = '<div class="w-secao">COMPARAÇÃO DA IA'+(cmp.geradaEm?' · '+formatarDataHoraWhats(cmp.geradaEm):'')+'</div>';
+  if(cmp.melhorOpcao) h += '<div class="w-ok" style="font-size:14px;margin-bottom:10px">💡 '+esc(cmp.melhorOpcao)+'</div>';
+  h += '<div style="overflow-x:auto"><table class="w-tab"><tr><th>Item</th>'+forns.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join('')+'</tr>';
+  (cmp.itens||[]).forEach(function(it){
+    var vals = forns.map(function(n){ var v = (it.precos||{})[n]; return (v===null||v===undefined||isNaN(Number(v))) ? null : Number(v); });
+    var validos = vals.filter(function(v){ return v!==null; }), menor = validos.length>1 ? Math.min.apply(null, validos) : null;
+    h += '<tr><td>'+esc(it.item)+'</td>'+vals.map(function(v){ return '<td'+(v!==null&&v===menor?' class="w-min"':'')+'>'+brl(v)+'</td>'; }).join('')+'</tr>';
+  });
+  var tot = forns.map(function(n){ var f = (cmp.fornecedores||[]).find(function(x){ return x.nome===n; }); return f && f.total!==null && f.total!==undefined ? Number(f.total) : null; });
+  var tv = tot.filter(function(v){ return v!==null; }), tmin = tv.length>1 ? Math.min.apply(null, tv) : null;
+  h += '<tr class="w-tot"><td>Total</td>'+tot.map(function(v){ return '<td'+(v!==null&&v===tmin?' class="w-min"':'')+'>'+brl(v)+'</td>'; }).join('')+'</tr>';
+  ['frete','prazo','pagamento'].forEach(function(k){
+    var rot = {frete:'Frete', prazo:'Prazo', pagamento:'Pagamento'}[k];
+    h += '<tr><td>'+rot+'</td>'+forns.map(function(n){ var f = (cmp.fornecedores||[]).find(function(x){ return x.nome===n; }) || {}; return '<td>'+esc(f[k]||'—')+'</td>'; }).join('')+'</tr>';
+  });
+  h += '<tr><td>Não cotou</td>'+forns.map(function(n){ var f = (cmp.fornecedores||[]).find(function(x){ return x.nome===n; }) || {}; return '<td>'+esc((f.faltando||[]).join(', ')||'—')+'</td>'; }).join('')+'</tr>';
+  h += '</table></div>';
+  var obs = (cmp.fornecedores||[]).filter(function(f){ return f.obs; });
+  if(obs.length) h += '<div class="w-docs" style="margin-top:10px">'+obs.map(function(f){ return '<div><b>'+esc(f.nome)+':</b> '+esc(f.obs)+'</div>'; }).join('')+'</div>';
+  if((cmp.alertas||[]).length) h += '<div class="w-secao">CONFERIR ANTES DE FECHAR</div><div class="w-docs">'+cmp.alertas.map(function(a){ return '<div>⚠️ '+esc(a)+'</div>'; }).join('')+'</div>';
+  h += '<div class="w-dica">Os valores foram lidos pela IA das mensagens e arquivos: confira no orçamento original antes de fechar.</div>';
+  return h;
+}
+
 var whatsConfig = {respostaAutomatica:false}, whatsConfigUnsub = null;
 function iniciarConfigWhats(){
   if(!db || whatsConfigUnsub) return;
