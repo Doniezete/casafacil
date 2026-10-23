@@ -140,6 +140,9 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
 .dup-item{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--bd2);margin-top:8px}
 .dup-item small{color:var(--mut)}
 .dup-acoes{display:flex;gap:8px}
+.w-auto{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--tx2);background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;margin:6px 0 4px}
+.w-auto select{background:var(--bg2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:6px 8px;font:inherit}
+.w-ok{font-size:13px;color:#6ee7b7;margin-top:6px}
 </style>
 </head>
 <body>
@@ -225,6 +228,7 @@ input.busca{flex:1;min-width:160px;background:var(--card2);border:1px solid var(
   </div>
 
   <div id="viewWhats" style="display:none">
+    <div class="w-auto" id="whatsAutoGlobal"></div>
     <div class="w-filtros" id="whatsFiltros"></div>
     <div class="w-layout">
       <div class="w-col" id="whatsLista"><div class="w-vazio">Carregando...</div></div>
@@ -791,7 +795,7 @@ function mudarView(v){
   document.getElementById('viewAgenda').style.display = v==='agenda' ? '' : 'none';
   document.getElementById('tabWhats').classList.toggle('active', v==='whats');
   document.getElementById('viewWhats').style.display = v==='whats' ? '' : 'none';
-  if(v==='whats'){ iniciarWhats(); renderWhats(); }
+  if(v==='whats'){ iniciarWhats(); iniciarConfigWhats(); renderAutoGlobal(); renderWhats(); }
   if(v==='agenda'){
     if(!diaSelecionado) diaSelecionado=hojeISO();
     if(agendamentos.length===0) carregarAgendamentos(); else renderCalendario();
@@ -3885,11 +3889,16 @@ function abrirWhats(id){
     +'<textarea id="whatsTexto" class="w-texto" oninput="whatsEditado=true" placeholder="Escreva sua mensagem...">'+esc(sug.texto||'')+'</textarea>'
     +(sug.texto ? '<div class="w-sub">Sugestão da IA'+(sug.geradaEm?' · '+haQuanto(sug.geradaEm):'')+'. Confira e ajuste antes de enviar.</div>' : '')
     +(!sug.texto && sug.semSugestaoMotivo ? '<div class="w-sub" style="color:#fdba74">A IA não sugeriu resposta: '+esc(sug.semSugestaoMotivo)+'</div>' : '')
-    +(!sug.texto && !sug.semSugestaoMotivo ? '<div class="w-sub">Ainda não há sugestão para esta conversa. Clique em "✨ Gerar sugestão".</div>' : '')
+    +(sug.enviadaAutomaticamente ? '<div class="w-ok">✅ Esta resposta já foi enviada automaticamente pelo assistente'+(sug.enviadaEm?' ('+haQuanto(sug.enviadaEm)+')':'')+'. Se estiver tudo certo, é só arquivar.</div>' : '')
+    +(!sug.texto && !sug.semSugestaoMotivo ? '<div class="w-sub">Sem sugestão automática (ela não é gerada enquanto você está conversando com o cliente, para economizar). Clique em "✨ Gerar sugestão" se precisar.</div>' : '')
     +'<div class="w-acoes"><button class="btn" onclick="copiarAbrirWhats()">📋 Copiar e abrir no WhatsApp (grátis)</button>'
     +'<button class="btn secondary" id="btnGerarSug" onclick="gerarSugestaoWhats()">✨ '+(sug.texto?'Gerar outra sugestão':'Gerar sugestão')+'</button>'
     +'<button class="btn secondary" onclick="arquivarWhats()">Já respondi / arquivar</button>'
     +(c.modo!=='bot' ? '<button class="btn secondary" onclick="devolverAssistenteWhats()">🤖 Devolver para o assistente</button>' : '')+'</div>'
+    +(c.leadId ? '<div class="w-sub" style="margin-top:10px">🤖 Resposta automática para este cliente: <select onchange="setAutoConversa(this.value)" style="background:var(--bg2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:4px 6px;font:inherit">'
+        +'<option value="padrao"'+(c.respostaAutomatica===undefined?' selected':'')+'>Seguir o padrão</option>'
+        +'<option value="1"'+(c.respostaAutomatica===true?' selected':'')+'>Ligada</option>'
+        +'<option value="0"'+(c.respostaAutomatica===false?' selected':'')+'>Desligada</option></select></div>' : '')
     +'<div class="w-dica">Envie pelo WhatsApp Web ou pelo celular da Casa Fácil — não pelo aplicativo do Windows — para o sistema perceber que você respondeu e tirar o cartão da lista sozinho.</div>';
   document.getElementById('whatsDetalhe').innerHTML = html;
   whatsUltimaMsg[id] = tsMs(c.ultimaMensagemEm);
@@ -4086,6 +4095,34 @@ function enviarSimulacaoCaixa(input){
       if(l){ l.simulacaoCaixa = d.simulacaoCaixa; renderCaixaBox(l); }
     })
     .catch(function(e){ alert('Não foi possível enviar/ler a simulação: '+e.message); var l = leads.find(function(x){ return x.id===leadId; }); renderCaixaBox(l||{id:leadId}); });
+}
+
+
+/* ===== Resposta automática (fora do horário comercial, só assuntos seguros) ===== */
+var whatsConfig = {respostaAutomatica:false}, whatsConfigUnsub = null;
+function iniciarConfigWhats(){
+  if(!db || whatsConfigUnsub) return;
+  whatsConfigUnsub = db.collection('whatsapp_conversas').doc('_config').onSnapshot(function(d){
+    whatsConfig = d.exists ? d.data() : {respostaAutomatica:false}; renderAutoGlobal();
+  }, function(){ renderAutoGlobal(); });
+}
+function renderAutoGlobal(){
+  var el = document.getElementById('whatsAutoGlobal'); if(!el) return;
+  var on = whatsConfig.respostaAutomatica===true;
+  el.innerHTML = '🤖 <b>Resposta automática para clientes do painel:</b> '
+    + '<select onchange="setAutoGlobal(this.value)"><option value="0"'+(on?'':' selected')+'>Desligada</option><option value="1"'+(on?' selected':'')+'>Ligada</option></select>'
+    + '<span style="color:var(--mut)">Só fora do horário comercial (seg–sex 8h–17h, sáb 8h–11h), só assuntos seguros, sempre identificada como assistente e nunca se você conversou com o cliente nas últimas 3 horas.</span>';
+}
+function setAutoGlobal(v){
+  db.collection('whatsapp_conversas').doc('_config').update({respostaAutomatica: v==='1'})
+    .catch(function(e){ alert('Não foi possível salvar: '+e.message+'\n(Se for a primeira vez, aguarde chegar uma mensagem no WhatsApp e tente de novo.)'); renderAutoGlobal(); });
+}
+function setAutoConversa(v){
+  if(!whatsSelecionado) return;
+  var val = v==='padrao' ? firebase.firestore.FieldValue.delete() : (v==='1');
+  db.collection('whatsapp_conversas').doc(whatsSelecionado).update({respostaAutomatica: val})
+    .then(function(){ var c = acharConvWhats(whatsSelecionado); if(c){ if(v==='padrao') delete c.respostaAutomatica; else c.respostaAutomatica = (v==='1'); } })
+    .catch(function(e){ alert('Erro: '+e.message); });
 }
 
 function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
