@@ -3860,11 +3860,13 @@ function renderWhats(){
   el.innerHTML = htmlRets + lista.map(function(c){
     var tp = tipoConv(c), sug = c.sugestao || {}, extra = '';
     if((c.aguardando||{}).tipo==='novo_lead' && c.aguardando.temperatura) extra = ' · '+c.aguardando.temperatura;
+    var hc = (c.aguardando||{}).confirmarHorario ? '<span class="w-tag wt-laranja" style="margin-top:6px">⏰ Confirmar horário: '+esc(dataBR(String(c.aguardando.confirmarHorario).slice(0,10))+String(c.aguardando.confirmarHorario).slice(10))+'</span>' : '';
     var linha = sug.resumo || c.ultimoTexto || '';
     return '<div class="w-card'+(whatsSelecionado===c.id?' sel':'')+'" onclick="abrirWhats(\''+c.id+'\')">'
       +'<div class="w-topo"><span class="w-tag '+tp.cls+'">'+esc(tp.rotulo+extra)+'</span><span class="w-tempo">'+haQuanto(c.aguardando.desde)+'</span></div>'
       +'<div class="w-nome">'+esc(nomeConv(c))+'</div>'
       +'<div class="w-linha">'+esc(String(linha).slice(0,120))+'</div>'
+      +hc
       +(sug.precisaResponder===false ? '<span class="w-tag w-cinza">Talvez não precise responder</span>' : '')
       +'</div>';
   }).join('');
