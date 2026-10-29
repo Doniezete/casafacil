@@ -4000,9 +4000,18 @@ function chaveTelLead(t){
   return d.length>=10 ? d.slice(0,2)+d.slice(-8) : '';
 }
 function msLead(l){ var t = l.atualizadoEm || l.criadoEm; return t && t.toMillis ? t.toMillis() : 0; }
+// telefone de preenchimento (ex.: (99) 99999-9999, (00) 00000-0000, 12345-6789): não serve para achar duplicados
+function telefoneFicticio(t){
+  var d = String(t||'').replace(/\D/g,'');
+  if(d.indexOf('55')===0 && d.length>=12) d = d.slice(2);
+  if(d.length < 10) return true;
+  var num = d.slice(2);
+  if(/^(\d)\1+$/.test(num.replace(/^9/,'')) || /^(\d)\1+$/.test(d)) return true;
+  return ['123456789','12345678','987654321','98765432'].some(function(x){ return num.indexOf(x)!==-1; });
+}
 function gruposDuplicados(){
   var g = {};
-  leads.forEach(function(l){ var k = chaveTelLead(l.telefone); if(k){ (g[k] = g[k] || []).push(l); } });
+  leads.forEach(function(l){ var k = chaveTelLead(l.telefone); if(k && !telefoneFicticio(l.telefone)){ (g[k] = g[k] || []).push(l); } });
   return Object.keys(g).map(function(k){
     var lista = g[k].filter(function(l){
       return !g[k].every(function(o){ return o.id===l.id || (l.naoDuplicadoDe||[]).indexOf(o.id)!==-1; });
