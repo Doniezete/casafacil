@@ -60,8 +60,9 @@ tr.fora td{color:var(--mut);background:#fafafa}
       <div><label>BDI / administração (% sobre os serviços)</label><input type="text" id="bdi" value="" placeholder="ex.: 5,0 (deixe vazio se não houver)"/></div>
       <div><label>BDI máximo aceito (%)</label><input type="text" id="bdimax" value="6,0"/></div>
       <div><label>Folga de segurança nas faixas (pontos %)</label><input type="text" id="margem" value="0,10"/></div>
+      <div><label>Este engenheiro conta o BDI na conta do valor por m²?</label><label style="display:flex;gap:8px;align-items:center;color:var(--tx);font-size:13px;margin-top:6px"><input type="checkbox" id="bdiConta" checked onchange="aoMudarConta()"/> Sim, o BDI entra na conta</label></div>
     </div>
-    <div class="nota">O BDI só deve ser usado se a administração da obra for um custo real cobrado do cliente. Ele fica fora da conta do valor por m² que o engenheiro faz.</div>
+    <div class="nota">O BDI só deve ser usado se a administração da obra for um custo real cobrado do cliente. Cada engenheiro trata isso de um jeito: marque ou desmarque a caixa acima conforme o engenheiro desta obra.</div>
   </div>
 
   <div class="card">
@@ -82,7 +83,7 @@ tr.fora td{color:var(--mut);background:#fafafa}
       <span id="aviso" class="nota" style="align-self:center"></span>
     </div>
     <div style="margin-top:10px"><label style="display:flex;gap:8px;align-items:center;color:var(--tx);font-size:13px"><input type="checkbox" id="usarPesos"/> Usar os valores da coluna "Peso de referência" (de um orçamento anterior deste cliente). Desmarcado, a distribuição parte do meio da faixa de cada item.</label></div>
-    <div class="nota">Itens 1, 19 e 20 não entram na conta do engenheiro: digite o valor real deles na coluna "Valor real". Os itens 6 e 10 ficam sem valor, como na sua planilha, a menos que você digite um valor.</div>
+    <div class="nota">Itens 1, 19 e 20: digite o valor real deles na coluna "Valor real" e marque ou desmarque "entra" conforme o engenheiro desta obra conte ou não esses itens no valor por m² (a maioria conta; alguns, como o da última reprovação, não contam). Os itens 6 e 10 ficam sem valor, como na sua planilha, a menos que você digite um valor.</div>
   </div>
 
   <div id="mensagens"></div>
@@ -92,7 +93,7 @@ tr.fora td{color:var(--mut);background:#fafafa}
 <script>
 // Itens do modelo da planilha (faixas de incidência copiadas da planilha de orçamento) e pesos do orçamento anterior.
 var ITENS = [
- {n:1, nome:"Barracão + ligações provisórias (água/luz) + projetos/aprovações", mn:1.13, mx:3.97, base:3200, fora:true, real:""},
+ {n:1, nome:"Barracão + ligações provisórias (água/luz) + projetos/aprovações", mn:1.13, mx:3.97, base:3200, fixo:true, real:""},
  {n:2, nome:"Infraestrutura (estacas, brocas, baldrames, sapatas)", mn:3.07, mx:7.43, base:7500},
  {n:3, nome:"Supraestrutura (vigas, pilares, cintas, escadas)", mn:12.17, mx:17.67, base:17000},
  {n:4, nome:"Paredes e painéis", mn:4.8, mx:10.67, base:10500},
@@ -110,8 +111,8 @@ var ITENS = [
  {n:16,nome:"Instalações hidráulicas", mn:3.63, mx:4.27, base:4500},
  {n:17,nome:"Instalações: esgoto e águas pluviais", mn:3.65, mx:4.30, base:4600},
  {n:18,nome:"Louças e metais", mn:4.14, mx:4.87, base:5036},
- {n:19,nome:"Complementos (limpeza final e calçada)", mn:0.24, mx:2.29, base:2000, fora:true, real:""},
- {n:20,nome:"Outros (serviços adicionais)", mn:0, mx:10.00, base:0, fora:true, real:""}
+ {n:19,nome:"Complementos (limpeza final e calçada)", mn:0.24, mx:2.29, base:2000, fixo:true, real:""},
+ {n:20,nome:"Outros (serviços adicionais)", mn:0, mx:10.00, base:0, fixo:true, real:""}
 ];
 
 function parseBR(s){ s=String(s==null?'':s).trim(); if(!s) return 0; s=s.replace(/\./g,'').replace(',','.'); var v=parseFloat(s); return isNaN(v)?0:v; }
@@ -119,30 +120,34 @@ function fmt(v){ return (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDi
 function r2(v){ return Math.round(v*100)/100; }
 
 // Núcleo do cálculo (sem tela), para poder testar.
-// itens: [{n, base, mn, mx, fora, real(número ou null)}]
+// itens: [{n, base, mn, mx, fixo, conta, real}]
+//   fixo  = item que você digita o valor (1, 19, 20)
+//   conta = entra na conta do valor por m² DESTE engenheiro
 function calcular(p){
   var T = p.alvo - p.terreno;                 // custo total da obra com BDI
   var S = r2(T/(1+p.bdi/100));                // serviços (sem BDI)
   var bdiVal = r2(T - S);
-  var foraSoma = 0, i, it;
-  for(i=0;i<p.itens.length;i++){ it=p.itens[i]; if(it.fora) foraSoma += (it.real||0); }
-  var C = r2(S - foraSoma);                   // itens que entram na conta do engenheiro
+  var fixSum = 0, fixIn = 0;
+  p.itens.forEach(function(x){ if(x.fixo){ fixSum += (x.real||0); if(x.conta) fixIn += (x.real||0); } });
+  var D = r2(S - fixSum);                     // total que será distribuído entre os demais itens
+  var bdiIn = p.bdiConta ? bdiVal : 0;
+  var C = r2(D + fixIn + bdiIn);              // base da conta DESTE engenheiro
   var teto = p.cub*(1+p.tol/100);
   var tetoTotal = teto*p.area;
   var m = p.margem/100;
-  var res = {T:T,S:S,bdiVal:bdiVal,C:C,teto:teto,tetoTotal:tetoTotal,valores:{},avisos:[],ok:true};
-  // limites de cada item: peso mínimo sobre o total da planilha (S) e máximo sobre a conta do engenheiro (C)
-  var conta = p.itens.filter(function(x){return !x.fora;});
-  conta.forEach(function(x){
-    x.lo = x.mn>0 ? (x.mn/100+m)*S : 0;
-    x.hi = (x.mx/100-m)*C;
+  var res = {T:T,S:S,bdiVal:bdiVal,D:D,C:C,fixSum:fixSum,fixIn:fixIn,bdiIn:bdiIn,teto:teto,tetoTotal:tetoTotal,valores:{},avisos:[],ok:true};
+  var dist = p.itens.filter(function(x){return !x.fixo;});
+  // limites: o peso de cada item vale sobre a base do engenheiro (C) e sobre o total da planilha (S)
+  dist.forEach(function(x){
+    x.lo = x.mn>0 ? (x.mn/100+m)*Math.max(C,S) : 0;
+    x.hi = (x.mx/100-m)*Math.min(C,S);
     if(x.lo>x.hi){ x.lo = x.hi = (x.lo+x.hi)/2; }
   });
-  var travados = {}, restante = C;
-  conta.forEach(function(x){ if(x.real>0){ travados[x.n]=x.real; restante-=x.real; } });
-  var livres = conta.filter(function(x){ return x.base>0 && !(x.n in travados); });
+  var travados = {}, restante = D;
+  dist.forEach(function(x){ if(x.real>0){ travados[x.n]=x.real; restante-=x.real; } });
+  var livres = dist.filter(function(x){ return x.base>0 && !(x.n in travados); });
   var fixos = {}, v = {};
-  conta.forEach(function(x){ v[x.n] = (x.n in travados) ? travados[x.n] : 0; });
+  dist.forEach(function(x){ v[x.n] = (x.n in travados) ? travados[x.n] : 0; });
   for(var k=0;k<100;k++){
     var ativos = livres.filter(function(x){return !(x.n in fixos);});
     var sb = ativos.reduce(function(a,x){return a+x.base;},0);
@@ -158,37 +163,43 @@ function calcular(p){
   }
   Object.keys(v).forEach(function(n){ v[n]=r2(v[n]); });
   var soma = 0; Object.keys(v).forEach(function(n){ soma+=v[n]; });
-  var dif = r2(C-soma);
+  var dif = r2(D-soma);
   if(dif!==0 && livres.length){
     var cand = livres.filter(function(x){return !(x.n in fixos);}); if(!cand.length) cand=livres;
     cand.sort(function(a,b){ return dif>0 ? (b.hi-v[b.n])-(a.hi-v[a.n]) : (v[b.n]-b.lo)-(v[a.n]-a.lo); });
     v[cand[0].n] = r2(v[cand[0].n]+dif);
   }
-  p.itens.forEach(function(x){ res.valores[x.n] = x.fora ? (x.real||0) : (v[x.n]||0); });
+  p.itens.forEach(function(x){ res.valores[x.n] = x.fixo ? (x.real||0) : (v[x.n]||0); });
   // avisos
   var somaLo = livres.reduce(function(a,x){return a+x.lo;},0), somaHi = livres.reduce(function(a,x){return a+x.hi;},0);
-  var travSoma = 0; for(var q in travados) travSoma += travados[q];
   if(livres.length && (restante < somaLo-0.01 || restante > somaHi+0.01)){
     res.ok=false; res.avisos.push({t:'bad',m:'Com esse total não dá para respeitar todas as faixas ao mesmo tempo. Revise o total, o BDI, a folga de segurança ou os valores reais digitados.'});
   }
   if(C/p.area > teto + 1e-9){
     res.ok=false;
     var excesso = r2(C - tetoTotal);
-    var bdiNec = (T/(tetoTotal+foraSoma)-1)*100;
-    var m1 = 'Acima do teto: a obra na conta do engenheiro dá R$ '+fmt(C/p.area)+'/m², e o teto é R$ '+fmt(teto)+'/m² (excesso de R$ '+fmt(excesso)+' no total).';
-    if(bdiNec <= p.bdimax) m1 += ' Para fechar o total, o BDI teria de ser de pelo menos '+fmt(bdiNec)+'%.';
-    else m1 += ' Mesmo com o BDI no máximo ('+fmt(p.bdimax)+'%) o total não fecha: ou o total de produção cai, ou o cliente complementa a diferença.';
+    var m1 = 'Acima do teto: a obra na conta deste engenheiro dá R$ '+fmt(C/p.area)+'/m², e o teto é R$ '+fmt(teto)+'/m² (excesso de R$ '+fmt(excesso)+' no total).';
+    if(p.bdiConta){
+      m1 += ' Como este engenheiro conta o BDI, aumentar o BDI não ajuda: ou o total de produção cai, ou o cliente complementa a diferença.';
+    } else {
+      var den = tetoTotal + fixSum - fixIn;
+      var bdiNec = den>0 ? (T/den-1)*100 : Infinity;
+      if(bdiNec <= p.bdimax) m1 += ' Para fechar o total, o BDI teria de ser de pelo menos '+fmt(bdiNec)+'%.';
+      else m1 += ' Mesmo com o BDI no máximo ('+fmt(p.bdimax)+'%) o total não fecha: ou o total de produção cai, ou o cliente complementa a diferença.';
+    }
     res.avisos.push({t:'bad',m:m1});
   }
   if(p.bdi > p.bdimax){ res.ok=false; res.avisos.push({t:'bad',m:'O BDI informado ('+fmt(p.bdi)+'%) passa do máximo aceito ('+fmt(p.bdimax)+'%).'}); }
   // situação por item
   res.situacao = {}; res.pesoC = {}; res.pesoS = {};
+  var e = 1e-9;
   p.itens.forEach(function(x){
     var val = res.valores[x.n], pc = C>0?val/C*100:0, ps = S>0?val/S*100:0;
     res.pesoC[x.n]=pc; res.pesoS[x.n]=ps;
-    if(x.fora){ res.situacao[x.n] = (val===0) ? 'fora' : ((ps>=x.mn-1e-9 && ps<=x.mx+1e-9)?'fora-ok':'fora-bad'); }
+    var inS = (ps>=x.mn-e && ps<=x.mx+e), inC = (pc>=x.mn-e && pc<=x.mx+e);
+    if(x.fixo && !x.conta){ res.situacao[x.n] = (val===0) ? 'fora' : (inS?'fora-ok':'fora-bad'); }
     else if(val===0){ res.situacao[x.n]='sem'; }
-    else { res.situacao[x.n] = (pc<=x.mx+1e-9 && ps>=x.mn-1e-9) ? 'ok' : 'bad'; }
+    else { res.situacao[x.n] = (inS && inC) ? 'ok' : 'bad'; }
   });
   res.total = r2(S + bdiVal); res.producao = r2(res.total + p.terreno);
   return res;
@@ -199,22 +210,37 @@ var ULTIMO = null;
 function montarTabela(){
   var tb = document.querySelector('#tab tbody'); tb.innerHTML='';
   ITENS.forEach(function(x){
-    var tr = document.createElement('tr'); if(x.fora) tr.className='fora'; tr.id='lin'+x.n;
-    tr.innerHTML = '<td>'+x.n+'</td><td class="l">'+x.nome+(x.fora?' <span class="pill p-mut">fora da conta</span>':'')+'</td>'
-      +'<td><input type="text" id="b'+x.n+'" value="" '+(x.fora?'disabled':'')+'/></td>'
+    var tr = document.createElement('tr'); tr.id='lin'+x.n;
+    var col3 = x.fixo
+      ? '<label style="display:inline-flex;gap:6px;align-items:center;color:var(--tx);font-size:13px"><input type="checkbox" id="c'+x.n+'" checked onchange="aoMudarConta()"/> entra</label>'
+      : '<span class="pill p-ok">sim</span>';
+    tr.innerHTML = '<td>'+x.n+'</td><td class="l">'+x.nome+' <span class="pill p-mut" id="tag'+x.n+'" style="display:none">fora da conta</span></td>'
+      +'<td style="text-align:center">'+col3+'</td>'
+      +'<td><input type="text" id="b'+x.n+'" value="" '+(x.fixo?'disabled':'')+'/></td>'
       +'<td>'+fmt(x.mn)+'</td><td>'+fmt(x.mx)+'</td>'
-      +'<td><input type="text" id="r'+x.n+'" value="'+(x.real||'')+'" placeholder="'+(x.fora?'valor real':'opcional')+'"/></td>'
+      +'<td><input type="text" id="r'+x.n+'" value="'+(x.real||'')+'" placeholder="'+(x.fixo?'valor real':'opcional')+'"/></td>'
       +'<td id="g'+x.n+'"><b>-</b></td><td id="pc'+x.n+'">-</td><td id="ps'+x.n+'">-</td><td id="s'+x.n+'">-</td>';
     tb.appendChild(tr);
   });
 }
+function contaItem(x){ return x.fixo ? document.getElementById('c'+x.n).checked : true; }
+function atualizarLinhas(){
+  ITENS.forEach(function(x){
+    if(!x.fixo) return;
+    var fora = !contaItem(x);
+    document.getElementById('lin'+x.n).className = fora ? 'fora' : '';
+    document.getElementById('tag'+x.n).style.display = fora ? '' : 'none';
+  });
+}
+function aoMudarConta(){ atualizarLinhas(); if(ULTIMO) gerar(); }
 function lerParametros(){
   var p = {area:parseBR(v('area')), terreno:parseBR(v('terreno')), alvo:parseBR(v('alvo')), cub:parseBR(v('cub')), tol:parseBR(v('tol')),
-           bdi:parseBR(v('bdi')), bdimax:parseBR(v('bdimax')), margem:parseBR(v('margem')), itens:[]};
+           bdi:parseBR(v('bdi')), bdimax:parseBR(v('bdimax')), margem:parseBR(v('margem')),
+           bdiConta:document.getElementById('bdiConta').checked, itens:[]};
   ITENS.forEach(function(x){
     var usar = document.getElementById('usarPesos').checked, b = 0;
-    if(!x.fora){ b = usar ? parseBR(v('b'+x.n)) : ((x.n===6||x.n===10) ? 0 : (x.mn+x.mx)/2); }
-    p.itens.push({n:x.n, mn:x.mn, mx:x.mx, fora:!!x.fora, base:b, real: parseBR(v('r'+x.n))});
+    if(!x.fixo){ b = usar ? parseBR(v('b'+x.n)) : ((x.n===6||x.n===10) ? 0 : (x.mn+x.mx)/2); }
+    p.itens.push({n:x.n, mn:x.mn, mx:x.mx, fixo:!!x.fixo, conta:contaItem(x), base:b, real: parseBR(v('r'+x.n))});
   });
   return p;
 }
@@ -225,22 +251,27 @@ function pill(t){
 }
 function gerar(){
   var p = lerParametros();
+  atualizarLinhas();
   if(!(p.area>0) || !(p.terreno>0) || !(p.alvo>p.terreno) || !(p.cub>0)){ document.getElementById('aviso').textContent='Preencha área, valor do terreno, total de produção e CUB (o total precisa ser maior que o terreno).'; ULTIMO=null; return; }
   document.getElementById('aviso').textContent='';
   var r = calcular(p); ULTIMO = r;
   ITENS.forEach(function(x){
-    var val = r.valores[x.n];
+    var val = r.valores[x.n], naConta = p.itens.filter(function(i){return i.n===x.n;})[0];
+    var contaEste = !x.fixo || naConta.conta;
     document.getElementById('g'+x.n).innerHTML = '<b>'+(val? fmt(val):'-')+'</b>';
-    document.getElementById('pc'+x.n).textContent = x.fora ? '-' : (val? fmt(r.pesoC[x.n])+'%':'-');
+    document.getElementById('pc'+x.n).textContent = !contaEste ? '-' : (val? fmt(r.pesoC[x.n])+'%':'-');
     document.getElementById('ps'+x.n).textContent = val? fmt(r.pesoS[x.n])+'%':'-';
     document.getElementById('s'+x.n).innerHTML = pill(r.situacao[x.n]);
   });
   var m = document.getElementById('mensagens'); m.innerHTML='';
   r.avisos.forEach(function(a){ m.innerHTML += '<div class="msg '+a.t+'">'+a.m+'</div>'; });
   if(r.ok) m.innerHTML = '<div class="msg ok">Dentro do teto e de todas as faixas de incidência.</div>';
+  var inc = ['02 a 18'];
+  p.itens.forEach(function(i){ if(i.fixo && i.conta) inc.push(String(i.n)); });
+  if(p.bdiConta) inc.push('BDI');
   var porM2 = r.C/p.area;
   var k = [
-    ['Itens na conta do engenheiro (02 a 18)', 'R$ '+fmt(r.C)],
+    ['Base na conta deste engenheiro (itens '+inc.join(' + ')+')', 'R$ '+fmt(r.C)],
     ['Valor por m² na conta dele', 'R$ '+fmt(porM2)],
     ['Teto por m²', 'R$ '+fmt(r.teto)],
     ['Folga (+) ou excesso (−) no total', 'R$ '+fmt(r.tetoTotal - r.C)],
